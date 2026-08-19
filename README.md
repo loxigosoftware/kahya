@@ -44,7 +44,7 @@ file in [`agents/`](agents/). That buys three things:
 
 ## Requirements
 
-- Python 3.10+ (stdlib only — no pip installs)
+- Python 3.9+ (stdlib only — no pip installs; verified on 3.9 and 3.12)
 - The amele binary (one static file, ~7.5 MB)
 - A Telegram bot token (from @BotFather) and your chat id
 - An LLM endpoint: local Ollama or any OpenAI-compatible API

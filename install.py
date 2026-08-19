@@ -7,14 +7,16 @@ Usage:
     python3 install.py --help
 
 What it does:
-  1. detects the platform and offers an explicit environment list
+  1. checks the Python version (3.9+); if too old, prints the exact
+     install command for your platform/distro and exits
+  2. detects the platform and offers an explicit environment list
      (the amele asset list — linux, macOS, Windows, Raspberry Pi, …)
-  2. downloads the amele binary for that platform from GitHub and
+  3. downloads the amele binary for that platform from GitHub and
      verifies it against SHA256SUMS
-  3. creates .env from .env.example if missing
-  4. port-tests the web panel port (8080 by default); if taken, picks
+  4. creates .env from .env.example if missing
+  5. port-tests the web panel port (8080 by default); if taken, picks
      the next free one and writes it to .env
-  5. prints the LAN address and first-login credentials
+  6. prints the LAN address and first-login credentials
 
 Stdlib only — runs on Linux, macOS, Windows, Raspberry Pi.
 """
@@ -35,6 +37,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 AMELE_REPO = "lasthumanintheloop/amele"
+MIN_PYTHON = (3, 9)
 DEFAULT_PORT = 8080
 PORT_TRIES = range(8081, 8100)
 
@@ -64,6 +67,20 @@ def fail(msg):
     sys.exit(1)
 
 
+def detect_distro() -> tuple[str, str]:
+    """(id, version_id) from /etc/os-release — e.g. ('raspbian', '11')."""
+    try:
+        lines = Path("/etc/os-release").read_text(encoding="utf-8").splitlines()
+        d = {}
+        for ln in lines:
+            if "=" in ln:
+                k, _, val = ln.partition("=")
+                d[k] = val.strip('"')
+        return d.get("ID", ""), d.get("VERSION_ID", "")
+    except Exception:
+        return "", ""
+
+
 def detect_platform() -> tuple[str, str]:
     """(os, arch) guessed from the running machine."""
     sys_name = platform.system().lower()
@@ -83,6 +100,77 @@ def detect_platform() -> tuple[str, str]:
     else:
         arch = "amd64"
     return os_name, arch
+
+
+def python_fix_hint(v) -> None:
+    """Print the exact command to get a supported Python on this machine."""
+    say()
+    say(f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ is required — this system has "
+        f"{v.major}.{v.minor}.{v.micro}.", "red")
+    say("Install a newer Python, then run this installer again with that "
+        "interpreter.", "red")
+    say()
+
+    # already on PATH? shortest fix wins
+    for cand in ("python3.13", "python3.12", "python3.11", "python3.10", "python3.9"):
+        if shutil.which(cand):
+            say(f"  A newer interpreter is already installed: {cand}")
+            say(f"    → just run:  {cand} install.py", "green")
+            say()
+            sys.exit(1)
+
+    sys_name = platform.system().lower()
+    if sys_name == "darwin":
+        say("  macOS — install via Homebrew:")
+        say("    brew install python@3.12", "green")
+        say("    python3.12 install.py")
+    elif os.name == "nt":
+        say("  Windows — install via winget:")
+        say("    winget install Python.Python.3.12", "green")
+        say("    py install.py")
+    else:
+        distro, ver = detect_distro()
+        say(f"  Detected OS: {distro or 'linux'} {ver or ''}")
+        if distro in ("debian", "raspbian") and ver.startswith(("11", "10", "9", "8")):
+            say("  This Debian release ships Python ≤ 3.9 and has no newer "
+                "python3.x in its repos.")
+            say("  Use pyenv (builds Python in your home dir, no sudo):")
+            say("    sudo apt update", "green")
+            say("    sudo apt install -y build-essential libssl-dev zlib1g-dev "
+                "libbz2-dev libreadline-dev libsqlite3-dev libffi-dev "
+                "liblzma-dev tk-dev curl git", "green")
+            say("    curl https://pyenv.run | bash", "green")
+            say("    exec $SHELL && pyenv install 3.12 && pyenv local 3.12", "green")
+            say("    python3 install.py")
+        elif distro in ("debian", "raspbian"):
+            say("  Install a newer Python via apt:")
+            say("    sudo apt update && sudo apt install -y python3.11", "green")
+            say("    python3.11 install.py")
+        elif distro == "ubuntu" and ver.startswith(("20.04", "18.04")):
+            say("  Ubuntu's default Python is too old here. Options:")
+            say("    sudo add-apt-repository ppa:deadsnakes/ppa && "
+                "sudo apt update && sudo apt install -y python3.11", "green")
+            say("    python3.11 install.py")
+            say("  …or use pyenv (no sudo):  curl https://pyenv.run | bash")
+        elif distro == "fedora":
+            say("    sudo dnf install -y python3.11", "green")
+            say("    python3.11 install.py")
+        elif distro in ("centos", "rhel", "rocky", "almalinux"):
+            say("    sudo dnf install -y python3.11", "green")
+            say("    python3.11 install.py")
+        elif distro == "arch":
+            say("    sudo pacman -S python", "green")
+            say("    python3 install.py")
+        elif distro == "alpine":
+            say("    sudo apk add python3", "green")
+            say("    python3 install.py")
+        else:
+            say("  Generic fallback — pyenv (builds Python in your home dir):")
+            say("    curl https://pyenv.run | bash", "green")
+            say("    exec $SHELL && pyenv install 3.12 && pyenv local 3.12", "green")
+            say("    python3 install.py")
+    say()
+    sys.exit(1)
 
 
 def latest_release() -> dict:
@@ -105,11 +193,11 @@ def find_asset(release: dict, os_name: str, arch: str) -> tuple[str, str]:
         # linux_arm (32-bit) must match exactly; don't let arm64 fall back to it
         if a_os == os_name and a_arch == arch:
             return name, a["browser_download_url"]
-    fail(f"platform eşleşmesi yok: {os_name}_{arch} — amele release'lerine bakın")
+    fail(f"no amele asset matches {os_name}_{arch} — check the release list")
 
 
 def download(url: str, dest: Path, label: str = "") -> None:
-    say(f"  ↓ indiriliyor {label or url.split('/')[-1]} …")
+    say(f"  ↓ downloading {label or url.split('/')[-1]} …")
     req = urllib.request.Request(url, headers={"User-Agent": "kahya-installer"})
     with urllib.request.urlopen(req, timeout=120) as r, open(dest, "wb") as f:
         shutil.copyfileobj(r, f)
@@ -138,7 +226,7 @@ def extract_amele(archive: Path, dest_dir: Path) -> Path:
             member = next((n for n in z.namelist() if "amele" in n.lower()
                            and not n.endswith("/")), None)
             if not member:
-                fail("zip içinde amele bulunamadı")
+                fail("amele not found inside the zip archive")
             z.extract(member, dest_dir)
             src = dest_dir / member
     else:
@@ -146,7 +234,7 @@ def extract_amele(archive: Path, dest_dir: Path) -> Path:
             member = next((m for m in t.getmembers()
                            if "amele" in m.name and m.isfile()), None)
             if not member:
-                fail("arşiv içinde amele bulunamadı")
+                fail("amele not found inside the archive")
             t.extract(member, dest_dir)
             src = dest_dir / member.name
     binary = dest_dir / ("amele.exe" if os.name == "nt" else "amele")
@@ -161,13 +249,13 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
     bin_dir.mkdir(exist_ok=True)
     binary = bin_dir / ("amele.exe" if os.name == "nt" else "amele")
     if binary.exists() and not force:
-        say(f"  · amele zaten var: {binary} (--force ile yeniden indirin)", "dim")
+        say(f"  · amele already present: {binary} (use --force to re-download)", "dim")
         return binary
 
-    say("  · en son amele sürümü aranıyor …")
+    say("  · looking up the latest amele release …")
     release = latest_release()
     asset_name, asset_url = find_asset(release, os_name, arch)
-    say(f"  · seçim: {asset_name}")
+    say(f"  · chosen asset: {asset_name}")
 
     tmp = ROOT / ".install-tmp"
     tmp.mkdir(exist_ok=True)
@@ -178,11 +266,12 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
              f"{release['tag_name']}/SHA256SUMS", sums)
     if not verify_checksum(archive, sums, asset_name):
         shutil.rmtree(tmp, ignore_errors=True)
-        fail("SHA256 doğrulaması BAŞARISIZ — indirme güvenilir değil, durduruldu")
-    say("  · SHA256 doğrulandı ✓", "green")
+        fail("SHA256 verification FAILED — the download is not trustworthy, "
+             "aborting")
+    say("  · SHA256 verified ✓", "green")
     extract_amele(archive, tmp)
     shutil.rmtree(tmp, ignore_errors=True)
-    say(f"  · amele kuruldu: {binary}", "green")
+    say(f"  · amele installed: {binary}", "green")
     return binary
 
 
@@ -193,7 +282,7 @@ def ensure_env() -> None:
     example = ROOT / ".env.example"
     if example.exists():
         shutil.copy(example, env)
-        say("  · .env oluşturuldu (.env.example'dan) — panelden doldurun", "dim")
+        say("  · .env created from .env.example — fill it in from the panel", "dim")
     else:
         env.write_text("", encoding="utf-8")
 
@@ -209,7 +298,7 @@ def port_test(preferred: int) -> int:
             pass
         finally:
             s.close()
-    fail("boş port bulunamadı (8080-8099 arası dolu) — başka port belirtin")
+    fail("no free port in 8080–8099 — free one or set KAHYA_WEB_PORT yourself")
 
 
 def write_port(port: int) -> None:
@@ -221,7 +310,7 @@ def write_port(port: int) -> None:
             lines[i] = f"{key}={port}"
             break
     else:
-        lines.append(f"\n# installer tarafından seçilen port\n{key}={port}")
+        lines.append(f"\n# port chosen by the installer\n{key}={port}")
     env.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -249,15 +338,15 @@ def main() -> None:
 
     say()
     say("╔══════════════════════════════════════════════╗", "bold")
-    say("║   🧑💼 Kâhya — kurulum sihirbazı              ║", "bold")
+    say("║   🧑💼 Kâhya — setup wizard                    ║", "bold")
     say("║   Loxigo Software · https://www.loxigo.com    ║", "dim")
     say("╚══════════════════════════════════════════════╝")
     say()
 
     # 1. Python check
     v = sys.version_info
-    if v < (3, 10):
-        fail(f"Python 3.10+ gerekli, mevcut: {v.major}.{v.minor}.{v.micro}")
+    if v < MIN_PYTHON:
+        python_fix_hint(v)
     say(f"  · Python {v.major}.{v.minor}.{v.micro} ✓")
 
     # 2. platform selection
@@ -265,32 +354,32 @@ def main() -> None:
     default_key = next(
         (k for k, (label, o, a) in ENVIRONMENTS.items() if o == det_os and a == det_arch),
         "1")
-    say(f"\n  Algılanan ortam: {ENVIRONMENTS[default_key][0]}")
-    say("  Ortam seçin (Enter = algılanan):")
+    say(f"\n  Detected environment: {ENVIRONMENTS[default_key][0]}")
+    say("  Select an environment (Enter = detected):")
     for k, (label, *_rest) in ENVIRONMENTS.items():
         mark = " →" if k == default_key else "  "
         say(f"    {mark} {k}) {label}")
-    choice = input("  Seçim: ").strip()
+    choice = input("  Choice: ").strip()
     key = choice if choice in ENVIRONMENTS else default_key
     label, os_name, arch = ENVIRONMENTS[key]
-    say(f"  · ortam: {label}", "bold")
+    say(f"  · environment: {label}", "bold")
 
     # 3. amele
-    say("\n  [1/4] amele kuruluyor …")
+    say("\n  [1/4] installing amele …")
     binary = install_amele(os_name, arch, force)
     try:
         out = __import__("subprocess").run(
             [str(binary), "version"], capture_output=True, text=True, timeout=30)
         say(f"  · {out.stdout.strip() or out.stderr.strip()}", "green")
     except Exception:
-        say("  · sürüm doğrulanamadı, ama binary yerinde", "yellow")
+        say("  · could not verify the version, but the binary is in place", "yellow")
 
     # 4. .env
-    say("\n  [2/4] .env hazırlanıyor …")
+    say("\n  [2/4] preparing .env …")
     ensure_env()
 
     # 5. port test
-    say("\n  [3/4] port testi …")
+    say("\n  [3/4] port test …")
     preferred = DEFAULT_PORT
     env = ROOT / ".env"
     if env.exists():
@@ -300,28 +389,28 @@ def main() -> None:
     chosen = port_test(preferred)
     if chosen != preferred:
         write_port(chosen)
-        say(f"  · {preferred} dolu → {chosen} seçildi ve .env'e yazıldı", "yellow")
+        say(f"  · {preferred} is taken → {chosen} chosen and written to .env", "yellow")
     else:
-        say(f"  · {chosen} boş ✓", "green")
+        say(f"  · {chosen} is free ✓", "green")
 
     # 6. summary
     ip = lan_ip()
-    say("\n  [4/4] tamam!")
+    say("\n  [4/4] done!")
     say()
     say("╔══════════════════════════════════════════════════════╗", "bold")
-    say("║  ✅ Kâhya kuruldu!                                    ║", "bold")
+    say("║  ✅ Kâhya is installed!                              ║", "bold")
     say("╠══════════════════════════════════════════════════════╣")
     say(f"║  Panel:  http://{ip}:{chosen}                        ")
-    say("║  Giriş:  admin / kahya123  (panelden değiştirin)      ")
+    say("║  Login:  admin / kahya123  (change it from the panel)  ")
     say("╠══════════════════════════════════════════════════════╣")
-    say("║  Başlat (her biri ayrı terminal):                     ")
+    say("║  Start (each in its own terminal):                    ")
     say("║    python3 -m kahya.bot                               ")
     say("║    python3 -m kahya.scheduler                         ")
     say("║    python3 -m kahya.server                            ")
     say("╚══════════════════════════════════════════════════════╝")
     say()
-    say("  Sıradaki adımlar: panelden LLM endpoint + Telegram token'ı", "dim")
-    say("  ayarlayın; yönlendirilmiş komutlar deploy/ klasöründe.", "dim")
+    say("  Next steps: set the LLM endpoint + Telegram token from the panel;", "dim")
+    say("  supervised/auto-start units live in deploy/.", "dim")
     say()
 
 
