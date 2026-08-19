@@ -23,6 +23,7 @@ Stdlib only — runs on Linux, macOS, Windows, Raspberry Pi.
 from __future__ import annotations
 
 import hashlib
+import getpass
 import json
 import os
 import platform
@@ -235,7 +236,10 @@ def extract_amele(archive: Path, dest_dir: Path) -> Path:
                            if "amele" in m.name and m.isfile()), None)
             if not member:
                 fail("amele not found inside the archive")
-            t.extract(member, dest_dir)
+            if sys.version_info >= (3, 12):
+                t.extract(member, dest_dir, filter="data")
+            else:
+                t.extract(member, dest_dir)
             src = dest_dir / member.name
     binary = dest_dir / ("amele.exe" if os.name == "nt" else "amele")
     shutil.move(str(src), binary)
@@ -269,7 +273,7 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
         fail("SHA256 verification FAILED — the download is not trustworthy, "
              "aborting")
     say("  · SHA256 verified ✓", "green")
-    extract_amele(archive, tmp)
+    extract_amele(archive, bin_dir)
     shutil.rmtree(tmp, ignore_errors=True)
     say(f"  · amele installed: {binary}", "green")
     return binary
@@ -327,6 +331,74 @@ def lan_ip() -> str:
         return socket.gethostbyname(socket.gethostname())
     except OSError:
         return "127.0.0.1"
+
+
+SERVICES = {  # unit name → module
+    "kahya-web": "kahya.server",
+    "kahya-bot": "kahya.bot",
+    "kahya-scheduler": "kahya.scheduler",
+}
+
+
+def install_systemd() -> None:
+    """Offer auto-start via systemd (Linux only, needs sudo).
+
+    Generates three units from the *current* user/python path — no
+    hardcoded /home/pi — and enables them with Restart=on-failure, so a
+    crash is brought back automatically.
+    """
+    if os.name == "nt" or platform.system().lower() == "darwin":
+        say("  · auto-start skipped: systemd is Linux-only "
+            "(macOS/Windows must start services manually)", "dim")
+        return
+    if not Path("/run/systemd/system").exists() or not shutil.which("systemctl"):
+        say("  · auto-start skipped: systemd not present "
+            "(start services manually, see summary)", "dim")
+        return
+    ans = input("  Auto-start services via systemd (needs sudo)? [y/N]: ").strip().lower()
+    if ans not in ("y", "yes"):
+        say("  · skipped — start services manually (see summary below)", "dim")
+        return
+
+    user = getpass.getuser()
+    py = sys.executable
+    tmp = ROOT / ".install-tmp"
+    tmp.mkdir(exist_ok=True)
+    try:
+        for name, module in SERVICES.items():
+            unit = (
+                "[Unit]\n"
+                f"Description=Kahya {name.split('-')[1].capitalize()}\n"
+                "After=network-online.target\n"
+                "Wants=network-online.target\n"
+                "\n"
+                "[Service]\n"
+                "Type=simple\n"
+                f"User={user}\n"
+                f"WorkingDirectory={ROOT}\n"
+                f"ExecStart={py} -m {module}\n"
+                "Restart=on-failure\n"
+                "RestartSec=10\n"
+                "\n"
+                "[Install]\n"
+                "WantedBy=multi-user.target\n"
+            )
+            (tmp / f"{name}.service").write_text(unit, encoding="utf-8")
+        for name in SERVICES:
+            __import__("subprocess").run(
+                ["sudo", "cp", str(tmp / f"{name}.service"),
+                 f"/etc/systemd/system/{name}.service"], check=True)
+        __import__("subprocess").run(["sudo", "systemctl", "daemon-reload"],
+                                     check=True)
+        __import__("subprocess").run(
+            ["sudo", "systemctl", "enable", "--now", *SERVICES], check=True)
+        say("  · services installed & started: "
+            + ", ".join(SERVICES) + " (Restart=on-failure)", "green")
+        say("    check: systemctl status kahya-web kahya-bot kahya-scheduler", "dim")
+    except Exception as e:
+        say(f"  · systemd install failed ({e}) — start services manually", "yellow")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def main() -> None:
@@ -393,9 +465,13 @@ def main() -> None:
     else:
         say(f"  · {chosen} is free ✓", "green")
 
-    # 6. summary
+    # 6. auto-start (systemd)
+    say("\n  [4/5] auto-start …")
+    install_systemd()
+
+    # 7. summary
     ip = lan_ip()
-    say("\n  [4/4] done!")
+    say("\n  [5/5] done!")
     say()
     say("╔══════════════════════════════════════════════════════╗", "bold")
     say("║  ✅ Kâhya is installed!                              ║", "bold")

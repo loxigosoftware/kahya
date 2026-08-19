@@ -23,7 +23,7 @@ from typing import Optional
 DEFAULTS = {
     "web_port": "8080",
     "provider_type": "openai",
-    "language": "tr",
+    "language": "en",
     "admin_user": "admin",
     "remind_before_days": "2",
 }
@@ -153,15 +153,15 @@ class Config:
         """Return a list of configuration problems (empty = ready)."""
         problems = []
         if not self.model:
-            problems.append("LLM model ayarlanmamış (Settings → LLM)")
+            problems.append("LLM model not set (Settings → LLM)")
         if not self.base_url:
-            problems.append("LLM endpoint ayarlanmamış (Settings → LLM)")
+            problems.append("LLM endpoint not set (Settings → LLM)")
         if not self.amele_bin.exists():
-            problems.append(f"amele binary bulunamadı: {self.amele_bin} — scripts/install-amele.sh")
+            problems.append(f"amele binary not found: {self.amele_bin} — run install.py")
         if not self.telegram_token:
-            problems.append("Telegram bot token ayarlanmamış (Settings → Telegram)")
+            problems.append("Telegram bot token not set (Settings → Telegram)")
         if not self.telegram_chat_id:
-            problems.append("Telegram chat id ayarlanmamış (Settings → Telegram)")
+            problems.append("Telegram chat id not set (Settings → Telegram)")
         return problems
 
     def save_settings(self, updates: dict) -> list[str]:
@@ -176,7 +176,7 @@ class Config:
                     if not (1 <= p <= 65535):
                         raise ValueError
                 except ValueError:
-                    problems.append("web_port: 1-65535 arası olmalı")
+                    problems.append("web_port: must be 1-65535")
                     continue
             if key in ("api_key", "telegram_token"):
                 value = value.strip()

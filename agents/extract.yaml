@@ -58,7 +58,7 @@ system_prompt: |
   - note: one line with any extra useful detail. null if nothing.
   - ask_user: the single most important missing fact you need before the
     item can be saved (usually due_date, or the agent to use), phrased as
-    a short question in the owner's language. null when nothing is missing.
+    a short question in ${KAHYA_LANGUAGE_NAME}. null when nothing is missing.
 
   Output ONLY the JSON object — no commentary, no markdown fences.
 

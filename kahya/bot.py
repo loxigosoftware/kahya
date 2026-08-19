@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import time
 import urllib.error
 import urllib.parse
@@ -52,11 +53,27 @@ class TG:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def send(self, chat_id, text: str) -> bool:
-        text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        res = self._call("sendMessage", {
-            "chat_id": chat_id, "text": text, "parse_mode": "HTML",
-            "disable_web_page_preview": "true"})
+    def send(self, chat_id, text: str, html: bool = True) -> bool:
+        """Send a message.
+
+        html=True (default): text is trusted HTML (i18n templates use
+        <b>/<i> tags) and is sent with parse_mode=HTML. Callers passing
+        user/LLM-generated text through i18n placeholders are safe —
+        I18n.t() HTML-escapes every placeholder value. Plain free text
+        (LLM answers) should be sent with html=False.
+        """
+        data = {"chat_id": chat_id, "text": text,
+                "disable_web_page_preview": "true"}
+        if html:
+            data["parse_mode"] = "HTML"
+        res = self._call("sendMessage", data)
+        return bool(res.get("ok"))
+
+    def set_commands(self, commands: list[tuple[str, str]]) -> bool:
+        """Register the bot's /-menu with Telegram (shown on the client)."""
+        payload = json.dumps([{"command": c, "description": d}
+                              for c, d in commands])
+        res = self._call("setMyCommands", {"commands": payload})
         return bool(res.get("ok"))
 
     def get_updates(self, offset: int) -> list[dict]:
@@ -87,7 +104,28 @@ class Bot:
     def _refresh_tg(self) -> None:
         if self.tg.token != self.cfg.telegram_token:
             self.tg = TG(self.cfg.telegram_token)
+            self._register_commands()
             print(f"  [bot] token changed, reconnected")
+
+    def _register_commands(self) -> None:
+        """Publish the /-menu so Telegram clients show the commands."""
+        try:
+            self.tg.set_commands([
+                ("start", "Welcome & how to use"),
+                ("help", "Command list"),
+                ("settings", "Setup summary"),
+                ("agents", "List agents"),
+                ("add-agent", "New agent (wizard)"),
+                ("edit-agent", "Edit an agent"),
+                ("delete-agent", "Delete an agent"),
+                ("jobs", "Open tasks"),
+                ("add-job", "Add a task"),
+                ("done", "Complete a task"),
+                ("cancel", "Cancel the current flow"),
+            ])
+            print("  [bot] commands registered (setMyCommands)")
+        except Exception as e:
+            print(f"  [bot] setMyCommands failed: {e}")
 
     def _known_agents(self) -> str:
         agents = self.db.list_agents()
@@ -234,7 +272,15 @@ class Bot:
         self.tg.send(chat_id, "\n".join(lines))
 
     def _public_host(self) -> str:
-        return os.environ.get("KAHYA_PUBLIC_HOST", "localhost")
+        h = os.environ.get("KAHYA_PUBLIC_HOST")
+        if h:
+            return h
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))  # route discovery only, no traffic
+            return s.getsockname()[0]
+        except OSError:
+            return "localhost"
 
     # -- wizards (multi-step admin flows) ---------------------------
 
@@ -533,12 +579,12 @@ class Bot:
             except AmeleError as e:
                 self.tg.send(chat_id, self._t("bot.understand_error", code=e.exit_code))
                 return
-            self.tg.send(chat_id, answer)
+            self.tg.send(chat_id, answer, html=False)
             return
 
         if not extracted.get("due_date") or extracted.get("ask_user"):
             question = extracted.get("ask_user") or self._t("bot.ask_due_date")
-            self.tg.send(chat_id, question)
+            self.tg.send(chat_id, question, html=not extracted.get("ask_user"))
             self.db.set_chat_state(chat_id, {
                 "step": "extract_followup", "extracted": extracted})
             return
@@ -550,6 +596,7 @@ class Bot:
 
     def run_forever(self) -> None:
         print(f"[kahya bot] started — {self.tg.base[:50]}…")
+        self._register_commands()
         while True:
             try:
                 self._refresh_tg()

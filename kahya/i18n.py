@@ -6,6 +6,7 @@ it on every message, so a change applies immediately.
 """
 from __future__ import annotations
 
+import html
 import json
 from pathlib import Path
 
@@ -32,7 +33,11 @@ class I18n:
             self._load()
 
     def t(self, key: str, **kwargs) -> str:
-        """Translate a dotted key like 'bot.confirm_title' with {placeholders}."""
+        """Translate a dotted key like 'bot.confirm_title' with {placeholders}.
+
+        Placeholder values are HTML-escaped so user/LLM text can never
+        break the Telegram HTML formatting of the surrounding message.
+        """
         node = self._data
         for part in key.split("."):
             if isinstance(node, dict) and part in node:
@@ -42,7 +47,8 @@ class I18n:
         text = node if isinstance(node, str) else key
         if kwargs:
             try:
-                text = text.format(**kwargs)
+                text = text.format(**{k: html.escape(str(v))
+                                      for k, v in kwargs.items()})
             except (KeyError, IndexError):
                 pass
         return text

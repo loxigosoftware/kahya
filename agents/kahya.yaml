@@ -30,7 +30,7 @@ system_prompt: |
   status (open/done).
 
   Rules:
-  - Answer the specific question, in the owner's language, short and
+  - Answer the specific question, in ${KAHYA_LANGUAGE_NAME}, short and
     concrete ("Kuduz aşısı: 19 Ağustos 2026 — Pamuk için").
   - If a date is overdue or due soon (within 3 days), say so.
   - If the data doesn't answer the question, say exactly that — never

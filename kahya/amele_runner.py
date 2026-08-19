@@ -13,6 +13,10 @@ from typing import Any, Optional
 
 from .config import Config
 
+# panel language code → full name for agent prompts ("in Turkish")
+_LANG_NAMES = {"tr": "Turkish", "en": "English", "de": "German",
+               "fr": "French", "es": "Spanish", "it": "Italian"}
+
 
 class AmeleError(Exception):
     def __init__(self, exit_code: int, stderr: str):
@@ -37,6 +41,8 @@ def run_agent(cfg: Config, yaml_path: Path, task: str,
         "TELEGRAM_BOT_TOKEN": cfg.telegram_token,
         "TELEGRAM_CHAT_ID": cfg.telegram_chat_id,
         "KAHYA_DB": str(cfg.db_path),
+        "KAHYA_LANGUAGE": cfg.language,
+        "KAHYA_LANGUAGE_NAME": _LANG_NAMES.get(cfg.language, "English"),
     }
     cmd = [str(cfg.amele_bin), "run", str(yaml_path), task]
     proc = subprocess.run(

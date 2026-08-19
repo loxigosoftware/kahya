@@ -64,17 +64,16 @@ the matching amele binary from GitHub, **verifies it against SHA256SUMS**,
 creates `.env`, port-tests the panel port (8080 → next free if taken) and
 prints your LAN address + first-login credentials.
 
-Manual path (same result, step by step):
+On Linux with systemd it also offers to **install auto-start units** for
+the three services (`Restart=on-failure` — a crash is brought back
+automatically, and everything comes up on boot). Answer `y` and it
+generates the units for your user/paths and runs `systemctl enable --now`
+(needs sudo). Skip it and run the services manually (below).
 
-```bash
-git clone https://github.com/loxigosoftware/kahya
-cd kahya
-./scripts/install-amele.sh          # downloads the amele binary
-cp .env.example .env                # then edit: LLM endpoint, bot token, chat id
-```
-
-Raspberry Pi (armv7l) and everything else amele supports are handled by the
-same script.
+> No systemd / prefer to manage services yourself? The old manual path:
+> copy the three units from [`deploy/`](deploy/) to
+> `/etc/systemd/system/` (adjust `User=`/paths), then
+> `sudo systemctl daemon-reload && sudo systemctl enable --now kahya-web kahya-bot kahya-scheduler`.
 
 ## Run (three processes, any supervisor)
 
@@ -85,8 +84,8 @@ python3 -m kahya.server      # admin panel → http://<host>:8080
 ```
 
 `python3 -m kahya.scheduler --dry-run` checks what *would* be sent today
-without touching Telegram. On the Pi, use systemd (units in
-[`deploy/`](deploy/)) or cron + `nohup`.
+without touching Telegram. On the Pi, prefer the installer's systemd step
+(or the units in [`deploy/`](deploy/)) over cron + `nohup`.
 
 ## First run
 
