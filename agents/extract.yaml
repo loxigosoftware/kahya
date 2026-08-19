@@ -31,23 +31,31 @@ system_prompt: |
 
   - title: a short, human name for the item ("Su faturası", "Water bill").
   - intent: what the owner wants. record = something to track and be
-    reminded about; question = the owner is ASKING about stored records
-    ("kuduz aşısı ne zamandı?"). For question, leave title/kind short
-    (the question as title), set due_date/repeat/amount to null and put
-    nothing in ask_user — the caller answers questions with a different
-    agent.
+    reminded about; question = the owner is ASKING something — about
+    stored records ("kuduz aşısı ne zamandı?") or about the outside
+    world ("dolar kaç tl", "bitcoin fiyatı", "hava nasıl olacak"). For
+    question, leave title/kind short (the question as title), set
+    due_date/repeat/amount to null and put nothing in ask_user — the
+    caller runs a different agent to answer.
   - kind: what it is. bill = a payment with a deadline; task = to-do;
     birthday / vaccination / meeting / reminder are self-explanatory;
     other when nothing fits.
-  - agent_slug: which agent owns this item. The known agents and their
-    slugs are listed in the caller's message under "KNOWN AGENTS".
-    Choose the best match. If none fit, use "genel".
+  - agent_slug: which agent owns the item or answers the question. The
+    known agents and their slugs are listed in the caller's message
+    under "KNOWN AGENTS". For a record, choose the best matching agent
+    ("genel" if none fit). For a question, choose the agent whose job it
+    is to answer it — e.g. "finance" for exchange rates / crypto / gold /
+    bonds ("dolar kaç tl", "bitcoin ne kadar"), the orchestrator "kahya"
+    for questions about stored records. If no agent fits, "genel".
   - amount + currency: ONLY when a payment or price is mentioned
     ("3000 TL", "$45.50"). amount is a number, currency is the ISO 4217
     code (TRY, USD, EUR). Otherwise null.
-  - due_date: the deadline or event date, YYYY-MM-DD. Resolve relative
-    references ("tomorrow", "end of month") against today's date. If the
-    date is genuinely unknown, null — and say so in ask_user.
+  - due_date: the deadline or event date, YYYY-MM-DD. The caller always
+    provides the real current date as "TODAY is YYYY-MM-DD" — resolve
+    relative references ("tomorrow", "end of month", bare "20 ağustos")
+    against it and NEVER guess a year: no year mentioned means the
+    current year. If the date is genuinely unknown, null — and say so
+    in ask_user.
   - repeat_rule: none | daily | weekly | monthly | yearly — how the item
     recurs. "Her ayın 20'sinde geliyor" → monthly.
   - repeat_detail: for monthly the day of month ("20"); for weekly the
@@ -96,7 +104,7 @@ output:
         type: ["string", "null"]
   max_schema_retries: 3
 
-workspace: .
+workspace: ..  # repo root (amele resolves relative to this YAML's dir)
 
 tools:
   fs: false

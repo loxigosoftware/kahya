@@ -5,6 +5,7 @@ One file, zero setup: `data/kahya.db`. Backup = copy the file.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
@@ -112,9 +113,47 @@ class KahyaDB:
 
     # ---------- items ----------
 
+    @staticmethod
+    def normalize_date(value) -> Optional[str]:
+        """Coerce a due_date to YYYY-MM-DD, or None when unparseable.
+
+        The LLM can return sloppy dates ("20/08/2026", "20.08.2026",
+        "2026-8-2"); SQLite's date() and the panel's comparisons only
+        understand ISO, so every write goes through this.
+        """
+        if not value:
+            return None
+        s = str(value).strip()
+        if not s:
+            return None
+        try:
+            return date.fromisoformat(s).isoformat()
+        except ValueError:
+            pass
+        m = re.match(r"^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$", s)
+        if m:
+            d, mo, y = m.groups()
+            y = f"20{y}" if len(y) == 2 else y
+            try:
+                return date(int(y), int(mo), int(d)).isoformat()
+            except ValueError:
+                return None
+        m = re.match(r"^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$", s)
+        if m:
+            y, mo, d = m.groups()
+            try:
+                return date(int(y), int(mo), int(d)).isoformat()
+            except ValueError:
+                return None
+        return None
+
     def insert_item(self, data: dict, agent_id: Optional[int] = None) -> int:
         if agent_id is not None:
             data = {**data, "agent_id": agent_id}
+        if data.get("due_date"):
+            data = {**data, "due_date": self.normalize_date(data["due_date"])}
+        if data.get("amount") in ("", None):
+            data = {**data, "amount": None}
         cols = [k for k in data if k in (
             "agent_id", "title", "kind", "amount", "currency", "due_date",
             "repeat_rule", "repeat_detail", "remind_before_days", "note",

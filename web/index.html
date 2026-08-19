@@ -183,16 +183,24 @@ async function render(){
 }
 
 // ---------------------------------------------------------------- items
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function plusDaysStr(days){
+  const d = new Date(); d.setDate(d.getDate()+days);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function dueClass(it){
   if(it.status==='done') return 'done';
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayStr();
   if(it.due_date && it.due_date < today) return 'over';
-  if(it.due_date && it.due_date <= new Date(Date.now()+3*864e5).toISOString().slice(0,10)) return 'due';
+  if(it.due_date && it.due_date <= plusDaysStr(3)) return 'due';
   return '';
 }
 function dueLabel(it){
   if(it.status==='done') return t('panel.items_done_btn')==='tamamla'?'tamamlandı':'done';
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayStr();
   if(it.due_date && it.due_date < today) return t('panel.tabs_items')==='Görevler'?'geçti!':'overdue!';
   return it.due_date || '—';
 }
@@ -280,53 +288,84 @@ async function loadAgentOptions(){
 }
 
 // ---------------------------------------------------------------- agents
+let slugAuto = true;            // auto-derive slug from name until the user edits it
+function slugify(s){ return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,31); }
+function agentRow(a, editing, confirming){
+  const actions = editing ? `
+      <button onclick="saveEdit('${a.slug}')">${t('panel.agents_save')||'Save'}</button>
+      <button class="secondary" onclick="loadAgents()">${t('panel.agents_cancel')||'Cancel'}</button>`
+    : confirming ? `
+      <button class="ghost red" onclick="doDelAgent('${a.slug}')">${t('panel.agents_delete_yes')||'Delete'}</button>
+      <button class="secondary" onclick="loadAgents()">${t('panel.agents_delete_no')||'Keep'}</button>`
+    : `
+      <button class="ghost" onclick="startEdit('${a.slug}')">${t('panel.agents_edit')}</button>
+      <button class="ghost red" onclick="confirmDel('${a.slug}')">${t('panel.agents_delete')}</button>`;
+  const body = editing ? `
+      <input id="ea-name" value="${esc(a.name)}" style="margin-bottom:6px" />
+      <textarea id="ea-role" style="min-height:70px;margin-bottom:6px">${esc(a.role_prompt)}</textarea>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:4px">${t('panel.agents_slug')}: ${esc(a.slug)}</div>`
+    : confirming ? `
+      <div style="color:#b3261e;margin-bottom:8px">${t('panel.agents_delete_confirm')}</div>`
+    : `
+      <div class="name">${esc(a.name)}</div>
+      <div class="slug">${esc(a.slug)} · ${a.enabled? t('panel.agents_active'):'—'}</div>
+      <div class="yaml">${esc(a.yaml_path||'')}</div>`;
+  return `<div class="agent">
+    <div style="flex:1">${body}</div>
+    <div class="actions">${actions}</div>
+  </div>`;
+}
 async function loadAgents(){
   try{
     const {agents} = await api('/api/agents');
+    window.__AGENTS = agents;
     $('tab-agents').innerHTML = `
     <div class="card">
       <h2>${t('panel.agents_new')}</h2>
       <p class="hint">${t('panel.agents_new_hint')}</p>
       <div class="grid3">
-        <input id="na-name" placeholder="${t('panel.agents_name')}" />
-        <input id="na-slug" placeholder="${t('panel.agents_slug')}" />
+        <input id="na-name" placeholder="${t('panel.agents_name')}" oninput="autoSlug()" />
+        <input id="na-slug" placeholder="${t('panel.agents_slug')}" oninput="slugAuto=false" />
       </div>
       <textarea id="na-prompt" placeholder="${t('panel.agents_role')}"></textarea>
       <button onclick="addAgent()">${t('panel.agents_create')}</button>
     </div>
     <div class="card">
       <h2>${t('panel.agents_list')}</h2>
-      <div id="agents-list">${agents.length ? agents.map(a=>`
-        <div class="agent">
-          <div style="flex:1">
-            <div class="name">${esc(a.name)}</div>
-            <div class="slug">${esc(a.slug)} · ${a.enabled? t('panel.agents_active'):'—'}</div>
-            <div class="yaml">${esc(a.yaml_path||'')}</div>
-          </div>
-          <div class="actions">
-            <button class="ghost" onclick="editAgent('${a.slug}')">${t('panel.agents_edit')}</button>
-            <button class="ghost red" onclick="delAgent('${a.slug}')">${t('panel.agents_delete')}</button>
-          </div>
-        </div>`).join('') : `<div class="empty">${t('panel.agents_empty')}</div>`}</div>
+      <div id="agents-list">${agents.length ? agents.map(a=>agentRow(a,false,false)).join('') : `<div class="empty">${t('panel.agents_empty')}</div>`}</div>
     </div>`;
   }catch(e){ $('tab-agents').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
+function autoSlug(){ if(slugAuto) $('na-slug').value = slugify($('na-name').value); }
 async function addAgent(){
-  const name=$('na-name').value.trim(), slug=$('na-slug').value.trim().toLowerCase(), role=$('na-prompt').value.trim();
+  const name=$('na-name').value.trim(), role=$('na-prompt').value.trim();
+  let slug=$('na-slug').value.trim().toLowerCase();
+  if(!slug || slugAuto) slug = slugify(name);
   if(!name||!slug||!role){ toast('!'); return; }
   try{ await api('/api/agents',{method:'POST',body:JSON.stringify({name,slug,role_prompt:role})});
     toast('✅'); ['na-name','na-slug','na-prompt'].forEach(id=>$(id).value='');
-    loadAgents(); loadAgentOptions(); }catch(e){ toast(e.message); }
+    slugAuto = true; loadAgents(); loadAgentOptions(); }catch(e){ toast(e.message); }
 }
-async function delAgent(slug){
-  if(!confirm(t('panel.agents_delete_confirm'))) return;
+function confirmDel(slug){ loadAgents().then(()=>{
+  const row = [...document.querySelectorAll('.agent')].find(r=>r.textContent.includes(slug));
+  if(row && window.__AGENTS) {
+    const a = window.__AGENTS.find(x=>x.slug===slug);
+    if(a) row.outerHTML = agentRow(a,false,true);
+  }
+}); }
+function startEdit(slug){ loadAgents().then(()=>{
+  const a = window.__AGENTS && window.__AGENTS.find(x=>x.slug===slug);
+  if(a){ const row = [...document.querySelectorAll('.agent')].find(r=>r.textContent.includes(slug));
+    if(row) row.outerHTML = agentRow(a,true,false); }
+}); }
+async function doDelAgent(slug){
   try{ await api('/api/agents/delete',{method:'POST',body:JSON.stringify({slug})});
     toast('🗑️'); loadAgents(); loadAgentOptions(); }catch(e){ toast(e.message); }
 }
-async function editAgent(slug){
-  const name = prompt(t('panel.agents_name'), ''); if(name===null) return;
-  const role = prompt(t('panel.agents_role'), ''); if(role===null) return;
-  try{ await api('/api/agents/edit',{method:'POST',body:JSON.stringify({slug,name:name.trim(),role_prompt:role.trim()})});
+async function saveEdit(slug){
+  const name=$('ea-name').value.trim(), role=$('ea-role').value.trim();
+  if(!name||!role){ toast('!'); return; }
+  try{ await api('/api/agents/edit',{method:'POST',body:JSON.stringify({slug,name,role_prompt:role})});
     toast('✅'); loadAgents(); }catch(e){ toast(e.message); }
 }
 
@@ -438,13 +477,16 @@ async function saveSettings(){
 }
 async function testTelegram(){
   $('st-res').textContent = '…';
-  try{ await api('/api/test/telegram',{method:'POST',body:'{}'});
+  try{ await api('/api/test/telegram',{method:'POST',body:JSON.stringify({
+        token:$('st-token').value.trim(), chat_id:$('st-chat').value.trim()})});
     $('st-res').textContent = t('panel.settings_telegram_test_ok'); }
   catch(e){ $('st-res').textContent = t('panel.settings_telegram_test_fail',{error:e.message}); }
 }
 async function testLLM(){
   $('sl-res').textContent = '…';
-  try{ await api('/api/test/llm',{method:'POST',body:'{}'});
+  try{ await api('/api/test/llm',{method:'POST',body:JSON.stringify({
+        model:$('st-model').value.trim(), base_url:$('st-base').value.trim(),
+        api_key:$('st-key').value.trim(), provider_type:$('st-provider').value})});
     $('sl-res').textContent = t('panel.settings_llm_test_ok'); }
   catch(e){ $('sl-res').textContent = t('panel.settings_llm_test_fail',{error:e.message}); }
 }

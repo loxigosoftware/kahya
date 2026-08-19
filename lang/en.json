@@ -1,6 +1,5 @@
 {
   "lang_name": "English",
-
   "bot": {
     "start_welcome": "🧑💼 <b>Kahya</b> — the steward of your home and small business.\n\nJust talk to me naturally:\n• <i>\"Water bill 3000 TL arrived, due 19 august\"</i>\n• <i>\"Cat Pamuk's rabies shot on september 3\"</i>\n• <i>\"Remind me of rent on the 20th of every month\"</i>\n• <i>\"When was the rabies shot?\"</i> (you can ask questions)\n\nCommands: see <b>/help</b>.",
     "help": "🧑💼 <b>Kahya — commands</b>\n\n<b>Chat:</b>\nAdd tasks or ask questions in plain language.\n\n<b>Commands:</b>\n/agents — list agents\n/add-agent — new agent (wizard)\n/edit-agent — edit agent (wizard)\n/delete-agent — delete agent\n/jobs — open tasks\n/add-job — add a task (wizard)\n/done — complete a task\n/settings — setup summary\n/help — this list\n/cancel — cancel a flow",
@@ -37,7 +36,6 @@
     "settings_line_lang": "Language: {lang}",
     "settings_on": "on",
     "settings_off": "OFF — configure from the panel",
-
     "wizard_cancel": "Cancelled.",
     "wizard_agent_name": "🤖 What should the agent be called? (e.g. Bill Tracker) — <b>/cancel</b> to quit",
     "wizard_agent_slug": "What slug? (lowercase, dashes — e.g. <code>bills</code>)",
@@ -55,12 +53,10 @@
     "wizard_edit_new_name": "New name:",
     "wizard_edit_new_role": "New job description:",
     "wizard_edit_done": "✅ <b>{name}</b> updated.",
-
     "job_flow_title": "📝 Add task (wizard)",
     "job_flow_ask": "Describe the task naturally:\n<i>\"Water bill 3000 TL arrived, due 19 august\"</i>",
     "job_flow_done": "Task saved ✅"
   },
-
   "panel": {
     "title": "Kahya — panel",
     "subtitle": "Built on amele — the steward of your own home / small business",
@@ -70,7 +66,6 @@
     "tabs_guide": "Guide",
     "tabs_logs": "History",
     "tabs_license": "License",
-
     "login_title": "Kahya — sign in",
     "login_user": "Username",
     "login_pass": "Password",
@@ -78,7 +73,6 @@
     "login_error": "Wrong username or password.",
     "login_locked": "Too many failed attempts. Try again in 5 minutes.",
     "login_default_warn": "You are still using the default password — change it in Settings!",
-
     "settings_title": "Settings",
     "settings_hint": "All settings take effect immediately — no restart needed.",
     "settings_saved": "Saved ✅",
@@ -91,16 +85,16 @@
     "settings_telegram_token_ph": "Get it from @BotFather",
     "settings_telegram_chat": "Owner Telegram ID (chat id)",
     "settings_telegram_test": "🧪 Send test",
-    "settings_telegram_test_ok": "Message sent — check Telegram.",
-    "settings_telegram_test_fail": "Could not send: {error}",
+    "settings_telegram_test_ok": "Message sent ✅",
+    "settings_telegram_test_fail": "Error: {error}",
     "settings_llm_model": "Model",
     "settings_llm_provider": "Provider type",
     "settings_llm_base": "Endpoint (BASE_URL)",
     "settings_llm_base_ph": "http://192.168.1.50:11434/v1 (Ollama) · https://api.openai.com/v1",
     "settings_llm_key": "API key (empty = local model)",
     "settings_llm_test": "🧪 Test connection",
-    "settings_llm_test_ok": "Connection works ✅ (model replied)",
-    "settings_llm_test_fail": "Connection error: {error}",
+    "settings_llm_test_ok": "LLM connection works ✅",
+    "settings_llm_test_fail": "Error: {error}",
     "settings_port": "Panel port",
     "settings_port_hint": "Change if it conflicts; effective after the panel restarts.",
     "settings_timezone": "Timezone",
@@ -112,12 +106,11 @@
     "settings_save": "Save",
     "settings_backup": "💾 Download DB backup",
     "settings_danger": "Danger zone",
-
     "items_new": "New task",
-    "items_new_hint": "Bill, vaccination, birthday, reminder… The repeat field covers recurring records — e.g. monthly + detail 20 (day of month).",
+    "items_new_hint": "Bill, vaccination, birthday, reminder… Amount & currency are only for payments — leave empty for other tasks. Repeat covers recurring records (monthly + detail 20).",
     "items_title": "Title",
-    "items_amount": "Amount",
-    "items_currency": "Currency",
+    "items_amount": "Amount (opt.)",
+    "items_currency": "Currency (opt.)",
     "items_due": "Due / date",
     "items_agent": "Agent",
     "items_repeat": "Repeat",
@@ -134,7 +127,6 @@
     "items_done_btn": "complete",
     "items_empty": "No open tasks. 🌿",
     "items_completed": "Completed ✅",
-
     "agents_new": "New agent",
     "agents_new_hint": "An agent IS an amele YAML file. Give it a name and a job description; the system writes agents/<slug>.yaml — organization as code.",
     "agents_name": "Agent name",
@@ -147,19 +139,17 @@
     "agents_edit": "edit",
     "agents_delete": "delete",
     "agents_delete_confirm": "Delete this agent? Its tasks move to general.",
-
     "logs_title": "History",
     "logs_hint": "Every agent run and bot activity is tracked here.",
     "logs_time": "Time",
     "logs_source": "Source",
     "logs_event": "Event",
     "logs_empty": "No records",
-
     "guide_title": "User guide",
     "license_title": "License",
-    "footer": "Loxigo Software — <a href=\"https://www.loxigo.com\" target=\"_blank\">www.loxigo.com</a>"
+    "footer": "Loxigo Software — <a href=\"https://www.loxigo.com\" target=\"_blank\">www.loxigo.com</a>",
+    "test_message": "🧪 Kahya test message — connection works ✅"
   },
-
   "guide": [
     {
       "title": "🚀 Getting started",
@@ -194,7 +184,6 @@
       "body": "• Port conflict? Change it in Settings (effective after the panel restarts).\n• If the bot token changes, the bot reconnects automatically on the next message.\n• The timezone setting affects reminder timing.\n• The History tab shows every agent run and bot event — start debugging there.\n• Running under systemd? Three units: kahya-scheduler, kahya-bot, kahya-web (examples in deploy/)."
     }
   ],
-
   "license": {
     "title": "Kahya License — Loxigo Software",
     "personal": "Personal use: this software is free for personal, non-commercial use under MIT license terms (subject to the conditions below).",

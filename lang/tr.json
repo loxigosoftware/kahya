@@ -1,6 +1,5 @@
 {
   "lang_name": "Türkçe",
-
   "bot": {
     "start_welcome": "🧑💼 <b>Kâhya</b> — evinizin ve küçük işletmenizin kâhyası.\n\nBana doğal dille yazın:\n• <i>\"3000 TL su faturası geldi, son ödeme 19 ağustos\"</i>\n• <i>\"Kedi Pamuk'un kuduz aşısı 3 eylülde\"</i>\n• <i>\"Her ayın 20'sinde kira hatırlat\"</i>\n• <i>\"Kuduz aşısı ne zamandı?\"</i> (soru sorabilirsiniz)\n\nKomutlar: <b>/help</b> ile tümünü görün.",
     "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille görev ekleyin ya da soru sorun.\n\n<b>Komutlar:</b>\n/agents — ajanları listeler\n/add-agent — yeni ajan (sihirbaz)\n/edit-agent — ajan düzenle (sihirbaz)\n/delete-agent — ajan sil\n/jobs — açık görevler\n/add-job — görev ekle (sihirbaz)\n/done — görev tamamla\n/settings — kurulum özeti\n/help — bu liste\n/iptal — akışı iptal et",
@@ -37,7 +36,6 @@
     "settings_line_lang": "Dil: {lang}",
     "settings_on": "açık",
     "settings_off": "KAPALI — panelden ayarlayın",
-
     "wizard_cancel": "İptal edildi.",
     "wizard_agent_name": "🤖 Ajan adı ne olsun? (örn. Fatura Takipçisi) — <b>/iptal</b> ile çıkın",
     "wizard_agent_slug": "Slug ne olsun? (küçük harf, tire — örn. <code>fatura</code>)",
@@ -55,12 +53,10 @@
     "wizard_edit_new_name": "Yeni ad:",
     "wizard_edit_new_role": "Yeni görev tanımı:",
     "wizard_edit_done": "✅ <b>{name}</b> güncellendi.",
-
     "job_flow_title": "📝 Görev ekleme (sihirbaz)",
     "job_flow_ask": "Görevi doğal dille yazın:\n<i>\"3000 TL su faturası geldi, son ödeme 19 ağustos\"</i>",
     "job_flow_done": "Görev kaydedildi ✅"
   },
-
   "panel": {
     "title": "Kâhya — panel",
     "subtitle": "Amele üzerine kurulu, kendi evinizin/küçük işletmenizin kâhyası",
@@ -70,7 +66,6 @@
     "tabs_guide": "Kılavuz",
     "tabs_logs": "Geçmiş",
     "tabs_license": "Lisans",
-
     "login_title": "Kâhya — giriş",
     "login_user": "Kullanıcı adı",
     "login_pass": "Şifre",
@@ -78,7 +73,6 @@
     "login_error": "Kullanıcı adı veya şifre hatalı.",
     "login_locked": "Çok fazla hatalı deneme. 5 dakika sonra tekrar deneyin.",
     "login_default_warn": "Hâlâ varsayılan şifreyle giriş yaptınız — Ayarlar'dan değiştirin!",
-
     "settings_title": "Ayarlar",
     "settings_hint": "Tüm ayarlar anında etkilidir — yeniden başlatma gerekmez.",
     "settings_saved": "Kaydedildi ✅",
@@ -91,16 +85,16 @@
     "settings_telegram_token_ph": "@BotFather'dan alın",
     "settings_telegram_chat": "Sahip Telegram ID (chat id)",
     "settings_telegram_test": "🧪 Test gönder",
-    "settings_telegram_test_ok": "Mesaj gönderildi — Telegram'ı kontrol edin.",
-    "settings_telegram_test_fail": "Gönderilemedi: {error}",
+    "settings_telegram_test_ok": "Mesaj gönderildi ✅",
+    "settings_telegram_test_fail": "Hata: {error}",
     "settings_llm_model": "Model",
     "settings_llm_provider": "Sağlayıcı tipi",
     "settings_llm_base": "Endpoint (BASE_URL)",
     "settings_llm_base_ph": "http://192.168.1.50:11434/v1 (Ollama) · https://api.openai.com/v1",
     "settings_llm_key": "API anahtarı (boş = yerel model)",
     "settings_llm_test": "🧪 Test bağlantısı",
-    "settings_llm_test_ok": "Bağlantı çalışıyor ✅ (model yanıt verdi)",
-    "settings_llm_test_fail": "Bağlantı hatası: {error}",
+    "settings_llm_test_ok": "LLM bağlantısı çalışıyor ✅",
+    "settings_llm_test_fail": "Hata: {error}",
     "settings_port": "Panel portu",
     "settings_port_hint": "Çakışma olursa değiştirin; panel yeniden başlatılınca etkili olur.",
     "settings_timezone": "Saat dilimi",
@@ -112,12 +106,11 @@
     "settings_save": "Kaydet",
     "settings_backup": "💾 DB yedeği indir",
     "settings_danger": "Tehlikeli bölge",
-
     "items_new": "Yeni görev",
-    "items_new_hint": "Fatura, aşı, doğum günü, hatırlatma… Tekrar alanı düzenli kayıtlar içindir — örn. aylık + detay 20 (ayın günü).",
+    "items_new_hint": "Fatura, aşı, doğum günü, hatırlatma… Tutar ve birim yalnızca ödeme içeren işler için — diğer görevlerde boş bırakın. Tekrar alanı düzenli kayıtlar içindir (aylık + detay 20).",
     "items_title": "Başlık",
-    "items_amount": "Tutar",
-    "items_currency": "Para birimi",
+    "items_amount": "Tutar (ops.)",
+    "items_currency": "Birim (ops.)",
     "items_due": "Son ödeme / tarih",
     "items_agent": "Ajan",
     "items_repeat": "Tekrar",
@@ -134,7 +127,6 @@
     "items_done_btn": "tamamla",
     "items_empty": "Açık görev yok. 🌿",
     "items_completed": "Tamamlandı ✅",
-
     "agents_new": "Yeni ajan",
     "agents_new_hint": "Ajan = bir amele YAML dosyası. İsim + görev tanımı yazın; sistem agents/<slug>.yaml üretir — organization as code.",
     "agents_name": "Ajan adı",
@@ -147,19 +139,17 @@
     "agents_edit": "düzenle",
     "agents_delete": "sil",
     "agents_delete_confirm": "Bu ajanı silmek istediğinize emin misiniz? Görevleri genel alana taşınır.",
-
     "logs_title": "Geçmiş",
     "logs_hint": "Her ajan çalışması ve bot etkinliği burada izlenir.",
     "logs_time": "Zaman",
     "logs_source": "Kaynak",
     "logs_event": "Olay",
     "logs_empty": "Kayıt yok",
-
     "guide_title": "Kullanım kılavuzu",
     "license_title": "Lisans",
-    "footer": "Loxigo Software — <a href=\"https://www.loxigo.com\" target=\"_blank\">www.loxigo.com</a>"
+    "footer": "Loxigo Software — <a href=\"https://www.loxigo.com\" target=\"_blank\">www.loxigo.com</a>",
+    "test_message": "🧪 Kâhya test mesajı — bağlantı çalışıyor ✅"
   },
-
   "guide": [
     {
       "title": "🚀 Başlarken",
@@ -194,7 +184,6 @@
       "body": "• Panel portu çakışırsa Ayarlar'dan değiştirin (panel yeniden başlayınca etkili).\n• Bot token'ı değişirse bot bir sonraki mesajda otomatik yeniden bağlanır.\n• Saat dilimi ayarı hatırlatmaların zamanlamasını etkiler.\n• Geçmiş sekmesi tüm ajan çalışmalarını ve bot olaylarını gösterir — sorun giderme burada başlar.\n• systemd ile çalıştırıyorsanız üç servis vardır: kahya-scheduler, kahya-bot, kahya-web (deploy/ klasöründe örnekler)."
     }
   ],
-
   "license": {
     "title": "Kâhya Lisansı — Loxigo Software",
     "personal": "Kişisel kullanım: Bu yazılım, kişisel ve ticari olmayan kullanım için MIT lisansı koşullarında ücretsizdir (aşağıdaki koşullara tabi).",

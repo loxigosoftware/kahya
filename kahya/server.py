@@ -59,13 +59,13 @@ tools:
         {{"op": "item", "id": <int>}} to fetch one item, or
         {{"op": "items", "agent": "<slug>", "status": "open"}} to list.
         stdout: the record(s) as JSON.
-      command: ["./tools/db_get.py"]
+      command: ["../tools/db_get.py"]
       timeout: 30s
     - name: telegram_send
       description: >
         Send a text message to the owner on Telegram. stdin: the message
         text. stdout: "ok" or an error message.
-      command: ["./tools/telegram_send.py"]
+      command: ["../tools/telegram_send.py"]
       timeout: 60s
 
 limits:
@@ -379,21 +379,39 @@ class Handler(BaseHTTPRequestHandler):
 
     def _test_telegram(self):
         cfg = self.server.cfg
-        if not cfg.telegram_token or not cfg.telegram_chat_id:
+        data = self._read_body()
+        # Use the values typed in the panel form (unsaved) when provided —
+        # testing must work before the user hits Save.
+        token = str(data.get("token") or "").strip() or cfg.telegram_token
+        chat = str(data.get("chat_id") or "").strip() or cfg.telegram_chat_id
+        if not token or not chat:
             self._json({"error": "token/chat id eksik"}, 400)
             return
-        ok = self.server.telegram_send("🧪 Kâhya test message — connection works. "
-                                       "Test mesajı — bağlantı çalışıyor.")
+        tmp = type("Cfg", (), {"telegram_token": token, "telegram_chat_id": chat})()
+        msg = I18n(self.server.cfg.dir / "lang", self.server.cfg.language).t(
+            "panel.test_message")
+        ok = _telegram_send_factory(tmp)(msg)
         self._json({"ok": ok == "ok", "detail": ok if ok != "ok" else ""})
 
     def _test_llm(self):
         cfg = self.server.cfg
-        if not cfg.model or not cfg.base_url:
+        data = self._read_body()
+        # Use the values typed in the panel form (unsaved) when provided.
+        overrides = {
+            "model": str(data.get("model") or "").strip() or cfg.model,
+            "provider_type": str(data.get("provider_type") or "").strip()
+                              or cfg.provider_type,
+            "base_url": str(data.get("base_url") or "").strip() or cfg.base_url,
+        }
+        if data.get("api_key"):
+            overrides["api_key"] = str(data["api_key"]).strip()
+        probe_cfg = Config(self.server.db, overrides=overrides)
+        if not probe_cfg.model or not probe_cfg.base_url:
             self._json({"error": "model/endpoint eksik"}, 400)
             return
         probe = self.server.agents_dir / "extract.yaml"
         try:
-            res = run_agent(cfg, probe, "test: 1 TL deneme faturası", timeout_s=60)
+            res = run_agent(probe_cfg, probe, "test: 1 TL deneme faturası", timeout_s=60)
             self._json({"ok": True, "detail": str(res)[:200]})
         except AmeleError as e:
             self._json({"error": f"amele exit {e.exit_code}: {e}", "ok": False}, 502)

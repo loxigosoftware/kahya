@@ -64,7 +64,7 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 class Config:
-    def __init__(self, db=None) -> None:
+    def __init__(self, db=None, overrides: Optional[dict] = None) -> None:
         from .db import KahyaDB  # local import: avoid cycle
 
         self.dir = Path(os.environ.get("KAHYA_DIR", str(Path(__file__).resolve().parent.parent)))
@@ -72,6 +72,7 @@ class Config:
         _load_dotenv(self.dir / "secrets.env")
         self.db_path = Path(os.environ.get("KAHYA_DB", str(self.dir / "data" / "kahya.db")))
         self._db = db if db is not None else KahyaDB(self.db_path)
+        self._overrides = overrides or {}
 
         self.amele_bin = Path(os.environ.get("AMELE_BIN", str(self.dir / "bin" / "amele")))
         self.agents_dir = self.dir / "agents"
@@ -80,6 +81,8 @@ class Config:
     # -- the three-layer lookup -------------------------------------
 
     def _get(self, key: str, env: str, default: str = "") -> str:
+        if key in self._overrides and self._overrides[key] not in (None, ""):
+            return str(self._overrides[key])
         v = self._db.get_setting(key)
         if v is not None:
             return v

@@ -144,11 +144,28 @@ class Bot:
                     f"field, keep everything else):\n{message}")
         else:
             task = f"{self._known_agents()}\n\nOwner message:\n{message}"
+        # The extract agent must resolve dates against the real current
+        # date — without it the model guesses the year (seen live: "20
+        # ağustos" became 2025-08-20 and the panel flagged it overdue).
+        task = (f"TODAY is {date.today().isoformat()} (the real current "
+                f"date — resolve every date against it, never guess a "
+                f"year).\n\n{task}")
         return run_agent(self.cfg, self.extract_yaml, task, timeout_s=120)
 
-    def _ask_orchestrator(self, message: str) -> str:
-        """Spawn the Kâhya orchestrator agent to answer a question."""
-        res = run_agent(self.cfg, self.kahya_yaml, message, timeout_s=120)
+    def _ask_agent(self, slug: str | None, message: str) -> str:
+        """Run the agent named by slug to answer a question.
+
+        Generic by design — the extract agent decides WHICH agent answers
+        ("finance" for market data, "health" for medical reminders, ...);
+        the bot core knows nothing about domains. Falls back to the Kâhya
+        orchestrator for general questions about the store.
+        """
+        yaml_path = self.kahya_yaml
+        if slug and re.match(SLUG_RE, slug):
+            p = self.cfg.agents_dir / f"{slug}.yaml"
+            if p.exists():
+                yaml_path = p
+        res = run_agent(self.cfg, yaml_path, message, timeout_s=120)
         if isinstance(res, dict):
             return json.dumps(res, ensure_ascii=False)
         return str(res)
@@ -575,7 +592,7 @@ class Bot:
 
         if extracted.get("intent") == "question":
             try:
-                answer = self._ask_orchestrator(text)
+                answer = self._ask_agent(extracted.get("agent_slug"), text)
             except AmeleError as e:
                 self.tg.send(chat_id, self._t("bot.understand_error", code=e.exit_code))
                 return

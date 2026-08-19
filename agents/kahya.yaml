@@ -38,7 +38,7 @@ system_prompt: |
   - Send the answer with telegram_send.
   - Finish with a one-line JSON confirmation {"ok": true}.
 
-workspace: .
+workspace: ..  # repo root (amele resolves relative to this YAML's dir)
 
 tools:
   fs: false
@@ -49,13 +49,13 @@ tools:
         {"op": "agents"} lists agents; {"op": "items", "agent": "<slug>",
         "status": "open"} lists items; {"op": "item", "id": <int>} fetches
         one. stdout: the records as JSON.
-      command: ["./tools/db_get.py"]
+      command: ["../tools/db_get.py"]
       timeout: 30s
     - name: telegram_send
       description: >
         Send a text message to the owner on Telegram. stdin: the message
         text. stdout: "ok" or an error message.
-      command: ["./tools/telegram_send.py"]
+      command: ["../tools/telegram_send.py"]
       timeout: 60s
 
 limits:

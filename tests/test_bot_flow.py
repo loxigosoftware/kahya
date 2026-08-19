@@ -76,6 +76,7 @@ os.environ.update({
     "TELEGRAM_API_BASE": "http://127.0.0.1:9432",
     "TELEGRAM_BOT_TOKEN": "test",
     "TELEGRAM_CHAT_ID": "42",
+    "KAHYA_LANGUAGE": "tr",
     "AMELE_MODEL": "qwen3-vl:8b",
     "PROVIDER_TYPE": "openai",
     "BASE_URL": "http://127.0.0.1:9431/v1",

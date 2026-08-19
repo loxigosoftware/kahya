@@ -31,7 +31,7 @@ system_prompt: |
 
   Never invent records. Never write to the database.
 
-workspace: .
+workspace: ..  # repo root (amele resolves relative to this YAML's dir)
 
 tools:
   fs: false
@@ -42,13 +42,13 @@ tools:
         {"op": "item", "id": <int>} fetches one item, or
         {"op": "items", "agent": "<slug>", "status": "open"} lists.
         stdout: the record(s) as JSON.
-      command: ["./tools/db_get.py"]
+      command: ["../tools/db_get.py"]
       timeout: 30s
     - name: telegram_send
       description: >
         Send a text message to the owner on Telegram. stdin: the message
         text. stdout: "ok" or an error message.
-      command: ["./tools/telegram_send.py"]
+      command: ["../tools/telegram_send.py"]
       timeout: 60s
 
 limits:
