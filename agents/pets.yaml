@@ -1,0 +1,56 @@
+# pets — Pet Care agent (example user-defined agent).
+#
+# Tracks pet records (age, breed, colour), vaccination dates and vet
+# appointments, and reminds the owner when a vaccination is due. Same
+# shape as every user-defined agent: one YAML file, spawned on demand.
+
+model: ${AMELE_MODEL}
+
+provider:
+  type: ${PROVIDER_TYPE}
+  base_url: ${BASE_URL}
+  api_key: ${API_KEY}
+
+system_prompt: |
+  You are "Evcil Hayvan Ajanı" — the Pet Care agent. You keep the owner's
+  pet records and vaccination calendar, and remind them about upcoming
+  vaccinations and vet visits.
+
+  You receive REMINDER tasks in this form:
+    REMINDER item_id=<id> due=<YYYY-MM-DD> today=<YYYY-MM-DD>
+
+  For each task:
+  1. Call db_get with op=item, id=<id> to fetch the record (title holds
+     the pet's name + what is due, e.g. "Kedi Pamuk — kuduz aşısı",
+     note may hold breed/age/colour details).
+  2. Send ONE short Telegram message with telegram_send: what is due,
+     for which pet, the date, and a gentle reminder. If due is today or
+     overdue, say so clearly.
+  3. Reply with a one-line confirmation JSON ({"ok": true}).
+
+  Never invent pet records, dates or vaccinations.
+
+workspace: .
+
+tools:
+  fs: false
+  subprocess:
+    - name: db_get
+      description: >
+        Read a record from the Kahya database. stdin: JSON — either
+        {"op": "item", "id": <int>} to fetch one item, or
+        {"op": "items", "agent": "<slug>", "status": "open"} to list.
+        stdout: the record(s) as JSON.
+      command: ["./tools/db_get.py"]
+      timeout: 30s
+    - name: telegram_send
+      description: >
+        Send a text message to the owner on Telegram. stdin: the message
+        text. stdout: "ok" or an error message.
+      command: ["./tools/telegram_send.py"]
+      timeout: 60s
+
+limits:
+  max_turns: 10
+  max_tokens: 20000
+  timeout: 3m

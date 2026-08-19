@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kâhya — panel</title>
+<style>
+  :root{
+    --bg:#fbfaf7; --paper:#fff; --text:#171717; --muted:#6e6b65;
+    --line:#e7e2d9; --soft:#f5f2ec; --accent:#d85f49; --accent-soft:#fff0eb;
+    --ok:#2e7d4f; --ok-soft:#e8f5ee;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:Inter,ui-sans-serif,system-ui,"Segoe UI",sans-serif;line-height:1.6}
+  header{padding:28px 32px;background:var(--paper);border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:24px;letter-spacing:-.02em}
+  header .sub{color:var(--muted);font-size:14px}
+  main{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+  .tabs{display:flex;gap:8px;margin-bottom:22px}
+  .tab{border:1px solid var(--line);background:var(--paper);border-radius:999px;
+    padding:8px 18px;font-size:14px;cursor:pointer;color:var(--muted)}
+  .tab.active{background:var(--text);color:#fff;border-color:var(--text)}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px}
+  .card h2{margin:0 0 4px;font-size:17px}
+  .card .hint{color:var(--muted);font-size:13px;margin:0 0 14px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:8px 10px}
+  td{padding:9px 10px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;
+    padding:2px 10px;font-size:12px;background:var(--soft);color:#4a4742}
+  .pill.due{background:var(--accent-soft);color:var(--accent);border-color:#f3c9bf}
+  .pill.over{background:#fdeaea;color:#b3261e;border-color:#f3c2c2}
+  .pill.done{background:var(--ok-soft);color:var(--ok);border-color:#bfe3d0}
+  button{background:var(--text);color:#fff;border:none;border-radius:9px;padding:8px 16px;
+    font-size:13px;cursor:pointer}
+  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:5px 12px}
+  input,textarea,select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;
+    font:inherit;background:#fff;margin-bottom:10px}
+  textarea{min-height:90px;resize:vertical}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .agent{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
+  .agent .name{font-weight:600}
+  .agent .slug{color:var(--muted);font-size:12px;font-family:ui-monospace,Menlo,monospace}
+  .agent .yaml{color:var(--muted);font-size:12px}
+  .empty{color:var(--muted);font-size:14px;padding:14px 0}
+  .toast{position:fixed;bottom:22px;right:22px;background:var(--text);color:#fff;
+    padding:12px 18px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧑‍💼 Kâhya <span style="color:var(--muted);font-weight:400">— panel</span></h1>
+  <div class="sub">Amele üzerine kurulu, kendi evinizin/sirketinizin kâhyası · organization as code</div>
+</header>
+<main>
+  <div class="tabs">
+    <button class="tab active" data-tab="items">Görevler</button>
+    <button class="tab" data-tab="agents">Ajanlar</button>
+    <button class="tab" data-tab="logs">Geçmiş</button>
+  </div>
+
+  <section id="tab-items">
+    <div class="card">
+      <h2>Yeni görev</h2>
+      <p class="hint">Fatura, aşı, doğum günü, hatırlatma… Aynı form her tür görevi taşır. Düzenli kayıtlar için <i>tekrar</i> alanını kullanın — örn. aylık, detay: <code>20</code> (ayın günü).</p>
+      <div class="grid2">
+        <div>
+          <input id="ni-title" placeholder="Başlık — örn. Su faturası" />
+          <div class="grid2">
+            <input id="ni-amount" type="number" placeholder="Tutar (ops.)" />
+            <input id="ni-currency" placeholder="TRY / USD (ops.)" />
+          </div>
+          <input id="ni-due" type="date" placeholder="Son ödeme / tarih" />
+        </div>
+        <div>
+          <select id="ni-agent"></select>
+          <select id="ni-repeat">
+            <option value="none">Tek sefer</option>
+            <option value="daily">Her gün</option>
+            <option value="weekly">Her hafta</option>
+            <option value="monthly">Her ay</option>
+            <option value="yearly">Her yıl</option>
+          </select>
+          <input id="ni-detail" placeholder="Tekrar detayı — örn. 20 (ayın günü), monday, 08-19" />
+          <input id="ni-remind" type="number" value="2" placeholder="Kaç gün önceden hatırlat" />
+        </div>
+      </div>
+      <textarea id="ni-note" placeholder="Not (ops.)"></textarea>
+      <button onclick="addItem()">Ekle</button>
+    </div>
+    <div class="card">
+      <h2>Açık görevler</h2>
+      <div id="items-list"><div class="empty">Yükleniyor…</div></div>
+    </div>
+  </section>
+
+  <section id="tab-agents" style="display:none">
+    <div class="card">
+      <h2>Yeni ajan</h2>
+      <p class="hint">Ajan = bir amele YAML dosyası. İsmini ve görev tanımını yazın; sistem <code>agents/&lt;slug&gt;.yaml</code> dosyasını üretir. Bu dosya versiyonlanır, diff'lenir, paylaşılır.</p>
+      <input id="na-name" placeholder="Ajan adı — örn. Fatura Takipçisi" />
+      <input id="na-slug" placeholder="Slug — örn. fatura (a-z0-9 ve tire)" />
+      <textarea id="na-prompt" placeholder="Görev tanımı (role prompt) — örn. &quot;Faturaları ve son ödeme tarihlerini takip et, 2 gün önceden hatırlat.&quot;"></textarea>
+      <button onclick="addAgent()">Ajanı oluştur</button>
+    </div>
+    <div class="card">
+      <h2>Ajanlar</h2>
+      <div id="agents-list"><div class="empty">Yükleniyor…</div></div>
+    </div>
+  </section>
+
+  <section id="tab-logs" style="display:none">
+    <div class="card">
+      <h2>Geçmiş</h2>
+      <p class="hint">Her ajan çalışması ve bot etkinliği burada izlenir.</p>
+      <table><thead><tr><th>Zaman</th><th>Kaynak</th><th>Olay</th></tr></thead>
+      <tbody id="logs-body"></tbody></table>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600); }
+async function api(path, opts={}){
+  const res = await fetch(path, {headers:{'Content-Type':'application/json'}, ...opts});
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error || res.status);
+  return data;
+}
+
+// tabs
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  ['items','agents','logs'].forEach(id=>$('tab-'+id).style.display = id===t.dataset.tab?'':'none');
+  if(t.dataset.tab==='agents') loadAgents();
+  if(t.dataset.tab==='logs') loadLogs();
+});
+
+function dueClass(it){
+  if(it.status==='done') return 'done';
+  if(it.due_date && it.due_date < new Date().toISOString().slice(0,10)) return 'over';
+  if(it.due_date && it.due_date <= new Date(Date.now()+3*864e5).toISOString().slice(0,10)) return 'due';
+  return '';
+}
+function dueLabel(it){
+  if(it.status==='done') return 'tamamlandı';
+  if(it.due_date && it.due_date < new Date().toISOString().slice(0,10)) return 'geçti!';
+  return it.due_date || '—';
+}
+function money(it){
+  if(it.amount==null) return '—';
+  const a = Number.isInteger(it.amount) ? it.amount : it.amount.toFixed(2);
+  return a + (it.currency? ' '+it.currency : '');
+}
+
+async function loadItems(){
+  try{
+    const {items} = await api('/api/items?status=open');
+    $('items-list').innerHTML = items.length ? `
+      <table><thead><tr><th>Görev</th><th>Ajan</th><th>Tutar</th><th>Tarih</th><th>Tekrar</th><th></th></tr></thead>
+      <tbody>${items.map(it=>`
+        <tr>
+          <td><b>${esc(it.title)}</b>${it.note? `<br><span style="color:var(--muted);font-size:12px">${esc(it.note)}</span>`:''}</td>
+          <td>${esc(it.agent_name || 'genel')}</td>
+          <td>${money(it)}</td>
+          <td><span class="pill ${dueClass(it)}">${dueLabel(it)}</span></td>
+          <td>${it.repeat_rule!=='none'? `<span class="pill">${esc(it.repeat_rule)}${it.repeat_detail? ' '+esc(it.repeat_detail):''}</span>`:'—'}</td>
+          <td><button class="ghost" onclick="complete(${it.id})">tamamla</button></td>
+        </tr>`).join('')}
+      </tbody></table>` : '<div class="empty">Açık görev yok. 🌿</div>';
+  }catch(e){ $('items-list').innerHTML = `<div class="empty">Hata: ${esc(e.message)}</div>`; }
+}
+
+async function complete(id){
+  try{ await api('/api/items/'+id+'/complete', {method:'POST', body:'{}'}); toast('Tamamlandı ✅'); loadItems(); }
+  catch(e){ toast(e.message); }
+}
+
+async function loadAgentOptions(){
+  const {agents} = await api('/api/agents');
+  $('ni-agent').innerHTML = `<option value="">Genel</option>` +
+    agents.map(a=>`<option value="${a.slug}">${esc(a.name)}</option>`).join('');
+}
+
+async function addItem(){
+  const data = {
+    title:$('ni-title').value.trim(), amount:$('ni-amount').value? Number($('ni-amount').value):null,
+    currency:$('ni-currency').value.trim()||null, due_date:$('ni-due').value||null,
+    agent:$('ni-agent').value||null, repeat_rule:$('ni-repeat').value,
+    repeat_detail:$('ni-detail').value.trim()||null,
+    remind_before_days:Number($('ni-remind').value)||2, note:$('ni-note').value.trim()||null };
+  if(!data.title){ toast('Başlık gerekli'); return; }
+  try{ await api('/api/items', {method:'POST', body:JSON.stringify({data})}); toast('Eklendi ✅');
+    ['ni-title','ni-amount','ni-currency','ni-due','ni-detail','ni-note'].forEach(id=>$(id).value='');
+    loadItems(); }catch(e){ toast(e.message); }
+}
+
+async function loadAgents(){
+  try{
+    const {agents} = await api('/api/agents');
+    $('agents-list').innerHTML = agents.length ? agents.map(a=>`
+      <div class="agent">
+        <div><div class="name">${esc(a.name)}</div>
+          <div class="slug">${esc(a.slug)} · ${a.enabled? 'aktif':'pasif'}</div>
+          <div class="yaml">${esc(a.yaml_path || '')}</div></div>
+      </div>`).join('') : '<div class="empty">Henüz ajan yok. Yukarıdan ilk ajanınızı yaratın.</div>';
+  }catch(e){ $('agents-list').innerHTML = `<div class="empty">Hata: ${esc(e.message)}</div>`; }
+}
+
+async function addAgent(){
+  const name=$('na-name').value.trim(), slug=$('na-slug').value.trim().toLowerCase(), role=$('na-prompt').value.trim();
+  if(!name||!slug||!role){ toast('Üç alan da gerekli'); return; }
+  try{ const r=await api('/api/agents',{method:'POST',body:JSON.stringify({name,slug,role_prompt:role})});
+    toast('Ajan oluşturuldu ✅ '+r.yaml); ['na-name','na-slug','na-prompt'].forEach(id=>$(id).value='');
+    loadAgents(); loadAgentOptions(); }catch(e){ toast(e.message); }
+}
+
+async function loadLogs(){
+  try{
+    const {logs} = await api('/api/logs');
+    $('logs-body').innerHTML = logs.map(l=>{
+      let p={}; try{p=JSON.parse(l.payload)}catch(_){}
+      return `<tr><td style="white-space:nowrap">${esc(l.ts)}</td><td>${esc(l.source)}</td>
+        <td>${esc(p.event||l.payload)}</td></tr>`;}).join('') ||
+      '<tr><td colspan="3">Kayıt yok</td></tr>';
+  }catch(e){ $('logs-body').innerHTML = `<tr><td colspan="3">Hata: ${esc(e.message)}</td></tr>`; }
+}
+
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+loadItems(); loadAgentOptions();
+</script>
+</body>
+</html>

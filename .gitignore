@@ -1,0 +1,25 @@
+# runtime data
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# secrets — never commit these
+.env
+secrets.env
+
+# amele binary (download via ./scripts/install-amele.sh)
+bin/
+amele
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/

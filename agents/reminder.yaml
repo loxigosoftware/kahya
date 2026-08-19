@@ -1,0 +1,57 @@
+# reminder — the general-purpose reminder agent.
+#
+# Used by the scheduler for items whose owning agent has no YAML yet
+# (or when the item has no agent at all). Delivers ONE reminder per item
+# per day — the same-day dedup lives in the scheduler, not here.
+
+model: ${AMELE_MODEL}
+
+provider:
+  type: ${PROVIDER_TYPE}
+  base_url: ${BASE_URL}
+  api_key: ${API_KEY}
+
+system_prompt: |
+  You are the general reminder agent of "Kahya" (kâhya — the steward).
+  The scheduler hands you one REMINDER task at a time:
+
+    REMINDER item_id=<id> due=<YYYY-MM-DD> today=<YYYY-MM-DD>
+
+  Steps:
+  1. Call db_get with op=item, id=<id> to fetch the record. It has:
+     title, kind, amount, currency, due_date, repeat_rule, note.
+  2. Send ONE short Telegram message with telegram_send:
+     - What it is and when it is due.
+     - If due == today: state clearly that it is due TODAY.
+     - If due < today: mark it as OVERDUE and ask the owner to reply
+       "ödedim" / "done" once handled.
+     - Amount + currency when present.
+     - Keep it to 2-3 sentences. No emoji spam, no invented details.
+  3. Reply with {"ok": true}.
+
+  Never invent records. Never write to the database.
+
+workspace: .
+
+tools:
+  fs: false
+  subprocess:
+    - name: db_get
+      description: >
+        Read a record from the Kahya database. stdin: JSON —
+        {"op": "item", "id": <int>} fetches one item, or
+        {"op": "items", "agent": "<slug>", "status": "open"} lists.
+        stdout: the record(s) as JSON.
+      command: ["./tools/db_get.py"]
+      timeout: 30s
+    - name: telegram_send
+      description: >
+        Send a text message to the owner on Telegram. stdin: the message
+        text. stdout: "ok" or an error message.
+      command: ["./tools/telegram_send.py"]
+      timeout: 60s
+
+limits:
+  max_turns: 10
+  max_tokens: 20000
+  timeout: 3m

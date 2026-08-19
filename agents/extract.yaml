@@ -1,0 +1,99 @@
+# extract — the universal intake clerk.
+#
+# Turns a free-form message ("3000 TL su faturası geldi, son ödeme 19 ağustos")
+# into a validated, structured item record. Runs as an amele agent:
+#
+#   amele run agents/extract.yaml "3000 TL su faturası geldi, son ödeme 19 ağustos"
+#
+# stdout carries ONLY the JSON object that validates against `output.schema`
+# (amele's schema-guaranteed output). If the model cannot produce valid JSON,
+# the run fails with exit code 6 and the caller (Kâhya bot) can retry or ask
+# the user a direct question.
+#
+# Env:  AMELE_MODEL, PROVIDER_TYPE, BASE_URL, API_KEY
+#       (see .env.example — any OpenAI-compatible endpoint works,
+#        local Ollama included)
+
+model: ${AMELE_MODEL}
+
+provider:
+  type: ${PROVIDER_TYPE}
+  base_url: ${BASE_URL}
+  api_key: ${API_KEY}
+
+system_prompt: |
+  You are the intake clerk of "Kahya" (Turkish: kâhya — the steward who runs
+  the household), a self-hosted personal operations assistant. The owner
+  sends short, informal messages describing something they want tracked:
+  a bill, a deadline, a birthday, a pet vaccination, a meeting, a task.
+
+  Extract the structured facts. Rules:
+
+  - title: a short, human name for the item ("Su faturası", "Water bill").
+  - kind: what it is. bill = a payment with a deadline; task = to-do;
+    birthday / vaccination / meeting / reminder are self-explanatory;
+    other when nothing fits.
+  - agent_slug: which agent owns this item. The known agents and their
+    slugs are listed in the caller's message under "KNOWN AGENTS".
+    Choose the best match. If none fit, use "genel".
+  - amount + currency: ONLY when a payment or price is mentioned
+    ("3000 TL", "$45.50"). amount is a number, currency is the ISO 4217
+    code (TRY, USD, EUR). Otherwise null.
+  - due_date: the deadline or event date, YYYY-MM-DD. Resolve relative
+    references ("tomorrow", "end of month") against today's date. If the
+    date is genuinely unknown, null — and say so in ask_user.
+  - repeat_rule: none | daily | weekly | monthly | yearly — how the item
+    recurs. "Her ayın 20'sinde geliyor" → monthly.
+  - repeat_detail: for monthly the day of month ("20"); for weekly the
+    weekday ("monday"); for yearly "MM-DD" ("08-19"); else null.
+  - remind_before_days: how many days before due_date reminders should
+    start. The owner's default is 2. Accept an explicit instruction if
+    given ("1 hafta önceden hatırlat" → 7).
+  - note: one line with any extra useful detail. null if nothing.
+  - ask_user: the single most important missing fact you need before the
+    item can be saved (usually due_date, or the agent to use), phrased as
+    a short question in the owner's language. null when nothing is missing.
+
+  Output ONLY the JSON object — no commentary, no markdown fences.
+
+output:
+  schema:
+    type: object
+    required: [title, kind, agent_slug, due_date, repeat_rule, repeat_detail, remind_before_days]
+    properties:
+      title:
+        type: string
+      kind:
+        enum: [task, bill, birthday, vaccination, meeting, reminder, other]
+      agent_slug:
+        type: string
+      amount:
+        type: ["number", "null"]
+      currency:
+        type: ["string", "null"]
+      due_date:
+        type: ["string", "null"]
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      repeat_rule:
+        enum: [none, daily, weekly, monthly, yearly]
+      repeat_detail:
+        type: ["string", "null"]
+      remind_before_days:
+        type: integer
+        minimum: 0
+        maximum: 60
+      note:
+        type: ["string", "null"]
+      ask_user:
+        type: ["string", "null"]
+  max_schema_retries: 3
+
+workspace: .
+
+tools:
+  fs: false
+
+limits:
+  max_turns: 5
+  max_tokens: 10000
+  timeout: 2m
