@@ -51,6 +51,21 @@ file in [`agents/`](agents/). That buys three things:
 
 ## Install
 
+**One command (any platform — Linux, macOS, Windows, Raspberry Pi):**
+
+```bash
+git clone https://github.com/loxigosoftware/kahya
+cd kahya
+python3 install.py
+```
+
+The installer detects your platform (or you pick from a list), downloads
+the matching amele binary from GitHub, **verifies it against SHA256SUMS**,
+creates `.env`, port-tests the panel port (8080 → next free if taken) and
+prints your LAN address + first-login credentials.
+
+Manual path (same result, step by step):
+
 ```bash
 git clone https://github.com/loxigosoftware/kahya
 cd kahya
