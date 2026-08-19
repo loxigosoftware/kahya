@@ -108,22 +108,26 @@ class Bot:
             print(f"  [bot] token changed, reconnected")
 
     def _register_commands(self) -> None:
-        """Publish the /-menu so Telegram clients show the commands."""
+        """Publish the /-menu so Telegram clients show the commands.
+
+        Telegram command names allow only a-z0-9_ (no dashes — a dash
+        makes the whole setMyCommands call fail with 400).
+        """
         try:
-            self.tg.set_commands([
+            ok = self.tg.set_commands([
                 ("start", "Welcome & how to use"),
                 ("help", "Command list"),
                 ("settings", "Setup summary"),
                 ("agents", "List agents"),
-                ("add-agent", "New agent (wizard)"),
-                ("edit-agent", "Edit an agent"),
-                ("delete-agent", "Delete an agent"),
+                ("add_agent", "New agent (wizard)"),
+                ("edit_agent", "Edit an agent"),
+                ("delete_agent", "Delete an agent"),
                 ("jobs", "Open tasks"),
-                ("add-job", "Add a task"),
+                ("add_job", "Add a task"),
                 ("done", "Complete a task"),
                 ("cancel", "Cancel the current flow"),
             ])
-            print("  [bot] commands registered (setMyCommands)")
+            print(f"  [bot] commands registered: {ok}")
         except Exception as e:
             print(f"  [bot] setMyCommands failed: {e}")
 
@@ -551,10 +555,10 @@ class Bot:
             self.db.set_chat_state(chat_id, {})
             self.tg.send(chat_id, self._t("bot.cancel_ok"))
             return
-        if low in ("/add-agent", "add-agent", "yeni ajan"):
+        if low in ("/add-agent", "/add_agent", "add-agent", "add_agent", "yeni ajan"):
             self._wizard_add_name(chat_id)
             return
-        if low == "/delete-agent" or low.startswith("/delete-agent "):
+        if low in ("/delete-agent", "/delete_agent") or low.startswith(("/delete-agent ", "/delete_agent ")):
             slug = low.split(" ", 1)[1].strip() if " " in low else ""
             if slug:
                 self._delete_agent(chat_id, slug)
@@ -562,14 +566,14 @@ class Bot:
                 self.db.set_chat_state(chat_id, {"step": "del_slug"})
                 self.tg.send(chat_id, self._t("bot.wizard_delete_which"))
             return
-        if low == "/edit-agent" or low.startswith("/edit-agent "):
+        if low in ("/edit-agent", "/edit_agent") or low.startswith(("/edit-agent ", "/edit_agent ")):
             slug = low.split(" ", 1)[1].strip() if " " in low else ""
             if slug:
                 self._edit_field(chat_id, slug)
             else:
                 self._start_edit(chat_id)
             return
-        if low == "/add-job" or low.startswith("/add-job "):
+        if low in ("/add-job", "/add_job") or low.startswith(("/add-job ", "/add_job ")):
             job = low.split(" ", 1)[1].strip() if " " in low else ""
             if job:
                 self._handle_natural(chat_id, text.split(" ", 1)[1].strip(), {})
