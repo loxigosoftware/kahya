@@ -8,16 +8,19 @@
   :root{
     --bg:#fbfaf7; --paper:#fff; --text:#171717; --muted:#6e6b65;
     --line:#e7e2d9; --soft:#f5f2ec; --accent:#d85f49; --accent-soft:#fff0eb;
-    --ok:#2e7d4f; --ok-soft:#e8f5ee;
+    --ok:#2e7d4f; --ok-soft:#e8f5ee; --warn:#9a5b00; --warn-soft:#fff4e0;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
     font-family:Inter,ui-sans-serif,system-ui,"Segoe UI",sans-serif;line-height:1.6}
-  header{padding:28px 32px;background:var(--paper);border-bottom:1px solid var(--line)}
-  header h1{margin:0;font-size:24px;letter-spacing:-.02em}
-  header .sub{color:var(--muted);font-size:14px}
-  main{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
-  .tabs{display:flex;gap:8px;margin-bottom:22px}
+  header{padding:24px 32px;background:var(--paper);border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  header h1{margin:0;font-size:22px;letter-spacing:-.02em}
+  header .sub{color:var(--muted);font-size:13px}
+  .warn-banner{background:var(--warn-soft);color:var(--warn);border-bottom:1px solid #ecd9b0;
+    padding:10px 32px;font-size:14px}
+  main{max-width:1080px;margin:0 auto;padding:24px 20px 80px}
+  .tabs{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
   .tab{border:1px solid var(--line);background:var(--paper);border-radius:999px;
     padding:8px 18px;font-size:14px;cursor:pointer;color:var(--muted)}
   .tab.active{background:var(--text);color:#fff;border-color:var(--text)}
@@ -36,124 +39,161 @@
   button{background:var(--text);color:#fff;border:none;border-radius:9px;padding:8px 16px;
     font-size:13px;cursor:pointer}
   button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:5px 12px}
+  button.ghost.red{color:#b3261e;border-color:#e0a3a0}
+  button.secondary{background:var(--soft);color:var(--text);border:1px solid var(--line)}
   input,textarea,select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;
     font:inherit;background:#fff;margin-bottom:10px}
   textarea{min-height:90px;resize:vertical}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  @media(max-width:760px){.grid2,.grid3{grid-template-columns:1fr}}
   .agent{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
   .agent .name{font-weight:600}
   .agent .slug{color:var(--muted);font-size:12px;font-family:ui-monospace,Menlo,monospace}
   .agent .yaml{color:var(--muted);font-size:12px}
+  .agent .actions{display:flex;gap:8px;flex-shrink:0}
   .empty{color:var(--muted);font-size:14px;padding:14px 0}
   .toast{position:fixed;bottom:22px;right:22px;background:var(--text);color:#fff;
-    padding:12px 18px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none}
+    padding:12px 18px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
   .toast.show{opacity:1}
+  .login-wrap{max-width:380px;margin:80px auto;background:var(--paper);
+    border:1px solid var(--line);border-radius:16px;padding:32px}
+  .login-wrap h1{margin:0 0 6px;font-size:22px}
+  .login-wrap .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .guide h3{margin:22px 0 6px;font-size:16px}
+  .guide p{white-space:pre-line;font-size:14px;color:#333;margin:0 0 6px}
+  .license p{white-space:pre-line;font-size:14px;color:#333}
+  .settings-section{border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .settings-section h3{margin:0 0 12px;font-size:15px}
+  .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn-row .res{font-size:13px;color:var(--muted)}
+  code{background:var(--soft);border-radius:5px;padding:1px 6px;font-size:12.5px}
 </style>
 </head>
 <body>
-<header>
-  <h1>🧑‍💼 Kâhya <span style="color:var(--muted);font-weight:400">— panel</span></h1>
-  <div class="sub">Amele üzerine kurulu, kendi evinizin/sirketinizin kâhyası · organization as code</div>
-</header>
-<main>
-  <div class="tabs">
-    <button class="tab active" data-tab="items">Görevler</button>
-    <button class="tab" data-tab="agents">Ajanlar</button>
-    <button class="tab" data-tab="logs">Geçmiş</button>
-  </div>
-
-  <section id="tab-items">
-    <div class="card">
-      <h2>Yeni görev</h2>
-      <p class="hint">Fatura, aşı, doğum günü, hatırlatma… Aynı form her tür görevi taşır. Düzenli kayıtlar için <i>tekrar</i> alanını kullanın — örn. aylık, detay: <code>20</code> (ayın günü).</p>
-      <div class="grid2">
-        <div>
-          <input id="ni-title" placeholder="Başlık — örn. Su faturası" />
-          <div class="grid2">
-            <input id="ni-amount" type="number" placeholder="Tutar (ops.)" />
-            <input id="ni-currency" placeholder="TRY / USD (ops.)" />
-          </div>
-          <input id="ni-due" type="date" placeholder="Son ödeme / tarih" />
-        </div>
-        <div>
-          <select id="ni-agent"></select>
-          <select id="ni-repeat">
-            <option value="none">Tek sefer</option>
-            <option value="daily">Her gün</option>
-            <option value="weekly">Her hafta</option>
-            <option value="monthly">Her ay</option>
-            <option value="yearly">Her yıl</option>
-          </select>
-          <input id="ni-detail" placeholder="Tekrar detayı — örn. 20 (ayın günü), monday, 08-19" />
-          <input id="ni-remind" type="number" value="2" placeholder="Kaç gün önceden hatırlat" />
-        </div>
-      </div>
-      <textarea id="ni-note" placeholder="Not (ops.)"></textarea>
-      <button onclick="addItem()">Ekle</button>
-    </div>
-    <div class="card">
-      <h2>Açık görevler</h2>
-      <div id="items-list"><div class="empty">Yükleniyor…</div></div>
-    </div>
-  </section>
-
-  <section id="tab-agents" style="display:none">
-    <div class="card">
-      <h2>Yeni ajan</h2>
-      <p class="hint">Ajan = bir amele YAML dosyası. İsmini ve görev tanımını yazın; sistem <code>agents/&lt;slug&gt;.yaml</code> dosyasını üretir. Bu dosya versiyonlanır, diff'lenir, paylaşılır.</p>
-      <input id="na-name" placeholder="Ajan adı — örn. Fatura Takipçisi" />
-      <input id="na-slug" placeholder="Slug — örn. fatura (a-z0-9 ve tire)" />
-      <textarea id="na-prompt" placeholder="Görev tanımı (role prompt) — örn. &quot;Faturaları ve son ödeme tarihlerini takip et, 2 gün önceden hatırlat.&quot;"></textarea>
-      <button onclick="addAgent()">Ajanı oluştur</button>
-    </div>
-    <div class="card">
-      <h2>Ajanlar</h2>
-      <div id="agents-list"><div class="empty">Yükleniyor…</div></div>
-    </div>
-  </section>
-
-  <section id="tab-logs" style="display:none">
-    <div class="card">
-      <h2>Geçmiş</h2>
-      <p class="hint">Her ajan çalışması ve bot etkinliği burada izlenir.</p>
-      <table><thead><tr><th>Zaman</th><th>Kaynak</th><th>Olay</th></tr></thead>
-      <tbody id="logs-body"></tbody></table>
-    </div>
-  </section>
-</main>
+<div id="app"></div>
 <div class="toast" id="toast"></div>
 
 <script>
 const $ = id => document.getElementById(id);
+let T = {};            // translations (from /api/lang)
+let SESSION = {authed:false, usingDefault:false};
+
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2600); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const t = k => { const v = k.split('.').reduce((o,p)=>o&&o[p], T); return (v!==undefined&&typeof v==='string') ? v : k; };
+
 async function api(path, opts={}){
   const res = await fetch(path, {headers:{'Content-Type':'application/json'}, ...opts});
-  const data = await res.json();
+  if(res.status===401){ SESSION.authed=false; render(); throw new Error('unauthorized'); }
+  const data = await res.json().catch(()=>({}));
   if(!res.ok) throw new Error(data.error || res.status);
   return data;
 }
 
-// tabs
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active');
-  ['items','agents','logs'].forEach(id=>$('tab-'+id).style.display = id===t.dataset.tab?'':'none');
-  if(t.dataset.tab==='agents') loadAgents();
-  if(t.dataset.tab==='logs') loadLogs();
-});
+async function loadLang(){
+  const lang = localStorage.getItem('kahya_lang') || 'tr';
+  T = await api('/api/lang?lang='+lang);
+  document.documentElement.lang = lang;
+}
 
+// ---------------------------------------------------------------- login
+function renderLogin(){
+  const warn = SESSION.usingDefault ? `<div class="warn-banner">⚠️ ${t('panel.login_default_warn')}</div>` : '';
+  $('app').innerHTML = warn + `
+  <div class="login-wrap">
+    <h1>🧑‍💼 Kâhya</h1>
+    <div class="sub">${t('panel.subtitle')}</div>
+    <input id="li-user" placeholder="${t('panel.login_user')}" autocomplete="username" />
+    <input id="li-pass" type="password" placeholder="${t('panel.login_pass')}" autocomplete="current-password" />
+    <button style="width:100%" onclick="doLogin()">${t('panel.login_button')}</button>
+    <div id="li-err" style="color:#b3261e;font-size:13px;margin-top:10px;min-height:18px"></div>
+  </div>`;
+  $('li-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+}
+async function doLogin(){
+  try{
+    const r = await api('/api/login', {method:'POST', body:JSON.stringify({
+      user:$('li-user').value, password:$('li-pass').value})});
+    SESSION.authed = true;
+    SESSION.usingDefault = (await api('/api/me')).using_default_password;
+    render();
+  }catch(e){ $('li-err').textContent = e.message==='locked' ? t('panel.login_locked') : t('panel.login_error'); }
+}
+
+// ---------------------------------------------------------------- layout
+function renderHeader(){
+  return `
+  <header>
+    <div>
+      <h1>🧑‍💼 Kâhya <span style="color:var(--muted);font-weight:400">— ${t('panel.title').split('—')[1]||t('panel.title')}</span></h1>
+      <div class="sub">${t('panel.subtitle')}</div>
+    </div>
+    <div class="btn-row">
+      <select id="lang-sel" style="width:auto;margin:0" onchange="setLang(this.value)">
+        <option value="tr" ${(localStorage.getItem('kahya_lang')||'tr')==='tr'?'selected':''}>Türkçe</option>
+        <option value="en" ${(localStorage.getItem('kahya_lang')||'tr')==='en'?'selected':''}>English</option>
+      </select>
+      <button class="secondary" onclick="doLogout()">${t('panel.login_button')==='Giriş'?'Çıkış':'Logout'}</button>
+    </div>
+  </header>`;
+}
+async function doLogout(){ try{ await api('/api/logout',{method:'POST',body:'{}'}); }catch(_){} SESSION.authed=false; render(); }
+function setLang(l){ localStorage.setItem('kahya_lang', l); loadLang().then(render); }
+
+async function render(){
+  await loadLang();
+  if(!SESSION.authed){ renderLogin(); return; }
+  const warn = SESSION.usingDefault ? `<div class="warn-banner">⚠️ ${t('panel.login_default_warn')}</div>` : '';
+  $('app').innerHTML = warn + renderHeader() + `
+  <main>
+    <div class="tabs">
+      <button class="tab active" data-tab="items">${t('panel.tabs_items')}</button>
+      <button class="tab" data-tab="agents">${t('panel.tabs_agents')}</button>
+      <button class="tab" data-tab="settings">${t('panel.tabs_settings')}</button>
+      <button class="tab" data-tab="guide">${t('panel.tabs_guide')}</button>
+      <button class="tab" data-tab="logs">${t('panel.tabs_logs')}</button>
+      <button class="tab" data-tab="license">${t('panel.tabs_license')}</button>
+    </div>
+    <section id="tab-items"></section>
+    <section id="tab-agents" style="display:none"></section>
+    <section id="tab-settings" style="display:none"></section>
+    <section id="tab-guide" style="display:none"></section>
+    <section id="tab-logs" style="display:none"></section>
+    <section id="tab-license" style="display:none"></section>
+    <footer style="color:var(--muted);font-size:13px;margin-top:40px;text-align:center">
+      ${t('panel.footer')}
+    </footer>
+  </main>`;
+  document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    tab.classList.add('active');
+    ['items','agents','settings','guide','logs','license'].forEach(id=>
+      $('tab-'+id).style.display = id===tab.dataset.tab?'':'none');
+    if(tab.dataset.tab==='items') loadItems();
+    if(tab.dataset.tab==='agents') loadAgents();
+    if(tab.dataset.tab==='settings') loadSettings();
+    if(tab.dataset.tab==='guide') renderGuide();
+    if(tab.dataset.tab==='logs') loadLogs();
+    if(tab.dataset.tab==='license') renderLicense();
+  });
+  loadItems(); loadAgentOptions();
+}
+
+// ---------------------------------------------------------------- items
 function dueClass(it){
   if(it.status==='done') return 'done';
-  if(it.due_date && it.due_date < new Date().toISOString().slice(0,10)) return 'over';
+  const today = new Date().toISOString().slice(0,10);
+  if(it.due_date && it.due_date < today) return 'over';
   if(it.due_date && it.due_date <= new Date(Date.now()+3*864e5).toISOString().slice(0,10)) return 'due';
   return '';
 }
 function dueLabel(it){
-  if(it.status==='done') return 'tamamlandı';
-  if(it.due_date && it.due_date < new Date().toISOString().slice(0,10)) return 'geçti!';
+  if(it.status==='done') return t('panel.items_done_btn')==='tamamla'?'tamamlandı':'done';
+  const today = new Date().toISOString().slice(0,10);
+  if(it.due_date && it.due_date < today) return t('panel.tabs_items')==='Görevler'?'geçti!':'overdue!';
   return it.due_date || '—';
 }
 function money(it){
@@ -161,36 +201,63 @@ function money(it){
   const a = Number.isInteger(it.amount) ? it.amount : it.amount.toFixed(2);
   return a + (it.currency? ' '+it.currency : '');
 }
+const REPEATS = {none:'items_repeat_none',daily:'items_repeat_daily',weekly:'items_repeat_weekly',
+                 monthly:'items_repeat_monthly',yearly:'items_repeat_yearly'};
 
 async function loadItems(){
   try{
     const {items} = await api('/api/items?status=open');
-    $('items-list').innerHTML = items.length ? `
-      <table><thead><tr><th>Görev</th><th>Ajan</th><th>Tutar</th><th>Tarih</th><th>Tekrar</th><th></th></tr></thead>
-      <tbody>${items.map(it=>`
-        <tr>
-          <td><b>${esc(it.title)}</b>${it.note? `<br><span style="color:var(--muted);font-size:12px">${esc(it.note)}</span>`:''}</td>
-          <td>${esc(it.agent_name || 'genel')}</td>
-          <td>${money(it)}</td>
-          <td><span class="pill ${dueClass(it)}">${dueLabel(it)}</span></td>
-          <td>${it.repeat_rule!=='none'? `<span class="pill">${esc(it.repeat_rule)}${it.repeat_detail? ' '+esc(it.repeat_detail):''}</span>`:'—'}</td>
-          <td><button class="ghost" onclick="complete(${it.id})">tamamla</button></td>
-        </tr>`).join('')}
-      </tbody></table>` : '<div class="empty">Açık görev yok. 🌿</div>';
-  }catch(e){ $('items-list').innerHTML = `<div class="empty">Hata: ${esc(e.message)}</div>`; }
+    $('tab-items').innerHTML = `
+    <div class="card">
+      <h2>${t('panel.items_new')}</h2>
+      <p class="hint">${t('panel.items_new_hint')}</p>
+      <div class="grid2">
+        <div>
+          <input id="ni-title" placeholder="${t('panel.items_title')}" />
+          <div class="grid2">
+            <input id="ni-amount" type="number" placeholder="${t('panel.items_amount')}" />
+            <input id="ni-currency" placeholder="${t('panel.items_currency')}" />
+          </div>
+          <input id="ni-due" type="date" />
+        </div>
+        <div>
+          <select id="ni-agent"></select>
+          <select id="ni-repeat">
+            <option value="none">${t('panel.items_repeat_none')}</option>
+            <option value="daily">${t('panel.items_repeat_daily')}</option>
+            <option value="weekly">${t('panel.items_repeat_weekly')}</option>
+            <option value="monthly">${t('panel.items_repeat_monthly')}</option>
+            <option value="yearly">${t('panel.items_repeat_yearly')}</option>
+          </select>
+          <input id="ni-detail" placeholder="${t('panel.items_detail')}" />
+          <input id="ni-remind" type="number" value="2" />
+        </div>
+      </div>
+      <textarea id="ni-note" placeholder="${t('panel.items_note')}"></textarea>
+      <button onclick="addItem()">${t('panel.items_add')}</button>
+    </div>
+    <div class="card">
+      <h2>${t('panel.items_open')}</h2>
+      <div id="items-list">${items.length ? `
+        <table><thead><tr><th>${t('panel.items_title')}</th><th>${t('panel.items_agent')}</th>
+          <th>${t('panel.items_amount')}</th><th>${t('panel.items_due')}</th><th>${t('panel.items_repeat')}</th><th></th></tr></thead>
+        <tbody>${items.map(it=>`
+          <tr>
+            <td><b>${esc(it.title)}</b>${it.note? `<br><span style="color:var(--muted);font-size:12px">${esc(it.note)}</span>`:''}</td>
+            <td>${esc(it.agent_name||'—')}</td>
+            <td>${money(it)}</td>
+            <td><span class="pill ${dueClass(it)}">${dueLabel(it)}</span></td>
+            <td>${it.repeat_rule!=='none'? `<span class="pill">${t(REPEATS[it.repeat_rule]||'items_repeat_none')}${it.repeat_detail? ' '+esc(it.repeat_detail):''}</span>`:'—'}</td>
+            <td><button class="ghost" onclick="complete(${it.id})">${t('panel.items_done_btn')}</button></td>
+          </tr>`).join('')}
+        </tbody></table>` : `<div class="empty">${t('panel.items_empty')}</div>`}</div>
+    </div>`;
+  }catch(e){ $('tab-items').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
-
 async function complete(id){
-  try{ await api('/api/items/'+id+'/complete', {method:'POST', body:'{}'}); toast('Tamamlandı ✅'); loadItems(); }
+  try{ await api('/api/items/'+id+'/complete', {method:'POST', body:'{}'}); toast(t('panel.items_completed')); loadItems(); }
   catch(e){ toast(e.message); }
 }
-
-async function loadAgentOptions(){
-  const {agents} = await api('/api/agents');
-  $('ni-agent').innerHTML = `<option value="">Genel</option>` +
-    agents.map(a=>`<option value="${a.slug}">${esc(a.name)}</option>`).join('');
-}
-
 async function addItem(){
   const data = {
     title:$('ni-title').value.trim(), amount:$('ni-amount').value? Number($('ni-amount').value):null,
@@ -198,46 +265,233 @@ async function addItem(){
     agent:$('ni-agent').value||null, repeat_rule:$('ni-repeat').value,
     repeat_detail:$('ni-detail').value.trim()||null,
     remind_before_days:Number($('ni-remind').value)||2, note:$('ni-note').value.trim()||null };
-  if(!data.title){ toast('Başlık gerekli'); return; }
-  try{ await api('/api/items', {method:'POST', body:JSON.stringify({data})}); toast('Eklendi ✅');
+  if(!data.title){ toast(t('panel.items_title')+'!'); return; }
+  try{ await api('/api/items', {method:'POST', body:JSON.stringify({data})}); toast(t('panel.items_completed')==='Completed ✅'?'Added ✅':'Eklendi ✅');
     ['ni-title','ni-amount','ni-currency','ni-due','ni-detail','ni-note'].forEach(id=>$(id).value='');
     loadItems(); }catch(e){ toast(e.message); }
 }
+async function loadAgentOptions(){
+  try{
+    const {agents} = await api('/api/agents');
+    const sel = $('ni-agent'); if(!sel) return;
+    sel.innerHTML = `<option value="">—</option>` +
+      agents.map(a=>`<option value="${a.slug}">${esc(a.name)}</option>`).join('');
+  }catch(_){}
+}
 
+// ---------------------------------------------------------------- agents
 async function loadAgents(){
   try{
     const {agents} = await api('/api/agents');
-    $('agents-list').innerHTML = agents.length ? agents.map(a=>`
-      <div class="agent">
-        <div><div class="name">${esc(a.name)}</div>
-          <div class="slug">${esc(a.slug)} · ${a.enabled? 'aktif':'pasif'}</div>
-          <div class="yaml">${esc(a.yaml_path || '')}</div></div>
-      </div>`).join('') : '<div class="empty">Henüz ajan yok. Yukarıdan ilk ajanınızı yaratın.</div>';
-  }catch(e){ $('agents-list').innerHTML = `<div class="empty">Hata: ${esc(e.message)}</div>`; }
+    $('tab-agents').innerHTML = `
+    <div class="card">
+      <h2>${t('panel.agents_new')}</h2>
+      <p class="hint">${t('panel.agents_new_hint')}</p>
+      <div class="grid3">
+        <input id="na-name" placeholder="${t('panel.agents_name')}" />
+        <input id="na-slug" placeholder="${t('panel.agents_slug')}" />
+      </div>
+      <textarea id="na-prompt" placeholder="${t('panel.agents_role')}"></textarea>
+      <button onclick="addAgent()">${t('panel.agents_create')}</button>
+    </div>
+    <div class="card">
+      <h2>${t('panel.agents_list')}</h2>
+      <div id="agents-list">${agents.length ? agents.map(a=>`
+        <div class="agent">
+          <div style="flex:1">
+            <div class="name">${esc(a.name)}</div>
+            <div class="slug">${esc(a.slug)} · ${a.enabled? t('panel.agents_active'):'—'}</div>
+            <div class="yaml">${esc(a.yaml_path||'')}</div>
+          </div>
+          <div class="actions">
+            <button class="ghost" onclick="editAgent('${a.slug}')">${t('panel.agents_edit')}</button>
+            <button class="ghost red" onclick="delAgent('${a.slug}')">${t('panel.agents_delete')}</button>
+          </div>
+        </div>`).join('') : `<div class="empty">${t('panel.agents_empty')}</div>`}</div>
+    </div>`;
+  }catch(e){ $('tab-agents').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
-
 async function addAgent(){
   const name=$('na-name').value.trim(), slug=$('na-slug').value.trim().toLowerCase(), role=$('na-prompt').value.trim();
-  if(!name||!slug||!role){ toast('Üç alan da gerekli'); return; }
-  try{ const r=await api('/api/agents',{method:'POST',body:JSON.stringify({name,slug,role_prompt:role})});
-    toast('Ajan oluşturuldu ✅ '+r.yaml); ['na-name','na-slug','na-prompt'].forEach(id=>$(id).value='');
+  if(!name||!slug||!role){ toast('!'); return; }
+  try{ await api('/api/agents',{method:'POST',body:JSON.stringify({name,slug,role_prompt:role})});
+    toast('✅'); ['na-name','na-slug','na-prompt'].forEach(id=>$(id).value='');
     loadAgents(); loadAgentOptions(); }catch(e){ toast(e.message); }
 }
+async function delAgent(slug){
+  if(!confirm(t('panel.agents_delete_confirm'))) return;
+  try{ await api('/api/agents/delete',{method:'POST',body:JSON.stringify({slug})});
+    toast('🗑️'); loadAgents(); loadAgentOptions(); }catch(e){ toast(e.message); }
+}
+async function editAgent(slug){
+  const name = prompt(t('panel.agents_name'), ''); if(name===null) return;
+  const role = prompt(t('panel.agents_role'), ''); if(role===null) return;
+  try{ await api('/api/agents/edit',{method:'POST',body:JSON.stringify({slug,name:name.trim(),role_prompt:role.trim()})});
+    toast('✅'); loadAgents(); }catch(e){ toast(e.message); }
+}
 
+// ---------------------------------------------------------------- settings
+async function loadSettings(){
+  try{
+    const {settings:s} = await api('/api/settings');
+    $('tab-settings').innerHTML = `
+    <div class="card">
+      <h2>${t('panel.settings_title')}</h2>
+      <p class="hint">${t('panel.settings_hint')}</p>
+
+      <div class="settings-section">
+        <h3>${t('panel.settings_section_telegram')}</h3>
+        <div class="grid2">
+          <input id="st-token" placeholder="${t('panel.settings_telegram_token_ph')}"
+                 value="${esc(s.telegram_token)}" />
+          <input id="st-chat" placeholder="${t('panel.settings_telegram_chat')}"
+                 value="${esc(s.telegram_chat_id)}" />
+        </div>
+        <div class="btn-row">
+          <button class="secondary" onclick="testTelegram()">${t('panel.settings_telegram_test')}</button>
+          <span class="res" id="st-res"></span>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>${t('panel.settings_section_llm')}</h3>
+        <div class="grid3">
+          <input id="st-model" placeholder="Model" value="${esc(s.model)}" />
+          <select id="st-provider">
+            <option value="openai" ${s.provider_type==='openai'?'selected':''}>OpenAI-compatible</option>
+            <option value="anthropic" ${s.provider_type==='anthropic'?'selected':''}>Anthropic</option>
+          </select>
+          <input id="st-key" placeholder="${t('panel.settings_llm_key')}" value="" />
+        </div>
+        <input id="st-base" placeholder="${t('panel.settings_llm_base_ph')}" value="${esc(s.base_url)}" />
+        <div class="btn-row">
+          <button class="secondary" onclick="testLLM()">${t('panel.settings_llm_test')}</button>
+          <span class="res" id="sl-res"></span>
+        </div>
+        ${s.api_key_set? '<div style="font-size:12px;color:var(--ok)">✓ API key set</div>':'<div style="font-size:12px;color:var(--muted)">API key not set (local model)</div>'}
+      </div>
+
+      <div class="settings-section">
+        <h3>${t('panel.settings_section_web')}</h3>
+        <div class="grid2">
+          <input id="st-port" type="number" value="${esc(s.web_port)}" />
+          <input id="st-tz" placeholder="${t('panel.settings_timezone_ph')}" value="${esc(s.timezone||'')}" />
+        </div>
+        <div class="hint" style="margin-top:0">${t('panel.settings_port_hint')}</div>
+      </div>
+
+      <div class="settings-section">
+        <h3>${t('panel.settings_section_general')}</h3>
+        <div class="grid2">
+          <select id="st-lang">
+            <option value="tr" ${s.language==='tr'?'selected':''}>Türkçe</option>
+            <option value="en" ${s.language==='en'?'selected':''}>English</option>
+          </select>
+          <span></span>
+        </div>
+        <div class="grid2">
+          <input id="st-quiet-start" placeholder="Quiet start (22:00)" value="${esc(s.quiet_start)}" />
+          <input id="st-quiet-end" placeholder="Quiet end (08:00)" value="${esc(s.quiet_end)}" />
+        </div>
+        <div class="hint" style="margin-top:0">🔕 No reminders between these hours (HH:MM).</div>
+      </div>
+
+      <div class="settings-section">
+        <h3>${t('panel.settings_section_admin')} <span style="color:var(--muted);font-weight:400;font-size:12px">(${t('panel.settings_danger')})</span></h3>
+        <div class="grid2">
+          <input id="st-user" placeholder="${t('panel.settings_admin_user')}" value="${esc(s.admin_user)}" />
+          <input id="st-pass" type="password" placeholder="${t('panel.settings_admin_pass')}" />
+        </div>
+        <div class="hint" style="margin-top:0">${t('panel.settings_admin_pass_hint')}</div>
+      </div>
+
+      <div class="btn-row">
+        <button onclick="saveSettings()">${t('panel.settings_save')}</button>
+        <button class="secondary" onclick="downloadBackup()">${t('panel.settings_backup')}</button>
+        <span class="res" id="ss-res"></span>
+      </div>
+    </div>`;
+  }catch(e){ $('tab-settings').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function saveSettings(){
+  const s = {
+    telegram_token:$('st-token').value.trim(),
+    telegram_chat_id:$('st-chat').value.trim(),
+    model:$('st-model').value.trim(),
+    provider_type:$('st-provider').value,
+    base_url:$('st-base').value.trim(),
+    api_key:$('st-key').value.trim() || null,
+    web_port:$('st-port').value,
+    timezone:$('st-tz').value.trim() || null,
+    language:$('st-lang').value,
+    quiet_start:$('st-quiet-start').value.trim() || null,
+    quiet_end:$('st-quiet-end').value.trim() || null,
+    admin_user:$('st-user').value.trim(),
+    admin_password:$('st-pass').value || null,
+  };
+  try{ await api('/api/settings',{method:'POST',body:JSON.stringify({settings:s})});
+    $('ss-res').textContent = t('panel.settings_saved');
+    setTimeout(()=>{$('ss-res').textContent='';},2500);
+    localStorage.setItem('kahya_lang', s.language||'tr');
+    loadSettings();
+  }catch(e){ $('ss-res').textContent = e.message; }
+}
+async function testTelegram(){
+  $('st-res').textContent = '…';
+  try{ await api('/api/test/telegram',{method:'POST',body:'{}'});
+    $('st-res').textContent = t('panel.settings_telegram_test_ok'); }
+  catch(e){ $('st-res').textContent = t('panel.settings_telegram_test_fail',{error:e.message}); }
+}
+async function testLLM(){
+  $('sl-res').textContent = '…';
+  try{ await api('/api/test/llm',{method:'POST',body:'{}'});
+    $('sl-res').textContent = t('panel.settings_llm_test_ok'); }
+  catch(e){ $('sl-res').textContent = t('panel.settings_llm_test_fail',{error:e.message}); }
+}
+function downloadBackup(){ window.location.href='/api/backup'; }
+
+// ---------------------------------------------------------------- guide
+function renderGuide(){
+  const sections = (T.guide||[]).map(g=>`
+    <div class="card guide">
+      <h2 style="margin-bottom:8px">${esc(g.title)}</h2>
+      <p>${esc(g.body)}</p>
+    </div>`).join('');
+  $('tab-guide').innerHTML = `<div class="card" style="background:transparent;border:none;padding:0">
+    <h2 style="margin-bottom:4px">${t('panel.guide_title')}</h2></div>${sections}`;
+}
+
+// ---------------------------------------------------------------- logs
 async function loadLogs(){
   try{
     const {logs} = await api('/api/logs');
-    $('logs-body').innerHTML = logs.map(l=>{
-      let p={}; try{p=JSON.parse(l.payload)}catch(_){}
-      return `<tr><td style="white-space:nowrap">${esc(l.ts)}</td><td>${esc(l.source)}</td>
-        <td>${esc(p.event||l.payload)}</td></tr>`;}).join('') ||
-      '<tr><td colspan="3">Kayıt yok</td></tr>';
-  }catch(e){ $('logs-body').innerHTML = `<tr><td colspan="3">Hata: ${esc(e.message)}</td></tr>`; }
+    $('tab-logs').innerHTML = `
+    <div class="card">
+      <h2>${t('panel.logs_title')}</h2>
+      <p class="hint">${t('panel.logs_hint')}</p>
+      <table><thead><tr><th>${t('panel.logs_time')}</th><th>${t('panel.logs_source')}</th><th>${t('panel.logs_event')}</th></tr></thead>
+      <tbody>${logs.map(l=>{ let p={}; try{p=JSON.parse(l.payload)}catch(_){}
+        return `<tr><td style="white-space:nowrap">${esc(l.ts)}</td><td>${esc(l.source)}</td>
+          <td>${esc(p.event||l.payload)}</td></tr>`;}).join('') ||
+        `<tr><td colspan="3">${t('panel.logs_empty')}</td></tr>`}</tbody></table>
+    </div>`;
+  }catch(e){ $('tab-logs').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
-function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// ---------------------------------------------------------------- license
+function renderLicense(){
+  const L = T.license||{};
+  $('tab-license').innerHTML = `
+  <div class="card license">
+    <h2>${t('panel.license_title')}</h2>
+    <h3 style="margin-bottom:4px">${esc(L.title||'')}</h3>
+    <p><b>Personal:</b> ${esc(L.personal||'')}</p>
+    <p><b>Commercial:</b> ${esc(L.commercial||'')}</p>
+    <p style="color:var(--muted)">${esc(L.note||'')}</p>
+  </div>`;
+}
 
-loadItems(); loadAgentOptions();
+render();
 </script>
 </body>
 </html>

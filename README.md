@@ -20,9 +20,9 @@ you when it matters. Runs on a Raspberry Pi (or any box), entirely self-hosted.
 ```
 
 > **50 configured agents, 0 running.** Kâhya is idle until there is work:
-> every reminder, every extraction is an amele agent that spawns, does its
-> job, and exits. The organization exists as files; workers exist only while
-> working.
+> every reminder, every extraction, every answer is an amele agent that
+> spawns, does its job, and exits. The organization exists as files; workers
+> exist only while working.
 
 ---
 
@@ -35,9 +35,9 @@ file in [`agents/`](agents/). That buys three things:
 - **Any LLM, local or cloud.** Point `BASE_URL` at a local Ollama
   (`http://host:11434/v1`) or at OpenAI/OpenRouter — the agents don't care.
   Your data stays on your hardware.
-- **Organization as code.** Creating an agent from the web panel writes
-  `agents/<slug>.yaml`. Version it, diff it, review it in a PR, share it.
-  A PR is literally "what changed in my company".
+- **Organization as code.** Creating an agent from the web panel or from
+  Telegram writes `agents/<slug>.yaml`. Version it, diff it, review it in a
+  PR, share it. A PR is literally "what changed in my company".
 - **A well-mannered runtime.** Schema-guaranteed JSON output (`output.schema`
   in [`agents/extract.yaml`](agents/extract.yaml)), meaningful exit codes,
   one JSONL log per run — all amele contracts.
@@ -66,31 +66,77 @@ same script.
 ```bash
 python3 -m kahya.scheduler   # reminders — spawns agents on due windows
 python3 -m kahya.bot         # Telegram front door
-python3 -m kahya.server      # web panel → http://<host>:8080
+python3 -m kahya.server      # admin panel → http://<host>:8080
 ```
 
 `python3 -m kahya.scheduler --dry-run` checks what *would* be sent today
 without touching Telegram. On the Pi, use systemd (units in
 [`deploy/`](deploy/)) or cron + `nohup`.
 
+## First run
+
+1. Open the admin panel (`http://<host>:8080`), sign in with
+   **admin / kahya123** — the banner nags you until you change it in
+   Settings.
+2. Settings → LLM: model + endpoint (Ollama or cloud API), hit
+   **Test connection**.
+3. Settings → Telegram: bot token + your chat id, hit **Send test**.
+4. Settings → General: panel language (Türkçe / English), timezone.
+5. Say `/start` to your bot. Done.
+
+Every setting lives in the SQLite store and applies **immediately** —
+no restarts; if the bot token changes, the bot reconnects on its own.
+Forgot the panel password? `KAHYA_ADMIN_PASSWORD` in `.env` always wins.
+
+## Talk to Kâhya
+
+Natural language in, both ways:
+
+- **Record** — "3000 TL su faturası geldi, son ödeme 19 ağustos",
+  "Kedi Pamuk'un kuduz aşısı 3 eylülde", "Her ayın 20'sinde kira hatırlat".
+  Missing facts are asked one at a time; nothing is saved without your
+  explicit confirmation (human in the loop).
+- **Ask** — "Kuduz aşısı ne zamandı?", "Bu ay hangi faturalar var?" The
+  orchestrator agent ([`agents/kahya.yaml`](agents/kahya.yaml)) reads the
+  store and answers from real data.
+- **Complete** — reply "ödedim" to a reminder; repeating records roll to
+  the next period automatically.
+
+### Admin commands (mirror of the panel, from Telegram)
+
+```
+/agents            list agents
+/add-agent         create agent — wizard: name → slug → job → confirm
+/edit-agent        edit agent name or job description (wizard)
+/delete-agent      delete agent (confirmation required)
+/jobs              list open tasks
+/add-job           add a task (wizard)
+/done              complete the task in the reminder window
+/settings          setup summary
+/help              this list
+/iptal             cancel a running flow
+```
+
 ## How it works
 
 | Piece | What it does | Lives |
 |---|---|---|
-| `agents/extract.yaml` | natural language → validated JSON (schema-guaranteed) | amele agent |
+| `agents/extract.yaml` | natural language → intent (record/question) + validated JSON | amele agent |
+| `agents/kahya.yaml` | the orchestrator — answers questions from the store | amele agent |
 | `agents/reminder.yaml` | general reminder delivery | amele agent |
 | `agents/fatura.yaml`, `agents/pets.yaml` | example owner-defined agents — the shape every panel-created agent gets | amele agents |
 | `tools/db_get.py`, `tools/db_put.py` | read / write the SQLite store (agents can never touch `agents`/`reminders` tables) | agent tools |
 | `tools/telegram_send.py` | deliver a message to the owner | agent tool |
 | `kahya/scheduler.py` | every 60 s: items inside their reminder window → spawn owning agent → one reminder per item per day | core |
-| `kahya/bot.py` | Telegram long-polling, confirmation flow ("evet/hayır"), `ödedim` completes items | core |
-| `kahya/server.py` + `web/` | REST API + single-page panel: agents, items, history | core |
+| `kahya/bot.py` | Telegram long-polling: records, questions, admin commands, confirmation flows | core |
+| `kahya/server.py` + `web/` | authenticated admin panel: agents, tasks, settings, guide, history, license | core |
+| `lang/tr.json`, `lang/en.json` | UI + bot translations — add a language by copying one | i18n |
 
 ### Reminder windows
 
 A bill due on the 20th with `remind_before_days: 2` is reminded on the 18th,
 19th and 20th. Overdue items keep getting one reminder per day until you mark
-them done — reply **ödedim** in the bot (or press *tamamla* in the panel).
+them done — reply **ödedim** in the bot (or press *complete* in the panel).
 Repeating items (monthly `20`, yearly `08-19`, weekly `monday`, daily) roll
 their due date forward automatically when completed.
 
@@ -101,12 +147,23 @@ Extraction is never silently trusted: the bot shows a confirmation card
 asked one at a time. Nothing external happens without a human step — bills,
 payments and dates are confirmed before they enter the store.
 
+## Security
+
+- Panel auth: PBKDF2-hashed password (default admin/kahya123, change it),
+  session cookies, brute-force lockout (5 failed attempts → 5 min),
+  env fallback `KAHYA_ADMIN_PASSWORD`.
+- Telegram bot only serves the configured chat id — strangers get a polite
+  "wrong household".
+- Agents read the store through a whitelist; `db_put` allows inserts/updates
+  on `items` only, never on agents, reminders or settings.
+
 ## Data
 
-Everything lives in one SQLite file, `data/kahya.db`. Backup = copy the file.
-No account, no cloud, no telemetry. (Telegram messages transit Telegram's
-servers — that is the one place your data leaves the house; everything else
-stays local.)
+Everything lives in one SQLite file, `data/kahya.db`. Backup = copy the file
+(or the panel's "Download DB backup" button). No account, no cloud, no
+telemetry. (Telegram messages transit Telegram's servers — that is the one
+place your data leaves the house; everything else stays local. A cloud LLM
+sees what you send it; a local Ollama changes nothing.)
 
 ## The bigger picture
 
@@ -118,5 +175,7 @@ a visual *company builder*; the YAML files are the company itself.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Built on [amele](https://github.com/lasthumanintheloop/amele) (MIT) by
-[Loxigo Software](https://github.com/loxigosoftware).
+Dual license — see [LICENSE](LICENSE): **free for personal use** (MIT-style
+terms); **commercial use requires a paid license** from
+[Loxigo Software](https://www.loxigo.com). Built on
+[amele](https://github.com/lasthumanintheloop/amele) (MIT).

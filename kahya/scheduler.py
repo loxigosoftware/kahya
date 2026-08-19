@@ -18,13 +18,36 @@ from .db import KahyaDB
 TICK_SECONDS = 60
 
 
+def _in_quiet_hours(cfg: Config, now: datetime) -> bool:
+    """True when `now` falls inside the quiet window (quiet_start–quiet_end)."""
+    try:
+        sh, sm = map(int, cfg.quiet_start.split(":"))
+        eh, em = map(int, cfg.quiet_end.split(":"))
+    except ValueError:
+        return False
+    cur = now.hour * 60 + now.minute
+    s = sh * 60 + sm
+    e = eh * 60 + em
+    if s < e:  # e.g. 00:00–08:00
+        return s <= cur < e
+    return cur >= s or cur < e  # wraps midnight, e.g. 22:00–08:00
+
+
 def tick(cfg: Config, db: KahyaDB, today: date | None = None,
-         dry_run: bool = False) -> list[dict]:
+         dry_run: bool = False, now: datetime | None = None) -> list[dict]:
     """Deliver today's reminders. Returns what was sent (or would be)."""
     today = today or date.today()
+    now = now or datetime.now()
+    quiet = _in_quiet_hours(cfg, now)
     sent: list[dict] = []
     for item in db.due_for_reminder(today):
         if db.reminders_sent_today(item["id"]):
+            continue
+
+        # quiet hours: hold the reminder until the window opens
+        if quiet and not dry_run:
+            db.log("scheduler", {"event": "reminder_held_quiet",
+                                 "item_id": item["id"]})
             continue
 
         yaml_path: Path | None = None
@@ -77,8 +100,8 @@ def run_forever(cfg: Config, db: KahyaDB) -> None:
 if __name__ == "__main__":
     import sys
     dry = "--dry-run" in sys.argv
-    cfg = Config()
-    db = KahyaDB(cfg.db_path)
+    db = KahyaDB(Config().db_path)
+    cfg = Config(db)
     try:
         if dry:
             results = tick(cfg, db, dry_run=True)

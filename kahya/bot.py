@@ -1,11 +1,15 @@
-"""Telegram bot — the owner's front door.
+"""Telegram bot — the owner's front door, and Kâhya's voice.
 
-Natural language in, confirmation flow out:
-
-  "3000 TL su faturası geldi"  → amele extract agent → follow-up question
-  "19 Ağustos"                 → re-extract with context → confirmation card
-  "evet"                       → saved, reminders armed
-  "ödedim"                     → item completed (rolls repeats forward)
+Three kinds of input:
+  1. admin commands  — /agents, /add-agent (wizard), /edit-agent,
+                       /delete-agent, /jobs, /add-job, /done, /settings,
+                       /help, /cancel — everything the panel does, from
+                       Telegram
+  2. natural language records — "3000 TL su faturası geldi" → amele
+     extract agent → confirmation card → "evet" → saved
+  3. natural language questions — "Kuduz aşısı ne zamandı?" → extract
+     detects intent=question → the Kâhya orchestrator agent (agents/
+     kahya.yaml) reads the store and answers
 
 Pure stdlib HTTP long-polling; no bot framework needed.
 """
@@ -13,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -23,12 +28,16 @@ from typing import Any, Optional
 from .amele_runner import AmeleError, run_agent
 from .config import Config
 from .db import KahyaDB
+from .i18n import I18n
+
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,30}$")
 
 # ------------------------------------------------ telegram plumbing
 
 
 class TG:
     def __init__(self, token: str):
+        self.token = token
         base = os.environ.get("TELEGRAM_API_BASE", "https://api.telegram.org")
         self.base = f"{base}/bot{token}"
 
@@ -39,7 +48,7 @@ class TG:
             with urllib.request.urlopen(req, timeout=35) as r:
                 return json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
-            return {"ok": False, "error": f"HTTP {e.code}: {e.read().decode(errors='replace')[:200]}"}
+            return {"ok": False, "error": f"HTTP {e.code}"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -56,54 +65,6 @@ class TG:
         return res.get("result", []) if res.get("ok") else []
 
 
-# ------------------------------------------------ message builders
-
-
-def _fmt_money(item: dict) -> str:
-    if item.get("amount") is None:
-        return ""
-    cur = item.get("currency") or ""
-    amount = item["amount"]
-    if isinstance(amount, float) and amount == int(amount):
-        amount = int(amount)
-    return f"{amount} {cur}".strip()
-
-
-def _item_line(item: dict) -> str:
-    money = _fmt_money(item)
-    due = item.get("due_date") or "tarih yok"
-    parts = [item["title"]]
-    if money:
-        parts.append(money)
-    parts.append(f"vade: {due}")
-    if item.get("repeat_rule") != "none":
-        parts.append(f"tekrar: {item['repeat_rule']}")
-    return " · ".join(parts)
-
-
-def _confirm_card(extracted: dict) -> str:
-    money = ""
-    if extracted.get("amount") is not None:
-        cur = extracted.get("currency") or ""
-        money = f" — {extracted['amount']} {cur}".rstrip()
-    lines = [
-        "📋 <b>Bunu kaydedeyim mi?</b>",
-        "",
-        f"<b>{extracted.get('title', '?')}</b>{money}",
-    ]
-    if extracted.get("due_date"):
-        lines.append(f"Tarih: {extracted['due_date']}")
-    if extracted.get("repeat_rule", "none") != "none":
-        d = extracted.get("repeat_detail")
-        lines.append(f"Tekrar: {extracted['repeat_rule']}" + (f" ({d})" if d else ""))
-    if extracted.get("remind_before_days") not in (None, 0):
-        lines.append(f"Hatırlatma: {extracted['remind_before_days']} gün önceden")
-    if extracted.get("note"):
-        lines.append(f"Not: {extracted['note']}")
-    lines += ["", "Cevap: <b>evet</b> / <b>hayır</b>"]
-    return "\n".join(lines)
-
-
 # ------------------------------------------------ bot logic
 
 
@@ -113,9 +74,20 @@ class Bot:
         self.db = db
         self.tg = TG(cfg.telegram_token)
         self.offset = 0
+        self.i18n = I18n(cfg.dir / "lang", cfg.language)
         self.extract_yaml = cfg.agents_dir / "extract.yaml"
+        self.kahya_yaml = cfg.agents_dir / "kahya.yaml"
 
     # -- helpers -------------------------------------------------
+
+    def _t(self, key: str, **kw) -> str:
+        self.i18n.set_language(self.cfg.language)
+        return self.i18n.t(key, **kw)
+
+    def _refresh_tg(self) -> None:
+        if self.tg.token != self.cfg.telegram_token:
+            self.tg = TG(self.cfg.telegram_token)
+            print(f"  [bot] token changed, reconnected")
 
     def _known_agents(self) -> str:
         agents = self.db.list_agents()
@@ -135,6 +107,13 @@ class Bot:
         else:
             task = f"{self._known_agents()}\n\nOwner message:\n{message}"
         return run_agent(self.cfg, self.extract_yaml, task, timeout_s=120)
+
+    def _ask_orchestrator(self, message: str) -> str:
+        """Spawn the Kâhya orchestrator agent to answer a question."""
+        res = run_agent(self.cfg, self.kahya_yaml, message, timeout_s=120)
+        if isinstance(res, dict):
+            return json.dumps(res, ensure_ascii=False)
+        return str(res)
 
     def _save_extracted(self, chat_id: int, extracted: dict) -> bool:
         slug = extracted.get("agent_slug") or "genel"
@@ -156,149 +135,416 @@ class Bot:
                             "agent": slug, "title": data["title"]})
         agent_name = agent["name"] if agent else "genel"
         self.tg.send(chat_id,
-                     f"✅ <b>Kaydedildi</b> — {agent_name} takip ediyor.\n"
-                     f"Vadeden {data['remind_before_days']} gün önce hatırlatmaya başlarım.")
+                     self._t("bot.saved_ok", agent=agent_name) + "\n" +
+                     self._t("bot.saved_remind",
+                             days=data["remind_before_days"] or 2))
         return True
 
-    # -- message handlers -----------------------------------------
+    def _fmt_money(self, item: dict) -> str:
+        if item.get("amount") is None:
+            return ""
+        cur = item.get("currency") or ""
+        amount = item["amount"]
+        if isinstance(amount, float) and amount == int(amount):
+            amount = int(amount)
+        return f"{amount} {cur}".strip()
 
-    def _handle_start(self, chat_id: int) -> None:
-        self.tg.send(chat_id,
-                     "🧑‍💼 <b>Kâhya</b> — evinizin ve küçük işletmenizin kâhyası.\n\n"
-                     "Bana doğal dille yazın:\n"
-                     "• <i>\"3000 TL su faturası geldi, son ödeme 19 ağustos\"</i>\n"
-                     "• <i>\"Kedi Pamuk'un kuduz aşısı 3 eylülde\"</i>\n"
-                     "• <i>\"Her ayın 20'sinde kira hatırlat\"</i>\n\n"
-                     "Komutlar: <b>liste</b> · <b>ajanlar</b> · <b>ödedim</b> · <b>iptal</b>")
+    def _item_line(self, item: dict) -> str:
+        money = self._fmt_money(item)
+        due = item.get("due_date") or "—"
+        parts = [item["title"]]
+        if money:
+            parts.append(money)
+        parts.append(due)
+        if item.get("repeat_rule") != "none":
+            parts.append(item["repeat_rule"])
+        return " · ".join(parts)
 
-    def _handle_list(self, chat_id: int) -> None:
-        items = self.db.list_items(status="open")
-        if not items:
-            self.tg.send(chat_id, "Açık görev yok. 🌿")
-            return
-        today = date.today().isoformat()
-        lines = ["📌 <b>Açık görevler:</b>", ""]
-        for it in items:
-            mark = "🔴" if (it["due_date"] or "") < today else "🟢"
-            lines.append(f"{mark} {_item_line(it)}")
-        self.tg.send(chat_id, "\n".join(lines))
+    def _confirm_card(self, extracted: dict) -> str:
+        money = ""
+        if extracted.get("amount") is not None:
+            cur = extracted.get("currency") or ""
+            money = f" — {extracted['amount']} {cur}".rstrip()
+        lines = [
+            self._t("bot.confirm_title"),
+            "",
+            f"<b>{extracted.get('title', '?')}</b>{money}",
+        ]
+        if extracted.get("due_date"):
+            lines.append(self._t("bot.confirm_date", date=extracted["due_date"]))
+        if extracted.get("repeat_rule", "none") != "none":
+            d = extracted.get("repeat_detail")
+            detail = f" ({d})" if d else ""
+            lines.append(self._t("bot.confirm_repeat",
+                                 rule=extracted["repeat_rule"], detail=detail))
+        if extracted.get("remind_before_days") not in (None, 0):
+            lines.append(self._t("bot.confirm_remind",
+                                 days=extracted["remind_before_days"]))
+        if extracted.get("note"):
+            lines.append(self._t("bot.confirm_note", note=extracted["note"]))
+        lines += ["", self._t("bot.confirm_ask")]
+        return "\n".join(lines)
 
-    def _handle_agents(self, chat_id: int) -> None:
+    # -- admin commands --------------------------------------------
+
+    def _cmd_help(self, chat_id: int) -> None:
+        self.tg.send(chat_id, self._t("bot.help"))
+
+    def _cmd_agents(self, chat_id: int) -> None:
         agents = self.db.list_agents()
         if not agents:
-            self.tg.send(chat_id, "Henüz ajan yok. Web panelden ilk ajanınızı yaratın.")
+            self.tg.send(chat_id, self._t("bot.agents_none"))
             return
-        lines = ["🤖 <b>Ajanlar:</b>", ""]
+        lines = [self._t("bot.agents_header"), ""]
         for a in agents:
             n = self.db.con.execute(
                 "SELECT COUNT(*) FROM items WHERE agent_id = ? AND status = 'open'",
                 (a["id"],)).fetchone()[0]
-            lines.append(f"• <b>{a['name']}</b> ({a['slug']}) — {n} açık görev")
+            lines.append(f"• <b>{a['name']}</b> ({a['slug']}) — "
+                         f"{self._t('bot.agents_open', n=n)}")
         self.tg.send(chat_id, "\n".join(lines))
 
+    def _cmd_jobs(self, chat_id: int) -> None:
+        items = self.db.list_items(status="open")
+        if not items:
+            self.tg.send(chat_id, self._t("bot.list_empty"))
+            return
+        today = date.today().isoformat()
+        lines = [self._t("bot.list_header"), ""]
+        for it in items:
+            overdue = (it["due_date"] or "") < today
+            mark = "🔴" if overdue else "🟢"
+            lines.append(f"{mark} {self._item_line(it)}"
+                         + (f" — {self._t('bot.list_overdue')}" if overdue else ""))
+        self.tg.send(chat_id, "\n".join(lines))
+
+    def _cmd_settings(self, chat_id: int) -> None:
+        cfg = self.cfg
+        tg_state = self._t("bot.settings_on") if cfg.telegram_token else \
+            self._t("bot.settings_off")
+        lines = [
+            self._t("bot.settings_title"),
+            "",
+            self._t("bot.settings_line_model", model=cfg.model or "—"),
+            self._t("bot.settings_line_llm", base_url=cfg.base_url or "—"),
+            self._t("bot.settings_line_telegram", state=tg_state),
+            self._t("bot.settings_line_web", host=self._public_host(), port=cfg.web_port),
+            self._t("bot.settings_line_lang", lang=cfg.language),
+        ]
+        self.tg.send(chat_id, "\n".join(lines))
+
+    def _public_host(self) -> str:
+        return os.environ.get("KAHYA_PUBLIC_HOST", "localhost")
+
+    # -- wizards (multi-step admin flows) ---------------------------
+
+    def _wizard_add_name(self, chat_id: int) -> None:
+        self.db.set_chat_state(chat_id, {"step": "add_name"})
+        self.tg.send(chat_id, self._t("bot.wizard_agent_name"))
+
+    def _wizard_add_slug(self, chat_id: int, name: str) -> None:
+        self.db.set_chat_state(chat_id, {"step": "add_slug", "name": name})
+        self.tg.send(chat_id, self._t("bot.wizard_agent_slug"))
+
+    def _wizard_add_role(self, chat_id: int, slug: str, name: str) -> None:
+        self.db.set_chat_state(chat_id, {"step": "add_role", "slug": slug, "name": name})
+        self.tg.send(chat_id, self._t("bot.wizard_agent_role"))
+
+    def _wizard_add_confirm(self, chat_id: int, slug: str, name: str, role: str) -> None:
+        self.db.set_chat_state(chat_id, {
+            "step": "add_confirm", "slug": slug, "name": name, "role": role})
+        self.tg.send(chat_id, self._t("bot.wizard_agent_confirm",
+                                      name=name, slug=slug, role=role))
+
+    def _create_agent(self, chat_id: int, slug: str, name: str, role: str) -> None:
+        yaml_path = self.cfg.agents_dir / f"{slug}.yaml"
+        from .server import AGENT_TEMPLATE  # local import, shared template
+        role_indented = "\n".join("  " + ln for ln in role.splitlines())
+        yaml_path.write_text(
+            AGENT_TEMPLATE.format(slug=slug, name=name, role_prompt=role_indented),
+            encoding="utf-8")
+        agent_id = self.db.create_agent(slug, name, role, str(yaml_path))
+        self.db.log("bot", {"event": "agent_created", "agent": slug})
+        self.tg.send(chat_id, self._t("bot.wizard_agent_created",
+                                      name=name, slug=slug))
+        return agent_id
+
+    def _delete_agent(self, chat_id: int, slug: str) -> None:
+        agent = self.db.get_agent_by_slug(slug)
+        if not agent:
+            self.tg.send(chat_id, self._t("bot.wizard_delete_notfound", slug=slug))
+            return
+        n = self.db.con.execute(
+            "SELECT COUNT(*) FROM items WHERE agent_id = ?", (agent["id"],)).fetchone()[0]
+        self.db.set_chat_state(chat_id, {"step": "del_confirm", "slug": slug,
+                                         "name": agent["name"]})
+        self.tg.send(chat_id, self._t("bot.wizard_delete_confirm",
+                                      name=agent["name"], slug=slug, n=n))
+
+    def _confirm_delete(self, chat_id: int, slug: str) -> None:
+        agent = self.db.get_agent_by_slug(slug)
+        if agent:
+            self.db.con.execute("UPDATE items SET agent_id = NULL WHERE agent_id = ?",
+                                (agent["id"],))
+            self.db.con.execute("DELETE FROM agents WHERE id = ?", (agent["id"],))
+            self.db.con.commit()
+            yaml_path = self.cfg.agents_dir / f"{slug}.yaml"
+            if yaml_path.exists():
+                yaml_path.unlink()
+            self.db.log("bot", {"event": "agent_deleted", "agent": slug})
+            self.tg.send(chat_id, self._t("bot.wizard_delete_done", name=agent["name"]))
+        else:
+            self.tg.send(chat_id, self._t("bot.wizard_delete_notfound", slug=slug))
+
+    def _start_edit(self, chat_id: int) -> None:
+        self.db.set_chat_state(chat_id, {"step": "edit_slug"})
+        self.tg.send(chat_id, self._t("bot.wizard_edit_which"))
+
+    def _edit_field(self, chat_id: int, slug: str) -> None:
+        agent = self.db.get_agent_by_slug(slug)
+        if not agent:
+            self.tg.send(chat_id, self._t("bot.wizard_delete_notfound", slug=slug))
+            self.db.set_chat_state(chat_id, {})
+            return
+        self.db.set_chat_state(chat_id, {"step": "edit_field", "slug": slug,
+                                         "name": agent["name"]})
+        self.tg.send(chat_id, self._t("bot.wizard_edit_field", name=agent["name"]))
+
+    def _apply_edit(self, chat_id: int, slug: str, field: str, value: str) -> None:
+        agent = self.db.get_agent_by_slug(slug)
+        if not agent:
+            self.tg.send(chat_id, self._t("bot.wizard_delete_notfound", slug=slug))
+            return
+        name = value if field == "name" else agent["name"]
+        role = value if field == "role" else agent["role_prompt"]
+        self.db.con.execute("UPDATE agents SET name = ?, role_prompt = ? WHERE id = ?",
+                            (name, role, agent["id"]))
+        self.db.con.commit()
+        yaml_path = self.cfg.agents_dir / f"{slug}.yaml"
+        from .server import AGENT_TEMPLATE
+        role_indented = "\n".join("  " + ln for ln in role.splitlines())
+        yaml_path.write_text(
+            AGENT_TEMPLATE.format(slug=slug, name=name, role_prompt=role_indented),
+            encoding="utf-8")
+        self.db.log("bot", {"event": "agent_edited", "agent": slug})
+        self.tg.send(chat_id, self._t("bot.wizard_edit_done", name=name))
+
+    # -- task completion ---------------------------------------------
+
     def _handle_paid(self, chat_id: int, state: dict) -> None:
-        """'ödedim' — offer the most relevant open item(s) to complete."""
         if state.get("step") == "pay_select":
-            return  # waiting for a selection number
+            return
         today = date.today()
         due_now = [i for i in self.db.due_for_reminder(today)]
         if not due_now:
-            self.tg.send(chat_id, "Hatırlatma penceresinde açık görev yok. 👍")
+            self.tg.send(chat_id, self._t("bot.paid_none"))
             return
         if len(due_now) == 1:
             self._complete(chat_id, due_now[0]["id"])
             return
-        lines = ["Hangisini tamamlayayım?", ""]
+        lines = [self._t("bot.paid_which"), ""]
         for idx, it in enumerate(due_now, 1):
-            lines.append(f"{idx}. {_item_line(it)}")
-        lines += ["", "Numarayı yazın (veya <b>iptal</b>)."]
+            lines.append(f"{idx}. {self._item_line(it)}")
+        lines += ["", self._t("bot.paid_ask_number")]
         self.tg.send(chat_id, "\n".join(lines))
         self.db.set_chat_state(chat_id, {
-            "step": "pay_select",
-            "ids": [i["id"] for i in due_now]})
+            "step": "pay_select", "ids": [i["id"] for i in due_now]})
 
     def _complete(self, chat_id: int, item_id: int) -> None:
         item = self.db.get_item(item_id)
         if not item:
-            self.tg.send(chat_id, "Bu görev bulunamadı.")
+            self.tg.send(chat_id, self._t("bot.item_notfound"))
             return
         result = self.db.complete_item(item_id)
         self.db.log("bot", {"event": "item_completed", "item_id": item_id})
         if result and result.get("rolled"):
-            self.tg.send(chat_id,
-                         f"✅ <b>{item['title']}</b> tamamlandı.\n"
-                         f"Tekrar eden kayıt: sonraki vade <b>{result['due_date']}</b>.")
+            self.tg.send(chat_id, self._t("bot.paid_rolled",
+                                          title=item["title"],
+                                          date=result["due_date"]))
         else:
-            self.tg.send(chat_id, f"✅ <b>{item['title']}</b> tamamlandı. Kapattım.")
+            self.tg.send(chat_id, self._t("bot.paid_done", title=item["title"]))
+
+    # -- main dispatcher ----------------------------------------------
 
     def _handle_text(self, chat_id: int, text: str, state: dict) -> None:
         low = text.lower().strip()
+        step = state.get("step")
 
-        # state machine: confirmations & selections first
-        if state.get("step") == "confirm":
-            if low in ("evet", "e", "yes", "onay"):
+        # ---- state machine (wizards & confirmations) ----
+        if step == "confirm":
+            if low in ("evet", "e", "yes", "onay", "1"):
                 self._save_extracted(chat_id, state["extracted"])
             else:
-                self.tg.send(chat_id, "Tamam, kaydetmedim. 🗑️")
+                self.tg.send(chat_id, self._t("bot.cancel_ok"))
             self.db.set_chat_state(chat_id, {})
             return
 
-        if state.get("step") == "extract_followup":
+        if step == "extract_followup":
             try:
                 extracted = self._extract(text, context=state["extracted"])
             except AmeleError as e:
-                self.tg.send(chat_id, f"Anlayamadım ({e.exit_code}). <b>iptal</b> yazıp tekrar deneyin.")
+                self.tg.send(chat_id, self._t("bot.understand_error", code=e.exit_code))
+                self.db.set_chat_state(chat_id, {})
+                return
+            if extracted.get("intent") != "record":
+                self.tg.send(chat_id, self._t("bot.cancel_ok"))
                 self.db.set_chat_state(chat_id, {})
                 return
             self.db.set_chat_state(chat_id, {"step": "confirm", "extracted": extracted})
-            self.tg.send(chat_id, _confirm_card(extracted))
+            self.tg.send(chat_id, self._confirm_card(extracted))
             return
 
-        if state.get("step") == "pay_select" and low.isdigit():
+        if step == "add_name":
+            name = text.strip()
+            if not name:
+                return
+            self._wizard_add_slug(chat_id, name)
+            return
+        if step == "add_slug":
+            slug = low
+            if not SLUG_RE.match(slug):
+                self.tg.send(chat_id, self._t("bot.wizard_bad_slug"))
+                return
+            if self.db.get_agent_by_slug(slug):
+                self.tg.send(chat_id, self._t("bot.wizard_agent_exists", slug=slug))
+                return
+            self._wizard_add_role(chat_id, slug, state["name"])
+            return
+        if step == "add_role":
+            role = text.strip()
+            if not role:
+                return
+            self._wizard_add_confirm(chat_id, state["slug"], state["name"], role)
+            return
+        if step == "add_confirm":
+            if low in ("evet", "e", "yes", "onay"):
+                self._create_agent(chat_id, state["slug"], state["name"], state["role"])
+            else:
+                self.tg.send(chat_id, self._t("bot.cancel_ok"))
+            self.db.set_chat_state(chat_id, {})
+            return
+
+        if step == "del_slug":
+            self._delete_agent(chat_id, low)
+            self.db.set_chat_state(chat_id, {})
+            return
+        if step == "del_confirm":
+            if low in ("evet", "e", "yes", "onay"):
+                self._confirm_delete(chat_id, state["slug"])
+            else:
+                self.tg.send(chat_id, self._t("bot.cancel_ok"))
+            self.db.set_chat_state(chat_id, {})
+            return
+
+        if step == "edit_slug":
+            self._edit_field(chat_id, low)
+            return
+        if step == "edit_field":
+            if low == "1":
+                self.db.set_chat_state(chat_id, {"step": "edit_value",
+                                                 "slug": state["slug"], "field": "name"})
+                self.tg.send(chat_id, self._t("bot.wizard_edit_new_name"))
+            elif low == "2":
+                self.db.set_chat_state(chat_id, {"step": "edit_value",
+                                                 "slug": state["slug"], "field": "role"})
+                self.tg.send(chat_id, self._t("bot.wizard_edit_new_role"))
+            else:
+                self.tg.send(chat_id, self._t("bot.invalid_number"))
+            return
+        if step == "edit_value":
+            value = text.strip()
+            if value:
+                self._apply_edit(chat_id, state["slug"], state["field"], value)
+            self.db.set_chat_state(chat_id, {})
+            return
+
+        if step == "pay_select" and low.isdigit():
             idx = int(low) - 1
             ids = state.get("ids", [])
             if 0 <= idx < len(ids):
                 self._complete(chat_id, ids[idx])
             else:
-                self.tg.send(chat_id, "Geçersiz numara.")
+                self.tg.send(chat_id, self._t("bot.invalid_number"))
             self.db.set_chat_state(chat_id, {})
             return
 
-        # commands
-        if low in ("/start", "start", "merhaba", "selam"):
-            self._handle_start(chat_id)
+        # ---- commands ----
+        if low in ("/start", "start", "merhaba", "selam", "hi", "hello"):
+            self.tg.send(chat_id, self._t("bot.start_welcome"))
             return
-        if low in ("liste", "görevler", "listele", "list"):
-            self._handle_list(chat_id)
+        if low in ("/help", "help", "yardım"):
+            self._cmd_help(chat_id)
             return
-        if low in ("ajanlar", "agents"):
-            self._handle_agents(chat_id)
+        if low in ("/agents", "agents", "ajanlar"):
+            self._cmd_agents(chat_id)
             return
-        if low in ("ödedim", "tamam", "done", "bitti", "kapattım"):
+        if low in ("/jobs", "jobs", "liste", "görevler", "listele", "list"):
+            self._cmd_jobs(chat_id)
+            return
+        if low in ("/settings", "settings", "ayarlar"):
+            self._cmd_settings(chat_id)
+            return
+        if low in ("/cancel", "iptal", "cancel"):
+            self.db.set_chat_state(chat_id, {})
+            self.tg.send(chat_id, self._t("bot.cancel_ok"))
+            return
+        if low in ("/add-agent", "add-agent", "yeni ajan"):
+            self._wizard_add_name(chat_id)
+            return
+        if low == "/delete-agent" or low.startswith("/delete-agent "):
+            slug = low.split(" ", 1)[1].strip() if " " in low else ""
+            if slug:
+                self._delete_agent(chat_id, slug)
+            else:
+                self.db.set_chat_state(chat_id, {"step": "del_slug"})
+                self.tg.send(chat_id, self._t("bot.wizard_delete_which"))
+            return
+        if low == "/edit-agent" or low.startswith("/edit-agent "):
+            slug = low.split(" ", 1)[1].strip() if " " in low else ""
+            if slug:
+                self._edit_field(chat_id, slug)
+            else:
+                self._start_edit(chat_id)
+            return
+        if low == "/add-job" or low.startswith("/add-job "):
+            job = low.split(" ", 1)[1].strip() if " " in low else ""
+            if job:
+                self._handle_natural(chat_id, text.split(" ", 1)[1].strip(), {})
+            else:
+                self.tg.send(chat_id, self._t("bot.job_flow_ask"))
+            return
+        if low in ("/done", "done", "ödedim", "tamam", "bitti"):
             self._handle_paid(chat_id, state)
             return
-        if low in ("iptal", "cancel"):
-            self.db.set_chat_state(chat_id, {})
-            self.tg.send(chat_id, "İptal edildi.")
-            return
 
-        # default: extract via amele
+        # ---- natural language ----
+        self._handle_natural(chat_id, text, state)
+
+    def _handle_natural(self, chat_id: int, text: str, state: dict) -> None:
         try:
             extracted = self._extract(text)
         except AmeleError as e:
-            self.tg.send(chat_id,
-                         f"Anlayamadım ({e.exit_code}). Daha net yazın veya <b>iptal</b>.")
+            self.tg.send(chat_id, self._t("bot.understand_error", code=e.exit_code))
+            return
+
+        if extracted.get("intent") == "question":
+            try:
+                answer = self._ask_orchestrator(text)
+            except AmeleError as e:
+                self.tg.send(chat_id, self._t("bot.understand_error", code=e.exit_code))
+                return
+            self.tg.send(chat_id, answer)
             return
 
         if not extracted.get("due_date") or extracted.get("ask_user"):
-            question = extracted.get("ask_user") or "Son ödeme/etkinlik tarihi ne zaman? 📅"
+            question = extracted.get("ask_user") or self._t("bot.ask_due_date")
             self.tg.send(chat_id, question)
             self.db.set_chat_state(chat_id, {
                 "step": "extract_followup", "extracted": extracted})
             return
 
         self.db.set_chat_state(chat_id, {"step": "confirm", "extracted": extracted})
-        self.tg.send(chat_id, _confirm_card(extracted))
+        self.tg.send(chat_id, self._confirm_card(extracted))
 
     # -- main loop --------------------------------------------------
 
@@ -306,6 +552,7 @@ class Bot:
         print(f"[kahya bot] started — {self.tg.base[:50]}…")
         while True:
             try:
+                self._refresh_tg()
                 updates = self.tg.get_updates(self.offset)
                 for u in updates:
                     self.offset = u["update_id"] + 1
@@ -314,7 +561,7 @@ class Bot:
                         continue
                     chat_id = msg["chat"]["id"]
                     if str(chat_id) != str(self.cfg.telegram_chat_id):
-                        self.tg.send(chat_id, "Bu kâhya başka bir evin kâhyası. 🏠")
+                        self.tg.send(chat_id, self._t("bot.unknown_user"))
                         continue
                     state = self.db.get_chat_state(chat_id)
                     print(f"  [msg] {msg['text'][:80]!r}")
@@ -325,8 +572,8 @@ class Bot:
 
 
 if __name__ == "__main__":
-    cfg = Config()
-    db = KahyaDB(cfg.db_path)
+    db = KahyaDB(Config().db_path)
+    cfg = Config(db)
     try:
         Bot(cfg, db).run_forever()
     except KeyboardInterrupt:

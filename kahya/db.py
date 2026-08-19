@@ -58,12 +58,30 @@ CREATE TABLE IF NOT EXISTS logs (
   source  TEXT NOT NULL,
   payload TEXT NOT NULL DEFAULT '{}'
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token      TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id         INTEGER PRIMARY KEY,
+  attempted  TEXT NOT NULL DEFAULT (datetime('now')),
+  success    INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
 class KahyaDB:
-    def __init__(self, path: Path) -> None:
-        self.path = path
+    def __init__(self, path: Path | str) -> None:
+        self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.con = sqlite3.connect(str(path), timeout=10, check_same_thread=False)
         self.con.row_factory = sqlite3.Row
@@ -252,6 +270,66 @@ class KahyaDB:
             "ON CONFLICT(chat_id) DO UPDATE SET state_json = excluded.state_json",
             (chat_id, json.dumps(state, ensure_ascii=False)),
         )
+        self.con.commit()
+
+    # ---------- settings (panel-editable, env as fallback) ----------
+
+    def get_setting(self, key: str) -> Optional[str]:
+        row = self.con.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
+
+    def set_setting(self, key: str, value: Optional[str]) -> None:
+        if value is None:
+            self.con.execute("DELETE FROM settings WHERE key = ?", (key,))
+        else:
+            self.con.execute(
+                "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now')) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
+                "updated_at = excluded.updated_at",
+                (key, value),
+            )
+        self.con.commit()
+
+    def all_settings(self) -> dict:
+        rows = self.con.execute("SELECT key, value FROM settings").fetchall()
+        return {r["key"]: r["value"] for r in rows}
+
+    # ---------- sessions / login attempts ----------
+
+    def create_session(self, token: str, ttl_hours: int = 24) -> None:
+        self.con.execute(
+            "DELETE FROM sessions WHERE expires_at < datetime('now')")
+        self.con.execute(
+            "INSERT INTO sessions (token, expires_at) VALUES (?, datetime('now', ?))",
+            (token, f"+{ttl_hours} hours"),
+        )
+        self.con.commit()
+
+    def session_valid(self, token: str) -> bool:
+        row = self.con.execute(
+            "SELECT 1 FROM sessions WHERE token = ? AND expires_at > datetime('now')",
+            (token,)).fetchone()
+        return row is not None
+
+    def delete_session(self, token: str) -> None:
+        self.con.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        self.con.commit()
+
+    def failed_logins(self, since_minutes: int = 10) -> int:
+        row = self.con.execute(
+            "SELECT COUNT(*) AS n FROM login_attempts "
+            "WHERE success = 0 AND attempted > datetime('now', ?)",
+            (f"-{since_minutes} minutes",)).fetchone()
+        return row["n"]
+
+    def record_login(self, success: bool) -> None:
+        self.con.execute(
+            "INSERT INTO login_attempts (success) VALUES (?)", (1 if success else 0,))
+        # keep the table small
+        self.con.execute(
+            "DELETE FROM login_attempts WHERE id NOT IN "
+            "(SELECT id FROM login_attempts ORDER BY id DESC LIMIT 500)")
         self.con.commit()
 
     # ---------- logs ----------

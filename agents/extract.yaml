@@ -30,6 +30,12 @@ system_prompt: |
   Extract the structured facts. Rules:
 
   - title: a short, human name for the item ("Su faturası", "Water bill").
+  - intent: what the owner wants. record = something to track and be
+    reminded about; question = the owner is ASKING about stored records
+    ("kuduz aşısı ne zamandı?"). For question, leave title/kind short
+    (the question as title), set due_date/repeat/amount to null and put
+    nothing in ask_user — the caller answers questions with a different
+    agent.
   - kind: what it is. bill = a payment with a deadline; task = to-do;
     birthday / vaccination / meeting / reminder are self-explanatory;
     other when nothing fits.
@@ -59,8 +65,10 @@ system_prompt: |
 output:
   schema:
     type: object
-    required: [title, kind, agent_slug, due_date, repeat_rule, repeat_detail, remind_before_days]
+    required: [intent, title, kind, agent_slug, due_date, repeat_rule, repeat_detail, remind_before_days]
     properties:
+      intent:
+        enum: [record, question]
       title:
         type: string
       kind:
