@@ -8,12 +8,12 @@ language over Telegram, it tracks everything in one SQLite file and reminds
 you when it matters. Runs on a Raspberry Pi (or any box), entirely self-hosted.
 
 ```
-"3000 TL su faturası geldi, son ödeme 19 ağustos"
+"Water bill 3000 TL arrived, due 19 august"
         │
         ▼
    Telegram bot → amele extract agent → follow-up question
         │
-"19 Ağustos" → confirmation card → "evet"
+"August 19" → confirmation card → "yes"
         │
         ▼
    SQLite · reminders armed → amele reminder agent spawns on the 17th/18th/19th
@@ -96,7 +96,7 @@ without touching Telegram. On the Pi, use systemd (units in
 2. Settings → LLM: model + endpoint (Ollama or cloud API), hit
    **Test connection**.
 3. Settings → Telegram: bot token + your chat id, hit **Send test**.
-4. Settings → General: panel language (Türkçe / English), timezone.
+4. Settings → General: panel language (Turkish / English), timezone.
 5. Say `/start` to your bot. Done.
 
 Every setting lives in the SQLite store and applies **immediately** —
@@ -107,14 +107,15 @@ Forgot the panel password? `KAHYA_ADMIN_PASSWORD` in `.env` always wins.
 
 Natural language in, both ways:
 
-- **Record** — "3000 TL su faturası geldi, son ödeme 19 ağustos",
-  "Kedi Pamuk'un kuduz aşısı 3 eylülde", "Her ayın 20'sinde kira hatırlat".
+- **Record** — "Water bill 3000 TL arrived, due 19 august",
+  "Cat Pamuk's rabies shot on september 3", "Remind me of rent on the 20th
+  of every month".
   Missing facts are asked one at a time; nothing is saved without your
   explicit confirmation (human in the loop).
-- **Ask** — "Kuduz aşısı ne zamandı?", "Bu ay hangi faturalar var?" The
-  orchestrator agent ([`agents/kahya.yaml`](agents/kahya.yaml)) reads the
-  store and answers from real data.
-- **Complete** — reply "ödedim" to a reminder; repeating records roll to
+- **Ask** — "When was the rabies shot?", "Which bills are due this month?"
+  The orchestrator agent ([`agents/kahya.yaml`](agents/kahya.yaml)) reads
+  the store and answers from real data.
+- **Complete** — reply "paid" to a reminder; repeating records roll to
   the next period automatically.
 
 ### Admin commands (mirror of the panel, from Telegram)
@@ -129,7 +130,7 @@ Natural language in, both ways:
 /done              complete the task in the reminder window
 /settings          setup summary
 /help              this list
-/iptal             cancel a running flow
+/cancel            cancel a running flow
 ```
 
 ## How it works
@@ -151,14 +152,14 @@ Natural language in, both ways:
 
 A bill due on the 20th with `remind_before_days: 2` is reminded on the 18th,
 19th and 20th. Overdue items keep getting one reminder per day until you mark
-them done — reply **ödedim** in the bot (or press *complete* in the panel).
+them done — reply **paid** in the bot (or press *complete* in the panel).
 Repeating items (monthly `20`, yearly `08-19`, weekly `monday`, daily) roll
 their due date forward automatically when completed.
 
 ### The confirmation flow (human in the loop)
 
 Extraction is never silently trusted: the bot shows a confirmation card
-(*"📋 Bunu kaydedeyim mi?"*) and saves only after **evet**. Missing facts are
+(*"📋 Save this?"*) and saves only after **yes**. Missing facts are
 asked one at a time. Nothing external happens without a human step — bills,
 payments and dates are confirmed before they enter the store.
 
