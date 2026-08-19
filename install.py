@@ -316,6 +316,33 @@ def write_port(port: int) -> None:
     else:
         lines.append(f"\n# port chosen by the installer\n{key}={port}")
     env.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    sync_port_to_db(port)
+
+
+def sync_port_to_db(port: int) -> None:
+    """Keep an existing DB in sync with the chosen port.
+
+    The panel reads web_port from the settings DB first — a stale row
+    would silently override the .env value and break the panel port
+    after a reinstall (seen on a Pi: DB said 8080, .env said 8081,
+    service failed with 'Address already in use').
+    """
+    db_path = ROOT / "data" / "kahya.db"
+    if not db_path.exists():
+        return
+    try:
+        import sqlite3
+        con = sqlite3.connect(db_path)
+        try:
+            if con.execute("SELECT 1 FROM settings WHERE key='web_port'").fetchone():
+                con.execute("UPDATE settings SET value=? WHERE key='web_port'",
+                            (str(port),))
+                con.commit()
+                say(f"  · web_port synced in existing DB ({port})", "dim")
+        finally:
+            con.close()
+    except Exception as e:
+        say(f"  · could not sync DB port ({e})", "dim")
 
 
 def lan_ip() -> str:
