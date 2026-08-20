@@ -7,7 +7,7 @@ cd "$KAHYA_ROOT"
 
 TEST_ROOT="/tmp/kahya_e2e_root"
 rm -rf "$TEST_ROOT"
-mkdir -p "$TEST_ROOT/agents"
+mkdir -p "$TEST_ROOT/ameleler"
 ln -s "$KAHYA_ROOT/web" "$TEST_ROOT/web"
 ln -s "$KAHYA_ROOT/tools" "$TEST_ROOT/tools"
 
@@ -56,18 +56,18 @@ ck "authenticated agent list" "$(echo "$out" | grep -q 'agents' && echo true || 
 out=$(curl -s -b "$JAR" -X POST "$B/api/agents" -H 'Content-Type: application/json' \
   -d '{"name":"Fatura Takipcisi","slug":"fatura","role_prompt":"Faturalari ve son odeme tarihlerini takip et, 2 gun onceden hatirlat."}')
 ck "agent created" "$(echo "$out" | grep -q ok && echo true || echo false)"
-ck "yaml file written" "$([ -f "$TEST_ROOT/agents/fatura.yaml" ] && echo true || echo false)"
-ck "yaml valid amele config" "$(KAHYA_DIR="$KAHYA_ROOT" AMELE_MODEL=qwen3-vl:8b PROVIDER_TYPE=openai BASE_URL=http://localhost:11434/v1 API_KEY= "$KAHYA_ROOT/bin/amele" validate "$TEST_ROOT/agents/fatura.yaml" >/dev/null 2>&1 && echo true || echo false)"
+ck "yaml file written" "$([ -f "$TEST_ROOT/ameleler/fatura.yaml" ] && echo true || echo false)"
+ck "yaml valid amele config" "$(KAHYA_DIR="$KAHYA_ROOT" AMELE_MODEL=qwen3-vl:8b PROVIDER_TYPE=openai BASE_URL=http://localhost:11434/v1 API_KEY= "$KAHYA_ROOT/bin/amele" validate "$TEST_ROOT/ameleler/fatura.yaml" >/dev/null 2>&1 && echo true || echo false)"
 
 out=$(curl -s -b "$JAR" -X POST "$B/api/agents/edit" -H 'Content-Type: application/json' \
   -d '{"slug":"fatura","name":"Fatura Takipcisi v2","role_prompt":"Yeni gorev tanimi"}')
 ck "agent edited" "$(echo "$out" | grep -q ok && echo true || echo false)"
-ck "yaml updated" "$(grep -q 'Yeni gorev tanimi' "$TEST_ROOT/agents/fatura.yaml" && echo true || echo false)"
+ck "yaml updated" "$(grep -q 'Yeni gorev tanimi' "$TEST_ROOT/ameleler/fatura.yaml" && echo true || echo false)"
 
 out=$(curl -s -b "$JAR" -X POST "$B/api/agents/delete" -H 'Content-Type: application/json' \
   -d '{"slug":"fatura"}')
 ck "agent deleted" "$(echo "$out" | grep -q ok && echo true || echo false)"
-ck "yaml removed" "$([ ! -f "$TEST_ROOT/agents/fatura.yaml" ] && echo true || echo false)"
+ck "yaml removed" "$([ ! -f "$TEST_ROOT/ameleler/fatura.yaml" ] && echo true || echo false)"
 
 echo "== settings =="
 out=$(curl -s -b "$JAR" "$B/api/settings")

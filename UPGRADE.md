@@ -51,7 +51,7 @@ the owner decision by decision. This `UPGRADE.md` is your execution plan.
 
 - [x] **Step 0** — Hazırlık: yedek, git branch, mevcut testlerin doğrulanması
 - [x] **Step 1** — DB migration: schema v2 (records, ameleler+model, amele_mcp, pending_actions, scheduled_tasks, conversation_messages+FTS) + veri dönüşümü
-- [ ] **Step 2** — Amele altyapısı: db_get/db_put yeniden yazımı + JSON doğrulama + amele index + model atama + ajan→amele adlandırma
+- [x] **Step 2** — Amele altyapısı: db_get/db_put yeniden yazımı + JSON doğrulama + amele index + model atama + ajan→amele adlandırma
 - [ ] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameleler / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
 - [ ] **Step 4** — Bot (Telegram): yeni komut seti (`/amele`, otomatik `/<slug>`), yönlendirme, oturum modu, eski komutların kaldırılması, i18n (amele çevrilmez)
 - [ ] **Step 5** — Konuşma belleği: conversation_messages kaydı, 40 mesajda bir arşivleme, FTS arama, "geçmişten bak" akışı, gece yedekleme
@@ -106,13 +106,13 @@ Alt görevler:
 
 Alt görevler:
 
-- [ ] `tools/db_get.py` / `tools/db_put.py`'yi records sözleşmesine göre yeniden yaz (op: get/put/list/search; serbest JSON; şema sütunlarına dokunmaz)
-- [ ] **JSON doğrulama:** db_put tarafında (a) geçerli JSON, (b) şema varsa şemaya uygunluk kontrolü; hatalıysa hata çıktısı (amele yeniden üretir, max 2 deneme; yine olmazsa kullanıcıya rapor — bozuk JSON DB'ye asla yazılmaz)
-- [ ] **Amele index üretimi:** `kahya/db.py`'ye fonksiyon — `ameleler` tablosundan `id, slug, tek satır açıklama` listesi üret (amele CRUD'unda ve bot başlangıcında çağrılır)
-- [ ] **Model atama:** amele YAML'sine `model:` bloğu desteği; `amele_runner` her ameleyi kendi modeliyle çalıştırır (local: Ollama/yerel endpoint; api: dış sağlayıcı; anahtarlar ${VAR} referansı, asla düz metin)
-- [ ] Sistem ayarlarındaki LLM ayarının **yalnız Kahya** için kullanıldığını doğrula (başka ameleler onu kullanmaz)
-- [ ] **Ajan → amele adlandırma:** `agents/*.yaml` dosyalarını `-amele` sonekli adlarla yeniden adlandır (`pets-amele`, `fatura-amele`, `reminder-amele`...); içlerindeki "agent/ajan" kelimelerini temizle; amele prompt'larını jenerik görev/olay formatına çevir (REDESIGN §9.3)
-- [ ] Örnek amele ekle: `mail-amele.yaml` ve `hatirlatıcı-amele.yaml` şablonları (kullanıcının verdiği örnekler)
+- [x] `tools/db_get.py` / `tools/db_put.py`'yi records sözleşmesine göre yeniden yaz (op: get/put/list/search; serbest JSON; şema sütunlarına dokunmaz)
+- [x] **JSON doğrulama:** db_put tarafında (a) geçerli JSON, (b) şema varsa şemaya uygunluk kontrolü; hatalıysa hata çıktısı (amele yeniden üretir, max 2 deneme; yine olmazsa kullanıcıya rapor — bozuk JSON DB'ye asla yazılmaz)
+- [x] **Amele index üretimi:** `kahya/db.py`'ye fonksiyon — `ameleler` tablosundan `id, slug, tek satır açıklama` listesi üret (amele CRUD'unda ve bot başlangıcında çağrılır)
+- [x] **Model atama:** amele YAML'sine `model:` bloğu desteği; `amele_runner` her ameleyi kendi modeliyle çalıştırır (local: Ollama/yerel endpoint; api: dış sağlayıcı; anahtarlar ${VAR} referansı, asla düz metin)
+- [x] Sistem ayarlarındaki LLM ayarının **yalnız Kahya** için kullanıldığını doğrula (başka ameleler onu kullanmaz)
+- [x] **Ajan → amele adlandırma:** `agents/*.yaml` dosyalarını `-amele` sonekli adlarla yeniden adlandır (`pets-amele`, `fatura-amele`, `reminder-amele`...); içlerindeki "agent/ajan" kelimelerini temizle; amele prompt'larını jenerik görev/olay formatına çevir (REDESIGN §9.3)
+- [x] Örnek amele ekle: `mail-amele.yaml` ve `hatirlatıcı-amele.yaml` şablonları (kullanıcının verdiği örnekler)
 
 **Kabul kriterleri:** Bir amele Telegram mesajından kayıt yazabiliyor (doğru JSON + doğrulama); bozuk JSON reddediliyor; her amele farklı modelde çalışıyor; index üretimi çalışıyor.
 

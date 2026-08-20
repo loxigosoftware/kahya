@@ -113,6 +113,31 @@ check("cascade deletes records", db.count_records(gorsel_id) == 0)
 check("cascade deletes pending", db.get_pending_action(p2) is None or
       db.get_pending_action(p2)["status"] == "approved")  # p2 zaten resolved
 
+# --- amele başına model çözümü (amele_runner — REDESIGN §2.4) ---
+from kahya.config import Config  # noqa: E402
+from kahya.amele_runner import _amele_model_env  # noqa: E402
+import os
+os.environ["MAIL_API_KEY"] = "gizli-anahtar"
+cfg = Config(db, overrides={"model": "sistem-modeli",
+                             "base_url": "http://sistem:11434/v1"})
+api_env = _amele_model_env(cfg, "mail-amele")  # api model: gpt-4o (model_cfg'li)
+check("api model kendi modelini kullanır",
+      api_env["AMELE_MODEL"] == "gpt-4o")
+check("api model kendi endpoint'ini kullanır (sistem ayarı değil)",
+      api_env["BASE_URL"] == "https://api.example.com/v1")
+check("api_key ${VAR} ile çözülür",
+      api_env["API_KEY"] == "gizli-anahtar")
+db.update_amele(mail_id, {"model_kind": "local", "model_name": "qwen3:27b",
+                          "model_cfg": None})
+local_env = _amele_model_env(cfg, "mail-amele")
+check("local model kendi model adıyla çalışır",
+      local_env["AMELE_MODEL"] == "qwen3:27b")
+check("local model endpoint yoksa sistem base_url'ine düşer (Ollama)",
+      local_env["BASE_URL"] == "http://sistem:11434/v1")
+kh_env = _amele_model_env(cfg, "kahya")  # DB kaydı yok → sistem ayarı (Kahya kuralı)
+check("kahya sistem ayarını kullanır (DB kaydı yoksa)",
+      kh_env["AMELE_MODEL"] == "sistem-modeli")
+
 db.close()
 print()
 if fails:

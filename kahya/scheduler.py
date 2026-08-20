@@ -54,10 +54,10 @@ def tick(cfg: Config, db: KahyaDB, today: date | None = None,
         if item.get("agent_slug"):
             yaml_path = agent_yaml(cfg, item["agent_slug"])
         if yaml_path is None:
-            yaml_path = cfg.agents_dir / "reminder.yaml"
+            yaml_path = cfg.ameleler_dir / "hatirlatıcı-amele.yaml"
 
-        task = (f"REMINDER item_id={item['id']} due={item['due_date']} "
-                f"today={today.isoformat()}")
+        task = (f"TASK olay=zaman record_id={item['id']} "
+                f"now={now.strftime('%Y-%m-%d %H:%M')}")
         record = {"item_id": item["id"], "agent": yaml_path.stem,
                   "due": item["due_date"]}
 

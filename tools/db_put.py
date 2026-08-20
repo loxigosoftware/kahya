@@ -1,35 +1,81 @@
 #!/usr/bin/env python3
-"""db_put — amele tool (subprocess). Write access to the Kahya database.
+"""db_put — amele tool (subprocess). Write to the amele's own records.
 
-stdin:  JSON request, one of:
-          {"op": "insert", "table": "items", "data": {...}, "agent_id": N}
-          {"op": "update", "table": "items", "id": 5, "data": {...}}
-stdout: JSON — {"id": <rowid>} or {"error": "..."}
+stdin:  JSON request (records sözleşmesi — REDESIGN §2.3):
+          {"op": "put", "data": {...}}            → yeni kayıt (kendi amele_id)
+          {"op": "put", "id": 5, "data": {...}}   → güncelle (merge)
+          {"op": "delete", "id": 5}               → sil
+stdout: JSON — {"id": N} / {"deleted": true} veya {"error": "..."}
 
-Only the "items" table is writable from agents, and only for the columns
-listed below — an agent can never touch agents, reminders or chat state.
-(v1 uyumluluk sürümü — schema v2'de records'a yazar; Step 2'de tam yeniden
-yazım + JSON doğrulama.)
+Kurallar:
+- KAHYA_AMELE_ID env'i yazma için zorunludur — her kayıt bir ameleye aittir.
+- Amele yalnız KENDİ kayıtlarına yazabilir (id'li işlemlerde amele_id kontrolü).
+- Doğrulama: data geçerli bir JSON nesnesi olmalı; amelenin şeması
+  (ameleler.schema_json) varsa alan tipleri şemaya uymalı. Bozuk veri
+  hiçbir koşulda DB'ye yazılmaz (REDESIGN §2.3).
 
-Env:    KAHYA_DB (path to the SQLite file)
+Env:    KAHYA_DB, KAHYA_AMELE_ID
 """
 import json
 import os
 import sys
+from datetime import date
 from pathlib import Path
+from typing import Any, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from kahya.db import KahyaDB  # noqa: E402
 
-# columns an agent may write, with allowed types
-WRITABLE = {
-    "title": str, "kind": str, "amount": (int, float, type(None)),
-    "currency": (str, type(None)), "due_date": (str, type(None)),
-    "repeat_rule": str, "repeat_detail": (str, type(None)),
-    "remind_before_days": int, "note": (str, type(None)),
-    "status": str, "meta_json": (str, type(None)),
-}
+_TYPES = {"string": str, "number": (int, float), "bool": bool,
+          "date": str, "json": (dict, list)}
+
+
+def _amele_id() -> int:
+    v = os.environ.get("KAHYA_AMELE_ID", "").strip()
+    if not v or not v.isdigit():
+        raise ValueError("KAHYA_AMELE_ID is not set — amele kayıt yazamaz")
+    return int(v)
+
+
+def _valid_date(value) -> bool:
+    try:
+        date.fromisoformat(str(value))
+        return True
+    except ValueError:
+        return False
+
+
+def validate_data(data: Any, schema: Optional[dict]) -> Optional[str]:
+    """Şema doğrulaması — hata mesajı veya None (geçerli)."""
+    if not isinstance(data, dict):
+        return "data must be a JSON object"
+    if not schema:
+        return None
+    fields = schema.get("fields") or []
+    allowed = {f.get("name") for f in fields if isinstance(f, dict)}
+    for f in fields:
+        if not isinstance(f, dict):
+            continue
+        name, typ = f.get("name"), f.get("type")
+        if not name or not typ:
+            continue
+        if name not in data:
+            continue
+        value = data[name]
+        if typ == "date" and value is not None:
+            if not _valid_date(value):
+                return f"'{name}' geçerli bir tarih değil (YYYY-MM-DD): {value!r}"
+        elif typ not in _TYPES:
+            return f"şemada bilinmeyen tip: {typ!r}"
+        elif value is not None and not isinstance(value, _TYPES[typ]):
+            return f"'{name}' tipi {typ} olmalı, {type(value).__name__} geldi"
+    if allowed:
+        unknown = set(data) - allowed
+        if unknown:
+            return (f"şemada olmayan alan: {sorted(unknown)} — "
+                    f"izin verilen: {sorted(allowed)}")
+    return None
 
 
 def main():
@@ -40,44 +86,69 @@ def main():
     try:
         req = json.loads(sys.stdin.read().strip() or "{}")
     except json.JSONDecodeError as e:
-        print(json.dumps({"error": f"bad JSON: {e}"}))
+        print(json.dumps({"error": f"bad JSON: {e}"}, ensure_ascii=False))
         return 1
 
     op = req.get("op")
-    table = req.get("table")
-    if table != "items":
-        print(json.dumps({"error": "only table 'items' is writable"}))
+    if op not in ("put", "delete"):
+        print(json.dumps({"error": f"unknown op: {op!r} (beklenen: put, delete)"}, ensure_ascii=False))
         return 1
-
-    data = req.get("data") or {}
-    # whitelist columns + types
-    clean = {}
-    for k, v in data.items():
-        if k not in WRITABLE:
-            continue
-        if v is not None and not isinstance(v, WRITABLE[k]):
-            print(json.dumps({"error": f"bad type for column {k}"}))
-            return 1
-        clean[k] = v
-    if "status" not in clean:
-        clean["status"] = "open"
 
     db = KahyaDB(db_path)
     try:
-        if op == "insert":
-            item_id = db.insert_item(clean, agent_id=req.get("agent_id"))
-            print(json.dumps({"id": item_id}))
-        elif op == "update":
-            if not req.get("id"):
-                print(json.dumps({"error": "update needs id"}))
-                return 1
-            db.update_item(req["id"], clean)
-            print(json.dumps({"id": req["id"], "updated": True}))
-        else:
-            print(json.dumps({"error": f"unknown op: {op}"}))
+        aid = _amele_id()
+        agent = db.get_amele(aid)
+        if not agent:
+            print(json.dumps({"error": f"amele {aid} bulunamadı"}, ensure_ascii=False))
             return 1
+        schema = None
+        if agent.get("schema_json"):
+            try:
+                schema = json.loads(agent["schema_json"]) or None
+            except (TypeError, json.JSONDecodeError):
+                schema = None
+
+        if op == "put":
+            data = req.get("data")
+            err = validate_data(data, schema)
+            if err:
+                print(json.dumps({"error": err}, ensure_ascii=False))
+                return 1
+            if "id" in req and req.get("id"):
+                row = db.con.execute(
+                    "SELECT amele_id FROM records WHERE id = ?",
+                    (req["id"],)).fetchone()
+                if not row:
+                    print(json.dumps({"error": f"kayıt {req['id']} yok"}))
+                    return 1
+                if row["amele_id"] != aid:
+                    print(json.dumps({"error": "başka amelenin kaydına yazılamaz"}, ensure_ascii=False))
+                    return 1
+                db.update_record(req["id"], data)
+                print(json.dumps({"id": req["id"], "updated": True}))
+            else:
+                rid = db.add_record(aid, data)
+                print(json.dumps({"id": rid}))
+        elif op == "delete":
+            rid = req.get("id")
+            if not rid:
+                print(json.dumps({"error": "delete needs id"}, ensure_ascii=False))
+                return 1
+            row = db.con.execute(
+                "SELECT amele_id FROM records WHERE id = ?", (rid,)).fetchone()
+            if not row:
+                print(json.dumps({"error": f"kayıt {rid} yok"}, ensure_ascii=False))
+                return 1
+            if row["amele_id"] != aid:
+                print(json.dumps({"error": "başka amelenin kaydı silinemez"}, ensure_ascii=False))
+                return 1
+            db.delete_record(rid)
+            print(json.dumps({"deleted": True, "id": rid}))
+    except ValueError as e:
+        print(json.dumps({"error": str(e)}, ensure_ascii=False))
+        return 1
     except Exception as e:
-        print(json.dumps({"error": str(e)}))
+        print(json.dumps({"error": str(e)}, ensure_ascii=False))
         return 1
     finally:
         db.close()

@@ -27,10 +27,11 @@ sys.path.insert(0, ROOT)
 TEST_ROOT = "/tmp/kahya_bot_root"
 shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
-agents_dir = Path(TEST_ROOT) / "agents"
-agents_dir.mkdir()
-for name in ("extract.yaml", "kahya.yaml", "reminder.yaml", "fatura.yaml", "pets.yaml"):
-    (agents_dir / name).symlink_to(Path(ROOT) / "agents" / name)
+ameleler_dir = Path(TEST_ROOT) / "ameleler"
+ameleler_dir.mkdir()
+for name in ("extract-amele.yaml", "kahya.yaml", "hatirlatıcı-amele.yaml",
+             "fatura-amele.yaml", "pets-amele.yaml"):
+    (ameleler_dir / name).symlink_to(Path(ROOT) / "ameleler" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")
 
 # ---------------- mock LLM (record intent on 9431) ----------------
@@ -138,10 +139,10 @@ bot._handle_text(42, "Abonelikleri takip et", db.get_chat_state(42))
 check("4d confirm card", "onaylıyor musunuz" in last_msg().lower())
 bot._handle_text(42, "evet", db.get_chat_state(42))
 check("4e created message", "oluşturuldu" in last_msg().lower())
-check("4f yaml written", (agents_dir / "subscriptions.yaml").exists())
+check("4f yaml written", (ameleler_dir / "subscriptions.yaml").exists())
 check("4g yaml valid amele", os.system(
     f"AMELE_MODEL=qwen3-vl:8b PROVIDER_TYPE=openai BASE_URL=http://localhost:11434/v1 API_KEY= "
-    f"{ROOT}/bin/amele validate {agents_dir}/subscriptions.yaml >/dev/null 2>&1") == 0)
+    f"{ROOT}/bin/amele validate {ameleler_dir}/subscriptions.yaml >/dev/null 2>&1") == 0)
 
 # --- 5. question → orchestrator
 Q = {"intent": "question", "title": "Kuduz asisi ne zamandi", "kind": "other",

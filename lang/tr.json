@@ -5,6 +5,7 @@
     "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille görev ekleyin ya da soru sorun.\n\n<b>Komutlar:</b>\n/agents — ajanları listeler\n/add-agent — yeni ajan (sihirbaz)\n/edit-agent — ajan düzenle (sihirbaz)\n/delete-agent — ajan sil\n/jobs — açık görevler\n/add-job — görev ekle (sihirbaz)\n/done — görev tamamla\n/settings — kurulum özeti\n/help — bu liste\n/iptal — akışı iptal et",
     "unknown_user": "Bu kâhya başka bir evin kâhyası. 🏠",
     "understand_error": "Anlayamadım ({code}). Daha net yazın veya <b>/iptal</b>.",
+    "extract_invalid": "Bunu çözemedim — biraz daha açık anlatır mısın?",
     "ask_due_date": "Son ödeme / etkinlik tarihi ne zaman? 📅",
     "confirm_title": "📋 <b>Bunu kaydedeyim mi?</b>",
     "confirm_date": "Tarih: {date}",

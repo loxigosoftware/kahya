@@ -92,8 +92,15 @@ class Bot:
         self.tg = TG(cfg.telegram_token)
         self.offset = 0
         self.i18n = I18n(cfg.dir / "lang", cfg.language)
-        self.extract_yaml = cfg.agents_dir / "extract.yaml"
-        self.kahya_yaml = cfg.agents_dir / "kahya.yaml"
+        self.extract_yaml = cfg.ameleler_dir / "extract-amele.yaml"
+        self.kahya_yaml = cfg.ameleler_dir / "kahya.yaml"
+        self._amele_index_cache: Optional[list[dict]] = None
+
+    def _amele_index(self) -> list[dict]:
+        """Kompakt amele index (REDESIGN §3.2) — amele CRUD'unda tazelenir."""
+        if self._amele_index_cache is None:
+            self._amele_index_cache = self.db.amele_index()
+        return self._amele_index_cache
 
     # -- helpers -------------------------------------------------
 
@@ -154,7 +161,20 @@ class Bot:
         task = (f"TODAY is {date.today().isoformat()} (the real current "
                 f"date — resolve every date against it, never guess a "
                 f"year).\n\n{task}")
-        return run_agent(self.cfg, self.extract_yaml, task, timeout_s=120)
+        # JSON doğrulama + yeniden deneme (REDESIGN §2.3): çıktı dict
+        # değilse bir kez daha üretilir; yine bozuksa None döner —
+        # bozuk yapı hiçbir koşulda DB'ye yazılmaz.
+        res = None
+        for attempt in (1, 2):
+            res = run_agent(self.cfg, self.extract_yaml, task, timeout_s=120)
+            if isinstance(res, dict):
+                return res
+            task = (f"{task}\n\nYour previous output was not a valid JSON "
+                    f"object (got: {str(res)[:200]!r}). Reply with ONLY the "
+                    f"JSON object this time.")
+        self.db.log("bot", {"event": "extract_invalid", "attempts": 2,
+                            "output": str(res)[:300]})
+        return None
 
     def _ask_agent(self, slug: str | None, message: str) -> str:
         """Run the agent named by slug to answer a question.
@@ -166,7 +186,7 @@ class Bot:
         """
         yaml_path = self.kahya_yaml
         if slug and re.match(SLUG_RE, slug):
-            p = self.cfg.agents_dir / f"{slug}.yaml"
+            p = self.cfg.ameleler_dir / f"{slug}.yaml"
             if p.exists():
                 yaml_path = p
         res = run_agent(self.cfg, yaml_path, message, timeout_s=120)
@@ -322,13 +342,14 @@ class Bot:
                                       name=name, slug=slug, role=role))
 
     def _create_agent(self, chat_id: int, slug: str, name: str, role: str) -> None:
-        yaml_path = self.cfg.agents_dir / f"{slug}.yaml"
+        yaml_path = self.cfg.ameleler_dir / f"{slug}.yaml"
         from .server import AGENT_TEMPLATE  # local import, shared template
         role_indented = "\n".join("  " + ln for ln in role.splitlines())
         yaml_path.write_text(
             AGENT_TEMPLATE.format(slug=slug, name=name, role_prompt=role_indented),
             encoding="utf-8")
         agent_id = self.db.create_agent(slug, name, role, str(yaml_path))
+        self._amele_index_cache = None  # index tazelenir (REDESIGN §3.2)
         self.db.log("bot", {"event": "agent_created", "agent": slug})
         self.tg.send(chat_id, self._t("bot.wizard_agent_created",
                                       name=name, slug=slug))
@@ -349,7 +370,8 @@ class Bot:
         agent = self.db.get_agent_by_slug(slug)
         if agent:
             self.db.delete_amele(agent["id"])  # ON DELETE CASCADE → kayıtlar da silinir
-            yaml_path = self.cfg.agents_dir / f"{slug}.yaml"
+            self._amele_index_cache = None  # index tazelenir (REDESIGN §3.2)
+            yaml_path = self.cfg.ameleler_dir / f"{slug}.yaml"
             if yaml_path.exists():
                 yaml_path.unlink()
             self.db.log("bot", {"event": "agent_deleted", "agent": slug})
@@ -379,7 +401,7 @@ class Bot:
         name = value if field == "name" else agent["name"]
         role = value if field == "role" else agent["role_prompt"]
         self.db.update_amele(agent["id"], {"name": name, "description": role})
-        yaml_path = self.cfg.agents_dir / f"{slug}.yaml"
+        yaml_path = self.cfg.ameleler_dir / f"{slug}.yaml"
         from .server import AGENT_TEMPLATE
         role_indented = "\n".join("  " + ln for ln in role.splitlines())
         yaml_path.write_text(
@@ -443,6 +465,10 @@ class Bot:
                 extracted = self._extract(text, context=state["extracted"])
             except AmeleError as e:
                 self.tg.send(chat_id, self._t("bot.understand_error", code=e.exit_code))
+                self.db.set_chat_state(chat_id, {})
+                return
+            if extracted is None:
+                self.tg.send(chat_id, self._t("bot.extract_invalid"))
                 self.db.set_chat_state(chat_id, {})
                 return
             if extracted.get("intent") != "record":
@@ -584,6 +610,9 @@ class Bot:
             extracted = self._extract(text)
         except AmeleError as e:
             self.tg.send(chat_id, self._t("bot.understand_error", code=e.exit_code))
+            return
+        if extracted is None:
+            self.tg.send(chat_id, self._t("bot.extract_invalid"))
             return
 
         if extracted.get("intent") == "question":

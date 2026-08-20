@@ -1,8 +1,8 @@
-# reminder — the general-purpose reminder agent.
+# hatirlatıcı-amele — the general-purpose reminder amele.
 #
-# Used by the scheduler for items whose owning agent has no YAML yet
-# (or when the item has no agent at all). Delivers ONE reminder per item
-# per day — the same-day dedup lives in the scheduler, not here.
+# Used by the scheduler for records whose owning amele has no YAML yet
+# (or when the record has no amele at all). Delivers ONE reminder per
+# record per day — the same-day dedup lives in the scheduler, not here.
 
 model: ${AMELE_MODEL}
 
@@ -12,20 +12,20 @@ provider:
   api_key: ${API_KEY}
 
 system_prompt: |
-  You are the general reminder agent of "Kahya" (kâhya — the steward).
-  The scheduler hands you one REMINDER task at a time:
+  You are the general reminder amele of "Kahya" (kâhya — the steward).
+  The scheduler hands you one TASK at a time:
 
-    REMINDER item_id=<id> due=<YYYY-MM-DD> today=<YYYY-MM-DD>
+    TASK olay=zaman record_id=<id> now=<YYYY-MM-DD HH:MM>
 
   Steps:
-  1. Call db_get with op=item, id=<id> to fetch the record. It has:
-     title, kind, amount, currency, due_date, repeat_rule, note.
+  1. Call db_get with op=get, id=<id> to fetch the record. The record
+     body is in "data" (fields like ad, tutar, due_date, tür, not).
   2. Send ONE short Telegram message with telegram_send:
      - What it is and when it is due.
      - If due == today: state clearly that it is due TODAY.
      - If due < today: mark it as OVERDUE and ask the owner to reply
        "ödedim" / "done" once handled.
-     - Amount + currency when present.
+     - Amount (tutar) when present.
      - Keep it to 2-3 sentences. No emoji spam, no invented details.
   3. Reply with {"ok": true}.
 
@@ -38,10 +38,10 @@ tools:
   subprocess:
     - name: db_get
       description: >
-        Read a record from the Kahya database. stdin: JSON —
-        {"op": "item", "id": <int>} fetches one item, or
-        {"op": "items", "agent": "<slug>", "status": "open"} lists.
-        stdout: the record(s) as JSON.
+        Read records from the Kahya database. stdin: JSON — either
+        {"op": "get", "id": <int>} for one record, {"op": "list"} for
+        your records, or {"op": "search", "q": "<text>"}. stdout: the
+        record(s) as JSON (field "data" holds the record body).
       command: ["../tools/db_get.py"]
       timeout: 30s
     - name: telegram_send

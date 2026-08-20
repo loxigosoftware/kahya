@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""db_get — amele tool (subprocess). Read-only access to the Kahya database.
+"""db_get — amele tool (subprocess). Read records from the Kahya database.
 
-stdin:  JSON request, one of:
-          {"op": "item",  "id": 5}                    → one item
-          {"op": "items", "agent": "fatura", "status": "open"} → list
-          {"op": "agents"}                            → known agents (ameleler)
-          {"op": "reminders", "item_id": 5}           → sent reminders
-stdout: JSON — the record(s), or {"error": "..."}
-Env:    KAHYA_DB (path to the SQLite file)
+stdin:  JSON request (records sözleşmesi — REDESIGN §2.3):
+          {"op": "get", "id": 5}            → tek kayıt
+          {"op": "list"}                    → kayıtlar (kendi amelesi)
+          {"op": "search", "q": "bilet"}    → kayıtlarında metin arama
+stdout: JSON — {"id", "amele_id", "data", "created_at", "updated_at"} veya
+        liste; hata durumunda {"error": "..."}
 
-v1 uyumluluk sürümü (schema v2 üzerinde çalışır) — Step 2'de tam yeniden yazım.
+Kapsam: KAHYA_AMELE_ID varsa yalnız o amelenin kayıtları görünür; yoksa
+tümü (Kahya/orkestratör modu).
+
+Env:    KAHYA_DB, (opsiyonel) KAHYA_AMELE_ID
 """
 import json
 import os
@@ -21,10 +23,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from kahya.db import KahyaDB  # noqa: E402
 
 
+def _row_out(r) -> dict:
+    d = dict(r)
+    d["data"] = json.loads(d.pop("data_json") or "{}")
+    return d
+
+
 def main():
     db_path = os.environ.get("KAHYA_DB", "")
     if not db_path:
-        print(json.dumps({"error": "KAHYA_DB is not set"}, ensure_ascii=False))
+        print(json.dumps({"error": "KAHYA_DB is not set"}))
         return 1
     try:
         req = json.loads(sys.stdin.read().strip() or "{}")
@@ -33,33 +41,37 @@ def main():
         return 1
 
     op = req.get("op")
-    db = KahyaDB(db_path)
+    if op not in ("get", "list", "search"):
+        print(json.dumps({"error": f"unknown op: {op!r} (beklenen: get, list, search)"}))
+        return 1
 
+    db = KahyaDB(db_path)
     try:
-        if op == "item":
-            print(json.dumps(db.get_item(req.get("id")), ensure_ascii=False))
-        elif op == "items":
-            print(json.dumps(
-                db.list_items(agent_slug=req.get("agent"), status=req.get("status")),
-                ensure_ascii=False))
-        elif op == "agents":
-            print(json.dumps(
-                [{"id": a["id"], "slug": a["slug"], "name": a["name"],
-                  "enabled": a["enabled"]} for a in db.list_agents()],
-                ensure_ascii=False))
-        elif op == "reminders":
+        aid = os.environ.get("KAHYA_AMELE_ID", "").strip()
+        scope = f"AND r.amele_id = {int(aid)}" if aid.isdigit() else ""
+        if op == "get":
+            rid = req.get("id")
+            if not rid:
+                print(json.dumps({"error": "get needs id"}))
+                return 1
+            row = db.con.execute(
+                f"SELECT * FROM records r WHERE r.id = ? {scope}", (rid,)).fetchone()
+            print(json.dumps(_row_out(row) if row else None, ensure_ascii=False))
+        elif op == "list":
             rows = db.con.execute(
-                "SELECT payload FROM logs WHERE source = 'scheduler' "
-                "AND json_extract(payload, '$.event') = 'reminder_sent' "
-                "AND json_extract(payload, '$.item_id') = ? ORDER BY ts DESC",
-                (req.get("item_id"),)).fetchall()
-            print(json.dumps(
-                [{"item_id": req.get("item_id"), "sent_on": r["ts"][:10]}
-                 for r in rows], ensure_ascii=False))
-        else:
-            print(json.dumps({"error": f"unknown op: {op}"}))
-            return 1
-    except Exception as e:  # sqlite/JSON hataları dahil — amele hata görsün
+                f"SELECT * FROM records r WHERE 1=1 {scope} ORDER BY r.id DESC"
+            ).fetchall()
+            print(json.dumps([_row_out(r) for r in rows], ensure_ascii=False))
+        elif op == "search":
+            q = req.get("q", "")
+            if not q:
+                print(json.dumps({"error": "search needs q"}))
+                return 1
+            rows = db.con.execute(
+                f"SELECT * FROM records r WHERE r.data_json LIKE ? {scope} "
+                "ORDER BY r.id DESC", (f"%{q}%",)).fetchall()
+            print(json.dumps([_row_out(r) for r in rows], ensure_ascii=False))
+    except Exception as e:
         print(json.dumps({"error": str(e)}, ensure_ascii=False))
         return 1
     finally:
