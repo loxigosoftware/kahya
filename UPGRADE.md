@@ -287,3 +287,15 @@ dosya veya indirilen release) **reddeder**. MCP'li binary'ler repo'da
 taşınır: `bin/amele` (linux/amd64), `bin/amele-arm64` (linux/arm64, Pi) —
 amele repo commit 415f781+'ten derlenir. Diğer platformlar için amele
 repo'suna MCP'li release yayınlanana kadar bundle kullanılır.
+
+
+---
+
+## Kurulum akışı (kullanıcı kararı)
+
+`install.py` **sistem taraması → otomatik öneri listesi → kullanıcı
+onayı → uygulama** prensibiyle çalışır. Kurulumdan önce makine taranır
+(Python, amele + MCP kuralı, .env, port, Node.js, Ollama, ffmpeg,
+systemd) ve her öneri için ayrı ayrı onay alınır — hiçbir şey onaysız
+kurulmaz/değiştirilmez/kaldırılmaz. `--dry-run` sadece listeyi gösterir,
+`--yes` açık istekle tümünü onaylar.

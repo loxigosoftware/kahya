@@ -59,16 +59,20 @@ cd kahya
 python3 install.py
 ```
 
-The installer detects your platform (or you pick from a list), downloads
-the matching amele binary from GitHub, **verifies it against SHA256SUMS**,
-creates `.env`, port-tests the panel port (8080 → next free if taken) and
-prints your LAN address + first-login credentials.
+The installer **scans your machine first** — Python, the amele binary
+(MCP rule: no MCP, no amele), `.env`, the panel port, Node.js, Ollama,
+ffmpeg, systemd — then shows an **automatic proposal list** and asks for
+**your approval item by item**. Nothing is installed, replaced or
+removed without it. Approved items are applied (amele from the repo
+bundle — MCP build, SHA256-verified; `.env`; free port; optional
+Node/Ollama/ffmpeg installs; systemd auto-start).
 
-On Linux with systemd it also offers to **install auto-start units** for
-the three services (`Restart=on-failure` — a crash is brought back
-automatically, and everything comes up on boot). Answer `y` and it
-generates the units for your user/paths and runs `systemctl enable --now`
-(needs sudo). Skip it and run the services manually (below).
+Useful flags: `--dry-run` (show the proposal list, change nothing),
+`--yes` (approve everything explicitly), `--force` (re-install amele).
+On Linux with systemd the auto-start item installs units for the three
+services (`Restart=on-failure` — a crash is brought back automatically,
+and everything comes up on boot; needs sudo). Skip it and run the
+services manually (below).
 
 > No systemd / prefer to manage services yourself? The old manual path:
 > copy the three units from [`deploy/`](deploy/) to
