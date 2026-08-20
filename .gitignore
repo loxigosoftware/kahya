@@ -27,3 +27,4 @@ venv/
 # installer scratch
 .install-tmp/
 .probe/
+kahya-yedek-*/
