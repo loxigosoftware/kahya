@@ -49,7 +49,7 @@ the owner decision by decision. This `UPGRADE.md` is your execution plan.
 
 ## ✅ Adım listesi (ana tikler)
 
-- [ ] **Step 0** — Hazırlık: yedek, git branch, mevcut testlerin doğrulanması
+- [x] **Step 0** — Hazırlık: yedek, git branch, mevcut testlerin doğrulanması
 - [ ] **Step 1** — DB migration: schema v2 (records, ameleler+model, amele_mcp, pending_actions, scheduled_tasks, conversation_messages+FTS) + veri dönüşümü
 - [ ] **Step 2** — Amele altyapısı: db_get/db_put yeniden yazımı + JSON doğrulama + amele index + model atama + ajan→amele adlandırma
 - [ ] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameleler / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
@@ -68,10 +68,10 @@ the owner decision by decision. This `UPGRADE.md` is your execution plan.
 
 Alt görevler:
 
-- [ ] `data/kahya.db` + `agents/` + `.env` yedeğini `kahya-yedek-<tarih>/` klasörüne al
-- [ ] Git branch aç: `upgrade-v2`
-- [ ] Mevcut testlerin tamamını çalıştır (pytest tests/ veya tests/e2e.sh) — hepsi geçmeli
-- [ ] Ortam kontrolü: Python sürümü, `bin/amele` çalışıyor, SQLite FTS5 destekli mi (yoksa LIKE fallback planı)
+- [x] `data/kahya.db` + `agents/` + `.env` yedeğini `kahya-yedek-<tarih>/` klasörüne al
+- [x] Git branch aç: `upgrade-v2`
+- [x] Mevcut testlerin tamamını çalıştır (pytest tests/ veya tests/e2e.sh) — hepsi geçmeli
+- [x] Ortam kontrolü: Python sürümü, `bin/amele` çalışıyor, SQLite FTS5 destekli mi (yoksa LIKE fallback planı)
 
 **Kabul kriterleri:** Yedek klasörü var; branch açık; mevcut testler geçiyor; FTS5 durumu biliniyor.
 
