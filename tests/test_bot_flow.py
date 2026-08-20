@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Bot flow tests with mock LLM + mock Telegram.
+"""Bot flow tests (v2, REDESIGN §4) with mock LLM + mock Telegram.
 
 Scenarios:
-  1. record: "3000 TL su faturasi geldi" → extract → confirmation card
-     (no DB write yet) → "evet" → item saved
-  2. "ödedim" → monthly item rolls forward
-  3. /agents → agent list message
-  4. /add-agent wizard: name → slug → role → confirm → YAML file written
-  5. question: extract returns intent=question → orchestrator agent
-     (kahya.yaml) is spawned and answers
+  1. /amele → amele list
+  2. /mail-amele selam → direct message to that amele (Kahya skipped)
+  3. /mail-amele → chat mode; next messages go to the amele; /iptal exits
+  4. plain message → Kahya orchestrator (with compact amele index)
+  5. approval: pending action + "evet" → forwarded to its amele, resolved
+  6. unknown command → redirect
+  7. /help → command list
 """
 import json
 import os
@@ -27,13 +27,14 @@ sys.path.insert(0, ROOT)
 TEST_ROOT = "/tmp/kahya_bot_root"
 shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
-agents_dir = Path(TEST_ROOT) / "agents"
-agents_dir.mkdir()
-for name in ("extract.yaml", "kahya.yaml", "reminder.yaml", "fatura.yaml", "pets.yaml"):
-    (agents_dir / name).symlink_to(Path(ROOT) / "agents" / name)
+ameleler_dir = Path(TEST_ROOT) / "ameleler"
+ameleler_dir.mkdir()
+for name in ("extract-amele.yaml", "kahya.yaml", "hatirlatıcı-amele.yaml",
+             "fatura-amele.yaml", "pets-amele.yaml", "mail-amele.yaml"):
+    (ameleler_dir / name).symlink_to(Path(ROOT) / "ameleler" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")
 
-# ---------------- mock LLM (record intent on 9431) ----------------
+# ---------------- mock LLM (fixed JSON on 9431) ----------------
 mock_llm = subprocess.Popen(
     [sys.executable, str(Path(__file__).resolve().parent / "mock_llm.py")],
     env={**os.environ, "MOCK_PORT": "9431"})
@@ -50,7 +51,7 @@ class TGH(BaseHTTPRequestHandler):
         data = urllib.parse.parse_qs(body)
         if self.path.endswith("/getUpdates"):
             payload = json.dumps({"ok": True, "result": []}).encode()
-        else:  # sendMessage
+        else:  # sendMessage / setMyCommands
             SENT.append({k: v[0] for k, v in data.items()})
             payload = json.dumps({"ok": True, "result": {"message_id": 1}}).encode()
         self.send_response(200)
@@ -88,7 +89,12 @@ from kahya.config import Config  # noqa: E402
 from kahya.db import KahyaDB  # noqa: E402
 
 db = KahyaDB(Path(TEST_DB))
-db.create_agent("fatura", "Fatura Takipçisi", "faturalari takip et", "agents/fatura.yaml")
+db.create_amele("fatura-amele", "Fatura", "faturaları takip eder",
+                "ameleler/fatura-amele.yaml")
+mail_id = db.create_amele("mail-amele", "Mail", "mailleri okur, taslak hazırlar",
+                          "ameleler/mail-amele.yaml")
+db.create_amele("pets-amele", "Pets", "evcil hayvan takibi",
+                "ameleler/pets-amele.yaml")
 bot = Bot(Config(db), db)
 fails = []
 
@@ -103,61 +109,90 @@ def last_msg():
     return SENT[-1]["text"] if SENT else ""
 
 
-# --- 1. natural language record flow
-bot._handle_text(42, "3000 TL su faturasi geldi", {})
-state = db.get_chat_state(42)
-check("1a state=confirm", state.get("step") == "confirm")
-check("1b nothing saved yet", len(db.list_items()) == 0)
-check("1c confirmation card", "kaydedeyim mi" in last_msg().lower() and "su faturasi" in last_msg().lower())
+def send(text, clear=True):
+    if clear:
+        SENT.clear()
+    bot._handle_text(42, text, db.get_chat_state(42))
 
-bot._handle_text(42, "evet", state)
-items = db.list_items()
-check("1d saved after confirm", len(items) == 1 and items[0]["amount"] == 3000.0)
-check("1e agent linked", items[0]["agent_slug"] == "fatura")
-check("1f state cleared", db.get_chat_state(42) == {})
-check("1g saved message", "kaydedildi" in " ".join(m["text"] for m in SENT[-2:]).lower())
 
-# --- 2. paid → monthly roll
-bot._handle_text(42, "ödedim", {})
-items = db.list_items()
-check("2a rolled to next month", items and items[0]["due_date"] == "2026-09-20"
-      and items[0]["status"] == "open")
+# --- 1. /amele list
+send("/amele")
+check("1 amele list", "Ameleler" in last_msg() and "mail-amele" in last_msg()
+      and "kayıt" in last_msg())
 
-# --- 3. /agents
-bot._handle_text(42, "/agents", {})
-check("3 agents listed", "fatura" in last_msg().lower() and "fatura takip" in last_msg().lower())
+# --- 2. direct amele: /mail-amele selam
+send("/mail-amele selam")
+check("2 direct amele answered", "intent" in last_msg(), last_msg()[:80])
+check("2 no session started", "sohbet modu" not in last_msg())
 
-# --- 4. /add-agent wizard
-bot._handle_text(42, "/add-agent", {})
-check("4a asks name", "ajan ad" in last_msg().lower())
-bot._handle_text(42, "Abonelik Takipçisi", db.get_chat_state(42))
-check("4b asks slug", "slug" in last_msg().lower())
-bot._handle_text(42, "subscriptions", db.get_chat_state(42))
-check("4c asks role", "görev tanımı" in last_msg().lower())
-bot._handle_text(42, "Abonelikleri takip et", db.get_chat_state(42))
-check("4d confirm card", "onaylıyor musunuz" in last_msg().lower())
-bot._handle_text(42, "evet", db.get_chat_state(42))
-check("4e created message", "oluşturuldu" in last_msg().lower())
-check("4f yaml written", (agents_dir / "subscriptions.yaml").exists())
-check("4g yaml valid amele", os.system(
-    f"AMELE_MODEL=qwen3-vl:8b PROVIDER_TYPE=openai BASE_URL=http://localhost:11434/v1 API_KEY= "
-    f"{ROOT}/bin/amele validate {agents_dir}/subscriptions.yaml >/dev/null 2>&1") == 0)
+# --- 3. chat mode: /mail-amele → messages go to the amele → /iptal
+send("/mail-amele")
+check("3a session starts", "sohbet modu" in last_msg())
+send("mailleri oku")
+check("3b session message to amele", "intent" in last_msg(), last_msg()[:60])
+send("/iptal")
+check("3c session exits", "iptal edildi" in last_msg().lower() or "İptal" in last_msg())
+check("3d state cleared", db.get_chat_state(42) == {})
 
-# --- 5. question → orchestrator
-Q = {"intent": "question", "title": "Kuduz asisi ne zamandi", "kind": "other",
-     "agent_slug": "pets", "amount": None, "currency": None, "due_date": None,
-     "repeat_rule": "none", "repeat_detail": None, "remind_before_days": 0,
-     "note": None, "ask_user": None}
-mock = subprocess.Popen(
-    [sys.executable, str(Path(__file__).resolve().parent / "mock_llm.py")],
-    env={**os.environ, "MOCK_JSON": json.dumps(Q), "MOCK_PORT": "9433"})
-time.sleep(1)
-try:
-    n_before = len(SENT)
-    bot._handle_text(42, "Kuduz asisi ne zamandi?", {})
-    check("5 orchestrator answered", len(SENT) > n_before, last_msg()[:60])
-finally:
-    mock.terminate()
+# --- 4. plain message → Kahya (orchestrator, with index)
+send("Bu ay hangi faturalar var?")
+check("4 kahya answered", "intent" in last_msg(), last_msg()[:80])
+
+# --- 5. approval matching: pending action + "evet"
+pa_id = db.add_pending_action(mail_id, {"olay": "mail_gonder",
+                                        "kime": "x@y.z"}, lang="tr")
+send("evet")
+pa = db.get_pending_action(pa_id)
+check("5a approval forwarded", "iletildi" in last_msg(), last_msg()[:80])
+check("5b action resolved approved", pa and pa["status"] == "approved")
+
+# --- 5c. two pending actions → plain "evet" hits the NEWEST one
+fatura_id = db.get_amele_by_slug("fatura-amele")["id"]
+pa_old = db.add_pending_action(fatura_id, {"olay": "eski_is"}, lang="tr")
+pa_new = db.add_pending_action(mail_id, {"olay": "yeni_is"}, lang="tr")
+send("evet")
+check("5c evet → en güncel onay",
+      db.get_pending_action(pa_new)["status"] == "approved"
+      and db.get_pending_action(pa_old)["status"] == "waiting")
+
+# --- 5d. "<amele> evet" hits that amele's older approval
+pa_mail = db.add_pending_action(mail_id, {"olay": "mail_eski"}, lang="tr")
+send("mail-amele evet")
+check("5d mail-amele evet → o amelenin onayı",
+      db.get_pending_action(pa_mail)["status"] == "approved"
+      and db.get_pending_action(pa_old)["status"] == "waiting")
+send("evet")
+check("5e kalan eski onay da çözüldü",
+      db.get_pending_action(pa_old)["status"] == "approved")
+
+# --- 6. unknown command
+send("/bilinmeyen-komut")
+check("6 unknown command", "Bilinmeyen komut" in last_msg())
+
+# --- 7. help
+send("/help")
+check("7 help lists commands", "/amele" in last_msg() and "/iptal" in last_msg())
+
+# --- 8. "iptal" cancels a pending action
+pa2 = db.add_pending_action(mail_id, {"olay": "taslak_gonder"}, lang="tr")
+send("iptal")
+check("8a iptal resolves cancelled", db.get_pending_action(pa2)["status"] == "cancelled")
+check("8b iptal message", "İptal edildi" in last_msg() or "iptal" in last_msg().lower())
+
+# --- 9. conversation memory: mesajlar thread'e kaydediliyor
+n_chat = db.con.execute(
+    "SELECT COUNT(*) FROM conversation_messages WHERE thread_id = 'chat:42'"
+).fetchone()[0]
+check("9 chat thread kayıtları var", n_chat >= 12, f"({n_chat})")
+
+# oturum thread'i ayrı: /mail-amele → sohbet → mesaj
+send("/mail-amele")
+send("bu bir oturum mesajı")
+n_sess = db.con.execute(
+    "SELECT COUNT(*) FROM conversation_messages WHERE thread_id = 'amele:42:mail-amele'"
+).fetchone()[0]
+check("9b oturum ayrı thread", n_sess >= 4, f"({n_sess})")
+send("/iptal")
 
 tg_srv.shutdown()
 mock_llm.terminate()

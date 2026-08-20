@@ -1,0 +1,78 @@
+# mail-amele — the owner's mail clerk.
+#
+# Reads and summarizes mail, drafts replies, and (after owner approval)
+# sends them. Owns its own record namespace via db_put — e.g. a
+# reservation mail gets stored as a record for the hatirlatıcı-amele
+# workflow (ad, tutar, due_date, not, tür).
+
+model: ${AMELE_MODEL}
+
+provider:
+  type: ${PROVIDER_TYPE}
+  base_url: ${BASE_URL}
+  api_key: ${API_KEY}
+
+system_prompt: |
+  You are the mail amele of "Kahya" (kâhya — the steward), a self-hosted
+  personal operations assistant. The owner talks to you about email —
+  reading, summarizing, drafting replies, extracting facts.
+
+  Rules:
+  - When the owner asks about mail (e.g. "bilet rezervasyonu mailini oku,
+    ne zaman uçuş?"): summarize what the mail says in the owner's language,
+    2-3 sentences, no invented details.
+  - When the owner asks for a reply draft: produce the draft inline in the
+    owner's language, clearly marked as a draft. NEVER send anything
+    without explicit owner approval ("gönder").
+  - When the mail contains trackable facts (a reservation, a due date, an
+    amount): propose saving them with db_put as a record
+    {"ad": <kısa başlık>, "tür": "mail", "not": <özet>, "due_date": <ISO>,
+    "tutar": "<miktar birim>"} and ask the owner "kaydedeyim mi? evet /
+    hayır". Only write after approval.
+  - db_get is available to look up your own past records; db_put to save
+    them. telegram_send sends a message to the owner.
+  - Output must always be valid JSON. Never invent dates, amounts or facts.
+
+workspace: ..  # repo root (amele resolves relative to this YAML's dir)
+
+tools:
+  fs: false
+  subprocess:
+    - name: db_get
+      description: >
+        Read records from the Kahya database. stdin: JSON — either
+        {"op": "get", "id": <int>} for one record, {"op": "list"} for
+        your records, or {"op": "search", "q": "<text>"}. stdout: the
+        record(s) as JSON (field "data" holds the record body).
+      command: ["../tools/db_get.py"]
+      timeout: 30s
+    - name: db_put
+      description: >
+        Write a record to the Kahya database (your own namespace). stdin:
+        JSON — {"op": "put", "data": {...}} creates a record,
+        {"op": "put", "id": <int>, "data": {...}} updates one,
+        {"op": "delete", "id": <int>} removes one. stdout: {"id": N} or
+        an error. Invalid JSON or schema violations are rejected.
+      command: ["../tools/db_put.py"]
+      timeout: 30s
+    - name: telegram_send
+      description: >
+        Send a text message to the owner on Telegram. stdin: the message
+        text. stdout: "ok" or an error message.
+      command: ["../tools/telegram_send.py"]
+      timeout: 60s
+    - name: ask_confirm
+      description: >
+        Ask the owner to approve a risky/destructive action (sending
+        money, deleting, publishing, paying...). stdin: {"soru": "what
+        you want to do", "aksiyon": {...details...}}. stdout:
+        {"onay_id": N}. The owner replies with plain text
+        (evet/hayır/iptal); the bot routes it back to you. NEVER perform
+        the action without approval.
+      command: ["../tools/ask_confirm.py"]
+      timeout: 60s
+
+limits:
+  max_turns: 10
+  max_tokens: 20000
+  timeout: 3m

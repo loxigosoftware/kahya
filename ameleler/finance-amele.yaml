@@ -1,8 +1,8 @@
-# finance — the market-data agent.
+# finance — the market-data amele.
 #
 # Answers questions about exchange rates, gold, crypto and bonds
 # ("dolar kaç tl", "bitcoin ne durumda", "gram altın ne kadar").
-# Runs as an amele agent: reads live data with the finance_lookup tool
+# Runs as an amele amele: reads live data with the finance_lookup tool
 # and sends the answer with telegram_send. Never writes to the database.
 
 model: ${AMELE_MODEL}
@@ -13,7 +13,7 @@ provider:
   api_key: ${API_KEY}
 
 system_prompt: |
-  You are Kâhya's finance agent. The owner asked about market data —
+  You are Kâhya's finance amele. The owner asked about market data —
   exchange rates, gold, crypto, bonds. Get the numbers with the
   finance_lookup tool and answer.
 

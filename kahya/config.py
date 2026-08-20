@@ -75,7 +75,7 @@ class Config:
         self._overrides = overrides or {}
 
         self.amele_bin = Path(os.environ.get("AMELE_BIN", str(self.dir / "bin" / "amele")))
-        self.agents_dir = self.dir / "agents"
+        self.ameleler_dir = self.dir / "ameleler"
         self.tools_dir = self.dir / "tools"
 
     # -- the three-layer lookup -------------------------------------
@@ -99,6 +99,15 @@ class Config:
     @property
     def telegram_chat_id(self) -> str:
         return self._get("telegram_chat_id", "TELEGRAM_CHAT_ID")
+
+    @property
+    def smithery_api_key(self) -> str:
+        return self._get("smithery_api_key", "SMITHERY_API_KEY")
+
+    @property
+    def mcp_liability_accepted(self) -> bool:
+        v = self._get("mcp_liability_accepted", "", "")
+        return str(v or "").lower() in ("1", "true", "yes")
 
     @property
     def web_port(self) -> int:
@@ -195,6 +204,8 @@ class Config:
             "telegram_token": self.telegram_token,
             "telegram_token_set": bool(self.telegram_token),
             "telegram_chat_id": self.telegram_chat_id,
+            "smithery_api_key_set": bool(self.smithery_api_key),
+            "mcp_liability_accepted": self.mcp_liability_accepted,
             "web_port": self.web_port,
             "timezone": self.timezone,
             "model": self.model,

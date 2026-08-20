@@ -2,7 +2,7 @@
 """Mock OpenAI-compatible server: returns a fixed extraction JSON.
 
 The payload comes from $MOCK_JSON (default: a valid 'record' intent).
-Proves the full pipe: amele binary → agent YAML → schema validation →
+Proves the full pipe: amele binary → amele YAML → schema validation →
 stdout JSON, without a real LLM.
 """
 import json
@@ -13,7 +13,7 @@ DEFAULT = {
     "intent": "record",
     "title": "Su faturasi",
     "kind": "bill",
-    "agent_slug": "fatura",
+    "amele_slug": "fatura",
     "amount": 3000,
     "currency": "TRY",
     "due_date": "2026-08-19",

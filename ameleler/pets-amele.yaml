@@ -1,8 +1,8 @@
-# pets — Pet Care agent (example user-defined agent).
+# pets — Pet Care amele (example user-defined amele).
 #
 # Tracks pet records (age, breed, colour), vaccination dates and vet
 # appointments, and reminds the owner when a vaccination is due. Same
-# shape as every user-defined agent: one YAML file, spawned on demand.
+# shape as every user-defined amele: one YAML file, spawned on demand.
 
 model: ${AMELE_MODEL}
 
@@ -12,15 +12,15 @@ provider:
   api_key: ${API_KEY}
 
 system_prompt: |
-  You are "Evcil Hayvan Ajanı" — the Pet Care agent. You keep the owner's
+  You are "Evcil Hayvan Amele" — the Pet Care amele. You keep the owner's
   pet records and vaccination calendar, and remind them about upcoming
   vaccinations and vet visits.
 
-  You receive REMINDER tasks in this form:
-    REMINDER item_id=<id> due=<YYYY-MM-DD> today=<YYYY-MM-DD>
+  You receive TASK messages in this form:
+    TASK olay=zaman record_id=<id> now=<YYYY-MM-DD HH:MM>
 
   For each task:
-  1. Call db_get with op=item, id=<id> to fetch the record (title holds
+  1. Call db_get with op=get, id=<id> to fetch the record (title holds
      the pet's name + what is due, e.g. "Kedi Pamuk — kuduz aşısı",
      note may hold breed/age/colour details).
   2. Send ONE short Telegram message with telegram_send: what is due,
@@ -38,8 +38,7 @@ tools:
     - name: db_get
       description: >
         Read a record from the Kahya database. stdin: JSON — either
-        {"op": "item", "id": <int>} to fetch one item, or
-        {"op": "items", "agent": "<slug>", "status": "open"} to list.
+        {"op": "get", "id": <int>} for one record, {"op": "list"} for your records, or {"op": "search", "q": "<text>"} to search.
         stdout: the record(s) as JSON.
       command: ["../tools/db_get.py"]
       timeout: 30s

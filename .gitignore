@@ -9,9 +9,7 @@ data/
 .env
 secrets.env
 
-# amele binary (download via ./scripts/install-amele.sh)
-bin/
-amele
+# amele binary'leri repo'da taşınır (bin/amele, bin/amele-arm64) — MCP zorunlu
 
 # python
 __pycache__/
@@ -27,3 +25,4 @@ venv/
 # installer scratch
 .install-tmp/
 .probe/
+kahya-yedek-*/

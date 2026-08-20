@@ -2,20 +2,24 @@
 """Kahya — one-command cross-platform installer.
 
 Usage:
-    python3 install.py            # detect platform, install, port-test
+    python3 install.py            # scan → proposal list → your approval → apply
     python3 install.py --force    # re-download amele even if present
-    python3 install.py --help
+    python3 install.py --yes      # approve every proposal without asking
+    python3 install.py --dry-run  # scan + show the proposal list, change nothing
 
 What it does:
   1. checks the Python version (3.9+); if too old, prints the exact
      install command for your platform/distro and exits
   2. detects the platform and offers an explicit environment list
      (the amele asset list — linux, macOS, Windows, Raspberry Pi, …)
-  3. downloads the amele binary for that platform from GitHub and
-     verifies it against SHA256SUMS
-  4. creates .env from .env.example if missing
-  5. port-tests the web panel port (8080 by default); if taken, picks
-     the next free one and writes it to .env
+  3. scans the machine: amele binary (MCP rule — an MCP-less binary is
+     rejected outright, no approval dialog), .env, Node.js, ffmpeg,
+     leftover installer temp files
+  4. shows an automatic proposal list and asks for YOUR approval —
+     nothing is installed, replaced or removed without it
+  5. applies only the approved items (amele, .env, optional installs);
+     the web panel port is picked automatically (no dialog), systemd
+     auto-start is offered as a single question at the end
   6. prints the LAN address and first-login credentials
 
 Stdlib only — runs on Linux, macOS, Windows, Raspberry Pi.
@@ -30,14 +34,14 @@ import platform
 import re
 import shutil
 import socket
+import subprocess
 import sys
-import tarfile
+from typing import Optional
 import urllib.request
-import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-AMELE_REPO = "lasthumanintheloop/amele"
+AMELE_REPO = "loxigosoftware/amele-builds"
 MIN_PYTHON = (3, 9)
 DEFAULT_PORT = 8080
 PORT_TRIES = range(8081, 8100)
@@ -181,20 +185,26 @@ def latest_release() -> dict:
 
 
 def find_asset(release: dict, os_name: str, arch: str) -> tuple[str, str]:
-    """Return (asset_name, download_url) matching os/arch."""
-    tag = release["tag_name"]
+    """Return (asset_name, download_url) matching os/arch.
+
+    amele-builds assets are plain binaries:
+        amele-linux-amd64, amele-linux-arm64, amele-linux-arm,
+        amele-darwin-amd64, amele-darwin-arm64,
+        amele-windows-amd64.exe, amele-windows-arm64.exe
+    """
     for a in release.get("assets", []):
         name = a["name"]
         if name == "SHA256SUMS" or name.startswith("multiple."):
             continue
-        m = re.match(rf"amele_{re.escape(tag.lstrip('v'))}_([a-z0-9]+)_([a-z0-9]+)\.", name)
+        m = re.match(r"amele-([a-z0-9]+)-([a-z0-9]+)(\.exe)?$", name)
         if not m:
             continue
         a_os, a_arch = m.group(1), m.group(2)
         # linux_arm (32-bit) must match exactly; don't let arm64 fall back to it
         if a_os == os_name and a_arch == arch:
             return name, a["browser_download_url"]
-    fail(f"no amele asset matches {os_name}_{arch} — check the release list")
+    fail(f"no amele asset matches {os_name}_{arch} — check the "
+         f"{AMELE_REPO} release list")
 
 
 def download(url: str, dest: Path, label: str = "") -> None:
@@ -220,43 +230,51 @@ def verify_checksum(file: Path, sums_path: Path, asset_name: str) -> bool:
     return False
 
 
-def extract_amele(archive: Path, dest_dir: Path) -> Path:
-    """Extract the amele binary; returns the binary path."""
-    if archive.name.endswith(".zip"):
-        with zipfile.ZipFile(archive) as z:
-            member = next((n for n in z.namelist() if "amele" in n.lower()
-                           and not n.endswith("/")), None)
-            if not member:
-                fail("amele not found inside the zip archive")
-            z.extract(member, dest_dir)
-            src = dest_dir / member
-    else:
-        with tarfile.open(archive, "r:gz") as t:
-            member = next((m for m in t.getmembers()
-                           if "amele" in m.name and m.isfile()), None)
-            if not member:
-                fail("amele not found inside the archive")
-            if sys.version_info >= (3, 12):
-                t.extract(member, dest_dir, filter="data")
-            else:
-                t.extract(member, dest_dir)
-            src = dest_dir / member.name
-    binary = dest_dir / ("amele.exe" if os.name == "nt" else "amele")
-    shutil.move(str(src), binary)
-    if os.name != "nt":
-        binary.chmod(0o755)
-    return binary
+def check_amele_mcp(binary: Path) -> bool:
+    """Binary MCP destekliyor mu?
+
+    Önce gömülü yardım metnini ara (çapraz platform — arm64 binary x86'da
+    çalıştırılamaz), sonra çalıştırılabiliyorsa `amele mcp --help` ile teyit.
+    Proje kuralı: MCP'siz amele kullanılmaz (kullanıcı kararı) — kurulum
+    MCP'siz binary ile devam etmez.
+    """
+    try:
+        data = binary.read_bytes()
+        if b"amele mcp login" not in data and b"mcp login|status|logout" not in data:
+            return False
+    except Exception:
+        return False
+    try:
+        proc = subprocess.run([str(binary), "mcp", "--help"],
+                              capture_output=True, text=True, timeout=10)
+        if proc.returncode == 0:
+            return "login" in (proc.stdout + proc.stderr)
+        return True  # çalıştırılamıyor (farklı mimari) ama gömülü metin var
+    except Exception:
+        return True
 
 
 def install_amele(os_name: str, arch: str, force: bool) -> Path:
+    """Fetch the MCP-capable amele binary from loxigosoftware/amele-builds.
+
+    Project rule (user decision): no MCP, no amele. An existing binary
+    without MCP support stops the installer — this is a rule rejection,
+    not an approval question.
+    """
     bin_dir = ROOT / "bin"
     bin_dir.mkdir(exist_ok=True)
     binary = bin_dir / ("amele.exe" if os.name == "nt" else "amele")
     if binary.exists() and not force:
-        say(f"  · amele already present: {binary} (use --force to re-download)", "dim")
+        if not check_amele_mcp(binary):
+            fail("existing amele binary has NO MCP support (`amele mcp` "
+                 "missing). Project rule: no MCP, no amele. Remove "
+                 "bin/amele and re-run — the installer will fetch an MCP "
+                 "build from loxigosoftware/amele-builds")
+        say(f"  · amele already present: {binary} (MCP ✓, use --force to "
+            f"re-download)", "dim")
         return binary
 
-    say("  · looking up the latest amele release …")
+    say("  · looking up the latest amele release (loxigosoftware/amele-builds) …")
     release = latest_release()
     asset_name, asset_url = find_asset(release, os_name, arch)
     say(f"  · chosen asset: {asset_name}")
@@ -264,18 +282,24 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
     tmp = ROOT / ".install-tmp"
     tmp.mkdir(exist_ok=True)
     sums = tmp / "SHA256SUMS"
-    archive = tmp / asset_name
-    download(asset_url, archive)
+    asset = tmp / asset_name
+    download(asset_url, asset)
     download(f"https://github.com/{AMELE_REPO}/releases/download/"
              f"{release['tag_name']}/SHA256SUMS", sums)
-    if not verify_checksum(archive, sums, asset_name):
+    if not verify_checksum(asset, sums, asset_name):
         shutil.rmtree(tmp, ignore_errors=True)
         fail("SHA256 verification FAILED — the download is not trustworthy, "
              "aborting")
     say("  · SHA256 verified ✓", "green")
-    extract_amele(archive, bin_dir)
+    shutil.move(str(asset), binary)  # assets are plain binaries
+    if os.name != "nt":
+        binary.chmod(0o755)
     shutil.rmtree(tmp, ignore_errors=True)
-    say(f"  · amele installed: {binary}", "green")
+    if not check_amele_mcp(binary):
+        binary.unlink(missing_ok=True)
+        fail(f"release {release['tag_name']} has NO MCP support (`amele mcp` "
+             f"missing). Project rule: no MCP, no amele.")
+    say(f"  · amele installed: {binary} (MCP ✓)", "green")
     return binary
 
 
@@ -367,7 +391,7 @@ SERVICES = {  # unit name → module
 }
 
 
-def install_systemd() -> None:
+def install_systemd(preapproved: bool = False) -> None:
     """Offer auto-start via systemd (Linux only, needs sudo).
 
     Generates three units from the *current* user/python path — no
@@ -382,10 +406,11 @@ def install_systemd() -> None:
         say("  · auto-start skipped: systemd not present "
             "(start services manually, see summary)", "dim")
         return
-    ans = input("  Auto-start services via systemd (needs sudo)? [y/N]: ").strip().lower()
-    if ans not in ("y", "yes"):
-        say("  · skipped — start services manually (see summary below)", "dim")
-        return
+    if not preapproved:
+        ans = input("  Auto-start services via systemd (needs sudo)? [y/N]: ").strip().lower()
+        if ans not in ("y", "yes"):
+            say("  · skipped — start services manually (see summary below)", "dim")
+            return
 
     user = getpass.getuser()
     py = sys.executable
@@ -434,6 +459,8 @@ def main() -> None:
         print(__doc__)
         sys.exit(0)
     force = "--force" in args
+    yes = "--yes" in args
+    dry_run = "--dry-run" in args
 
     say()
     say("╔══════════════════════════════════════════════╗", "bold")
@@ -454,56 +481,60 @@ def main() -> None:
         (k for k, (label, o, a) in ENVIRONMENTS.items() if o == det_os and a == det_arch),
         "1")
     say(f"\n  Detected environment: {ENVIRONMENTS[default_key][0]}")
-    say("  Select an environment (Enter = detected):")
-    for k, (label, *_rest) in ENVIRONMENTS.items():
-        mark = " →" if k == default_key else "  "
-        say(f"    {mark} {k}) {label}")
-    choice = input("  Choice: ").strip()
-    key = choice if choice in ENVIRONMENTS else default_key
+    if dry_run or yes:
+        key = default_key
+        say(f"  · using detected environment: {ENVIRONMENTS[key][0]}"
+            + (" (--dry-run)" if dry_run else " (--yes)"), "dim")
+    else:
+        say("  Select an environment (Enter = detected):")
+        for k, (label, *_rest) in ENVIRONMENTS.items():
+            mark = " →" if k == default_key else "  "
+            say(f"    {mark} {k}) {label}")
+        choice = input("  Choice: ").strip()
+        key = choice if choice in ENVIRONMENTS else default_key
     label, os_name, arch = ENVIRONMENTS[key]
     say(f"  · environment: {label}", "bold")
 
-    # 3. amele
-    say("\n  [1/4] installing amele …")
-    binary = install_amele(os_name, arch, force)
-    try:
-        out = __import__("subprocess").run(
-            [str(binary), "version"], capture_output=True, text=True, timeout=30)
-        say(f"  · {out.stdout.strip() or out.stderr.strip()}", "green")
-    except Exception:
-        say("  · could not verify the version, but the binary is in place", "yellow")
-
-    # 4. .env
-    say("\n  [2/4] preparing .env …")
-    ensure_env()
-
-    # 5. port test
-    say("\n  [3/4] port test …")
+    # 3. system scan → automatic proposal → user approval list
+    env_file = ROOT / ".env"
     preferred = DEFAULT_PORT
-    env = ROOT / ".env"
-    if env.exists():
-        m = re.search(r"^KAHYA_WEB_PORT=(\d+)", env.read_text(encoding="utf-8"), re.M)
+    if env_file.exists():
+        m = re.search(r"^KAHYA_WEB_PORT=(\d+)",
+                      env_file.read_text(encoding="utf-8"), re.M)
         if m:
             preferred = int(m.group(1))
-    chosen = port_test(preferred)
-    if chosen != preferred:
-        write_port(chosen)
-        say(f"  · {preferred} is taken → {chosen} chosen and written to .env", "yellow")
-    else:
-        say(f"  · {chosen} is free ✓", "green")
+    say("\n  [system scan] looking at what is already on this machine …")
+    items = scan_system(os_name, arch, force)
+    chosen = confirm_items(items, yes=yes, dry_run=dry_run)
+    if dry_run:
+        say("\n  --dry-run: nothing was changed. Re-run without --dry-run to "
+            "apply the approved items.", "dim")
+        return
 
-    # 6. auto-start (systemd)
-    say("\n  [4/5] auto-start …")
-    install_systemd()
+    # 4. apply the approved items
+    say()
+    apply_items(items, chosen, os_name, arch, force)
+
+    # 5. web panel port — automatic (no dialog): preferred, else next free
+    free_port = port_test(preferred)
+    if free_port != preferred:
+        write_port(free_port)
+        say(f"  · port {preferred} is busy — using {free_port} "
+            f"(written to .env)", "yellow")
+    else:
+        say(f"  · port {free_port} is free — using it", "dim")
+
+    # 6. auto-start: single question at the end (Linux/systemd only)
+    install_systemd(preapproved=yes)
 
     # 7. summary
     ip = lan_ip()
-    say("\n  [5/5] done!")
+    say("\n  ✅ done!")
     say()
     say("╔══════════════════════════════════════════════════════╗", "bold")
     say("║  ✅ Kâhya is installed!                              ║", "bold")
     say("╠══════════════════════════════════════════════════════╣")
-    say(f"║  Panel:  http://{ip}:{chosen}                        ")
+    say(f"║  Panel:  http://{ip}:{free_port}                    ")
     say("║  Login:  admin / kahya123  (change it from the panel)  ")
     say("╠══════════════════════════════════════════════════════╣")
     say("║  Start (each in its own terminal):                    ")
@@ -513,8 +544,210 @@ def main() -> None:
     say("╚══════════════════════════════════════════════════════╝")
     say()
     say("  Next steps: set the LLM endpoint + Telegram token from the panel;", "dim")
-    say("  supervised/auto-start units live in deploy/.", "dim")
+    say("  auto-start (systemd) is generated by the installer — examples in "
+        "deploy/.", "dim")
     say()
+
+
+# ---------------------------------------------------------------------------
+# system scan → automatic proposal → approval list
+# ---------------------------------------------------------------------------
+
+def which(cmd: str) -> Optional[str]:
+    return shutil.which(cmd)
+
+
+def apt_install(pkg: str) -> str:
+    """Distro'ya uygun paket kurma komutu (onay listesinde gösterilir)."""
+    if which("apt-get"):
+        return f"sudo apt-get install -y {pkg}"
+    if which("dnf"):
+        return f"sudo dnf install -y {pkg}"
+    if which("pacman"):
+        return f"sudo pacman -S --noconfirm {pkg}"
+    return f"sudo apt-get install -y {pkg}"  # varsayılan; kullanıcı düzeltir
+
+
+def scan_system(os_name: str, arch: str, force: bool) -> list[dict]:
+    """Sistem taraması — mevcut yazılımlar + otomatik öneriler.
+
+    Her öneri bir dict: id, kritik (varsayılan onay Y), baslik, detay,
+    komut (onaylanırsa çalıştırılacak shell komutu) veya uygula (özel
+    aksiyon). Hiçbir şey bu liste onaylanmadan yapılmaz.
+
+    Onay listesinde OLMAYAN (otomatik): web panel portu (boş port
+    otomatik seçilir). Kural-reddi: MCP'siz amele binary kurulumu
+    anında durdurur (onay sorusu yok — kullanıcı kararı).
+    """
+    items = []
+
+    # -- amele binary + MCP kuralı (kritik) --
+    binary = ROOT / "bin" / ("amele.exe" if os.name == "nt" else "amele")
+    if binary.exists() and check_amele_mcp(binary):
+        items.append({"id": "amele", "kritik": True, "durum": "✓",
+                      "baslik": "amele binary (MCP ✓)",
+                      "detay": f"{binary} — hazır",
+                      "komut": None, "uygula": None})
+    elif binary.exists():
+        fail("existing amele binary has NO MCP support (`amele mcp` "
+             "missing). Project rule: no MCP, no amele — the installer "
+             "will not continue. Remove bin/amele and re-run; the "
+             "installer will fetch an MCP build from "
+             "loxigosoftware/amele-builds")
+    else:
+        items.append({"id": "amele", "kritik": True, "durum": "✗",
+                      "baslik": "amele binary yok",
+                      "detay": "MCP'li sürüm kurulacak "
+                               "(loxigosoftware/amele-builds release)",
+                      "komut": None, "uygula": lambda: None})
+
+    # -- .env --
+    if (ROOT / ".env").exists():
+        items.append({"id": "env", "kritik": True, "durum": "✓",
+                      "baslik": ".env", "detay": "hazır (düzenlemeden korunur)",
+                      "komut": None, "uygula": None})
+    else:
+        items.append({"id": "env", "kritik": True, "durum": "○",
+                      "baslik": ".env yok",
+                      "detay": ".env.example'dan oluşturulacak",
+                      "komut": None, "uygula": ensure_env})
+
+    # -- Node.js (MCP stdio sunucuları) --
+    if which("node"):
+        items.append({"id": "node", "kritik": False, "durum": "✓",
+                      "baslik": "Node.js",
+                      "detay": which("node") or "kurulu",
+                      "komut": None, "uygula": None})
+    else:
+        cmd = apt_install("nodejs")
+        items.append({"id": "node", "kritik": False, "durum": "○",
+                      "baslik": "Node.js yok",
+                      "detay": "MCP stdio sunucuları (npx @smithery/cli) için "
+                               "önerilir — kurulacak: " + cmd,
+                      "komut": cmd, "uygula": None})
+
+    # -- ffmpeg (amele araçları) --
+    if which("ffmpeg"):
+        items.append({"id": "ffmpeg", "kritik": False, "durum": "✓",
+                      "baslik": "ffmpeg", "detay": which("ffmpeg") or "kurulu",
+                      "komut": None, "uygula": None})
+    else:
+        cmd = apt_install("ffmpeg")
+        items.append({"id": "ffmpeg", "kritik": False, "durum": "○",
+                      "baslik": "ffmpeg yok",
+                      "detay": "amele araçları (ses/görüntü) için önerilir — "
+                               "kurulacak: " + cmd,
+                      "komut": cmd, "uygula": None})
+
+    # -- installer kalıntısı --
+    tmp = ROOT / ".install-tmp"
+    if tmp.exists():
+        items.append({"id": "temizlik", "kritik": False, "durum": "!",
+                      "baslik": ".install-tmp kalıntısı",
+                      "detay": "eski kurulum geçici dosyaları — silinecek",
+                      "komut": None,
+                      "uygula": lambda: shutil.rmtree(tmp, ignore_errors=True)})
+
+    return items
+
+
+def confirm_items(items: list[dict], yes: bool = False,
+                  dry_run: bool = False) -> list[dict]:
+    """Öneri listesini gösterir, kullanıcı onayını alır.
+
+    Kritik maddeler varsayılan EVET, öneriler varsayılan HAYIR.
+    Kısayollar: a = hepsini onayla · n = hiçbirini onaylama · q = çık.
+    --yes: soru sormadan hepsini onayla (açık istek).
+    """
+    say()
+    say("  ── system scan ─────────────────────────────────────", "bold")
+    for i, it in enumerate(items, 1):
+        mark = {"✓": "✓", "✗": "✗", "○": "○", "!": "!", "—": "—"}[it["durum"]]
+        varsayilan = "Y" if it["kritik"] else "n"
+        say(f"  [{i}] {mark} {it['baslik']}")
+        say(f"      {it['detay']}")
+        if dry_run:
+            say(f"      → onaylanırsa: {varsayilan} ({'uygulanacak' if (it['komut'] or it['uygula']) else 'hazır — işlem yok'})", "dim")
+    say("  ────────────────────────────────────────────────────", "bold")
+    if dry_run:
+        return []
+
+    chosen = []
+    if yes:
+        chosen = [it for it in items
+                  if it["komut"] or it["uygula"] or it["durum"] in ("✗", "!", "○")]
+        say("  --yes: all actionable items approved.", "dim")
+        return chosen
+
+    for i, it in enumerate(items, 1):
+        if not (it["komut"] or it["uygula"] or it["durum"] in ("✗", "!")):
+            continue  # hazır olanlar onay istemez
+        varsayilan = "Y" if it["kritik"] else "n"
+        soru = f"  [{i}] {it['baslik']} — uygulansın mı? [{'Y' if it['kritik'] else 'y'}/{'n' if it['kritik'] else 'N'}] "
+        ans = input(soru).strip().lower()
+        if ans in ("a", "all"):
+            chosen = [x for x in items if x["komut"] or x["uygula"]
+                      or x["durum"] in ("✗", "!", "○")]
+            say("  · everything approved.", "green")
+            return chosen
+        if ans in ("n", "no"):
+            say("  · nothing else approved.", "dim")
+            return chosen
+        if ans in ("q", "quit"):
+            say("  · cancelled by user.", "yellow")
+            sys.exit(1)
+        if ans in ("", "y", "yes") and it["kritik"]:
+            chosen.append(it)
+        elif ans in ("y", "yes") or (ans == "" and not it["kritik"]):
+            # önerilerde boş Enter = varsayılan HAYIR
+            if ans in ("y", "yes"):
+                chosen.append(it)
+        else:
+            say("  · skipped.", "dim")
+    return chosen
+
+
+def apply_items(items: list[dict], chosen: list[dict], os_name: str,
+                arch: str, force: bool) -> None:
+    """Onaylanan önerileri sırayla uygular. Her adım kullanıcının
+    onay listesinden geçmiştir; hiçbir şey onaysız çalışmaz."""
+    step = 0
+
+    def adim(it):
+        nonlocal step
+        step += 1
+        say(f"\n  [{step}] {it['baslik']} …")
+
+    for it in chosen:
+        if it["id"] == "amele":
+            adim(it)
+            install_amele(os_name, arch, force)
+            try:
+                out = subprocess.run(
+                    [str(ROOT / "bin" / ("amele.exe" if os.name == "nt"
+                                         else "amele")), "version"],
+                    capture_output=True, text=True, timeout=30)
+                say(f"  · {out.stdout.strip() or out.stderr.strip()}", "green")
+            except Exception:
+                say("  · could not verify the version, but the binary is in "
+                    "place", "yellow")
+        elif it["id"] == "env":
+            adim(it)
+            ensure_env()
+            say("  · .env hazır", "green")
+        elif it["komut"]:
+            adim(it)
+            say(f"  · running: {it['komut']}", "dim")
+            proc = subprocess.run(it["komut"], shell=True)
+            if proc.returncode == 0:
+                say("  · done ✓", "green")
+            else:
+                say(f"  · failed (exit {proc.returncode}) — continue anyway, "
+                    f"you can install it later", "yellow")
+        elif it.get("uygula"):
+            adim(it)
+            it["uygula"]()
+            say("  · done ✓", "green")
 
 
 if __name__ == "__main__":
