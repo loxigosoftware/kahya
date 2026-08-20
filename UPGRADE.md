@@ -50,7 +50,7 @@ the owner decision by decision. This `UPGRADE.md` is your execution plan.
 ## ✅ Adım listesi (ana tikler)
 
 - [x] **Step 0** — Hazırlık: yedek, git branch, mevcut testlerin doğrulanması
-- [ ] **Step 1** — DB migration: schema v2 (records, ameleler+model, amele_mcp, pending_actions, scheduled_tasks, conversation_messages+FTS) + veri dönüşümü
+- [x] **Step 1** — DB migration: schema v2 (records, ameleler+model, amele_mcp, pending_actions, scheduled_tasks, conversation_messages+FTS) + veri dönüşümü
 - [ ] **Step 2** — Amele altyapısı: db_get/db_put yeniden yazımı + JSON doğrulama + amele index + model atama + ajan→amele adlandırma
 - [ ] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameleler / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
 - [ ] **Step 4** — Bot (Telegram): yeni komut seti (`/amele`, otomatik `/<slug>`), yönlendirme, oturum modu, eski komutların kaldırılması, i18n (amele çevrilmez)
@@ -85,14 +85,14 @@ Alt görevler:
 
 Alt görevler:
 
-- [ ] `scripts/migrate_v2.py` yaz: mevcut DB'yi oku, yeni şemayı kur, veriyi taşı
-- [ ] `agents` tablosu → `ameleler` (rename) + yeni alanlar: `model_kind` (local|api, default local), `model_name`, `model_cfg`
-- [ ] `items` → `records`: title→`ad`, amount/currency→`tutar`, due_date→`due_date`, note→`not`, kind→`tür` (REDESIGN §9)
-- [ ] `reminders` tablosunu kaldır (geçmiş logs'ta zaten var; veri kaybı yok)
-- [ ] Yeni tablolar: `mcp_servers`, `amele_mcp`, `pending_actions` (lang alanı dahil), `scheduled_tasks` (status: pending|success|failed), `conversation_messages` (+ index'ler), `conversation_fts` (FTS5; FTS5 yoksa LIKE fallback notu)
-- [ ] `chat_state`, `logs`, `settings`, `sessions`, `login_attempts` korunur (dokunma)
-- [ ] `kahya/db.py`'yi yeni şemaya göre güncelle (tüm CRUD yardımcıları)
-- [ ] Migration'ı yedek DB üzerinde test et, veri kaybını doğrula (satır sayıları karşılaştır)
+- [x] `scripts/migrate_v2.py` yaz: mevcut DB'yi oku, yeni şemayı kur, veriyi taşı
+- [x] `agents` tablosu → `ameleler` (rename) + yeni alanlar: `model_kind` (local|api, default local), `model_name`, `model_cfg`
+- [x] `items` → `records`: title→`ad`, amount/currency→`tutar`, due_date→`due_date`, note→`not`, kind→`tür` (REDESIGN §9)
+- [x] `reminders` tablosunu kaldır (geçmiş logs'ta zaten var; veri kaybı yok)
+- [x] Yeni tablolar: `mcp_servers`, `amele_mcp`, `pending_actions` (lang alanı dahil), `scheduled_tasks` (status: pending|success|failed), `conversation_messages` (+ index'ler), `conversation_fts` (FTS5; FTS5 yoksa LIKE fallback notu)
+- [x] `chat_state`, `logs`, `settings`, `sessions`, `login_attempts` korunur (dokunma)
+- [x] `kahya/db.py`'yi yeni şemaya göre güncelle (tüm CRUD yardımcıları)
+- [x] Migration'ı yedek DB üzerinde test et, veri kaybını doğrula (satır sayıları karşılaştır)
 
 **Kabul kriterleri:** Migration kopya DB'de sorunsuz çalışıyor; eski kayıtlar records'ta aynen duruyor; yeni tablolar boş ama hazır; mevcut testler (güncellenen) geçiyor.
 

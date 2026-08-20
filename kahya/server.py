@@ -311,11 +311,8 @@ class Handler(BaseHTTPRequestHandler):
         if not agent:
             self._json({"error": f"agent '{slug}' not found"}, 404)
             return
-        # tasks keep existing, agent link is cleared
-        self.server.db.con.execute(
-            "UPDATE items SET agent_id = NULL WHERE agent_id = ?", (agent["id"],))
-        self.server.db.con.execute("DELETE FROM agents WHERE id = ?", (agent["id"],))
-        self.server.db.con.commit()
+        # v2: amele silinince kayıtları ON DELETE CASCADE ile silinir
+        self.server.db.delete_amele(agent["id"])
         yaml_path = self.server.agents_dir / f"{slug}.yaml"
         if yaml_path.exists():
             yaml_path.unlink()
@@ -331,10 +328,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         name = (data.get("name") or agent["name"]).strip()
         role = (data.get("role_prompt") or agent["role_prompt"]).strip()
-        self.server.db.con.execute(
-            "UPDATE agents SET name = ?, role_prompt = ? WHERE id = ?",
-            (name, role, agent["id"]))
-        self.server.db.con.commit()
+        self.server.db.update_amele(agent["id"], {"name": name, "description": role})
         yaml_path = self.server.agents_dir / f"{slug}.yaml"
         yaml_path.write_text(self._agent_yaml_text(slug, name, role), encoding="utf-8")
         self.server.db.log("web", {"event": "agent_edited", "agent": slug})

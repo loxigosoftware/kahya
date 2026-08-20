@@ -256,9 +256,7 @@ class Bot:
             return
         lines = [self._t("bot.agents_header"), ""]
         for a in agents:
-            n = self.db.con.execute(
-                "SELECT COUNT(*) FROM items WHERE agent_id = ? AND status = 'open'",
-                (a["id"],)).fetchone()[0]
+            n = self.db.count_records(a["id"], status="open")
             lines.append(f"• <b>{a['name']}</b> ({a['slug']}) — "
                          f"{self._t('bot.agents_open', n=n)}")
         self.tg.send(chat_id, "\n".join(lines))
@@ -341,8 +339,7 @@ class Bot:
         if not agent:
             self.tg.send(chat_id, self._t("bot.wizard_delete_notfound", slug=slug))
             return
-        n = self.db.con.execute(
-            "SELECT COUNT(*) FROM items WHERE agent_id = ?", (agent["id"],)).fetchone()[0]
+        n = self.db.count_records(agent["id"])
         self.db.set_chat_state(chat_id, {"step": "del_confirm", "slug": slug,
                                          "name": agent["name"]})
         self.tg.send(chat_id, self._t("bot.wizard_delete_confirm",
@@ -351,10 +348,7 @@ class Bot:
     def _confirm_delete(self, chat_id: int, slug: str) -> None:
         agent = self.db.get_agent_by_slug(slug)
         if agent:
-            self.db.con.execute("UPDATE items SET agent_id = NULL WHERE agent_id = ?",
-                                (agent["id"],))
-            self.db.con.execute("DELETE FROM agents WHERE id = ?", (agent["id"],))
-            self.db.con.commit()
+            self.db.delete_amele(agent["id"])  # ON DELETE CASCADE → kayıtlar da silinir
             yaml_path = self.cfg.agents_dir / f"{slug}.yaml"
             if yaml_path.exists():
                 yaml_path.unlink()
@@ -384,9 +378,7 @@ class Bot:
             return
         name = value if field == "name" else agent["name"]
         role = value if field == "role" else agent["role_prompt"]
-        self.db.con.execute("UPDATE agents SET name = ?, role_prompt = ? WHERE id = ?",
-                            (name, role, agent["id"]))
-        self.db.con.commit()
+        self.db.update_amele(agent["id"], {"name": name, "description": role})
         yaml_path = self.cfg.agents_dir / f"{slug}.yaml"
         from .server import AGENT_TEMPLATE
         role_indented = "\n".join("  " + ln for ln in role.splitlines())

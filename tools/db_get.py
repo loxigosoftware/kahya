@@ -4,15 +4,21 @@
 stdin:  JSON request, one of:
           {"op": "item",  "id": 5}                    → one item
           {"op": "items", "agent": "fatura", "status": "open"} → list
-          {"op": "agents"}                            → known agents
+          {"op": "agents"}                            → known agents (ameleler)
           {"op": "reminders", "item_id": 5}           → sent reminders
 stdout: JSON — the record(s), or {"error": "..."}
 Env:    KAHYA_DB (path to the SQLite file)
+
+v1 uyumluluk sürümü (schema v2 üzerinde çalışır) — Step 2'de tam yeniden yazım.
 """
 import json
 import os
-import sqlite3
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from kahya.db import KahyaDB  # noqa: E402
 
 
 def main():
@@ -26,47 +32,38 @@ def main():
         print(json.dumps({"error": f"bad JSON: {e}"}))
         return 1
 
-    con = sqlite3.connect(db_path)
-    con.row_factory = sqlite3.Row
     op = req.get("op")
+    db = KahyaDB(db_path)
 
     try:
         if op == "item":
-            row = con.execute(
-                "SELECT * FROM items WHERE id = ?", (req.get("id"),)
-            ).fetchone()
-            print(json.dumps(dict(row) if row else None, ensure_ascii=False))
+            print(json.dumps(db.get_item(req.get("id")), ensure_ascii=False))
         elif op == "items":
-            q = "SELECT * FROM items WHERE 1=1"
-            args = []
-            if req.get("agent"):
-                q += " AND agent_id = (SELECT id FROM agents WHERE slug = ?)"
-                args.append(req["agent"])
-            if req.get("status"):
-                q += " AND status = ?"
-                args.append(req["status"])
-            q += " ORDER BY due_date, id"
-            rows = con.execute(q, args).fetchall()
-            print(json.dumps([dict(r) for r in rows], ensure_ascii=False))
+            print(json.dumps(
+                db.list_items(agent_slug=req.get("agent"), status=req.get("status")),
+                ensure_ascii=False))
         elif op == "agents":
-            rows = con.execute(
-                "SELECT id, slug, name, enabled FROM agents ORDER BY name"
-            ).fetchall()
-            print(json.dumps([dict(r) for r in rows], ensure_ascii=False))
+            print(json.dumps(
+                [{"id": a["id"], "slug": a["slug"], "name": a["name"],
+                  "enabled": a["enabled"]} for a in db.list_agents()],
+                ensure_ascii=False))
         elif op == "reminders":
-            rows = con.execute(
-                "SELECT * FROM reminders WHERE item_id = ? ORDER BY sent_on DESC",
-                (req.get("item_id"),),
-            ).fetchall()
-            print(json.dumps([dict(r) for r in rows], ensure_ascii=False))
+            rows = db.con.execute(
+                "SELECT payload FROM logs WHERE source = 'scheduler' "
+                "AND json_extract(payload, '$.event') = 'reminder_sent' "
+                "AND json_extract(payload, '$.item_id') = ? ORDER BY ts DESC",
+                (req.get("item_id"),)).fetchall()
+            print(json.dumps(
+                [{"item_id": req.get("item_id"), "sent_on": r["ts"][:10]}
+                 for r in rows], ensure_ascii=False))
         else:
             print(json.dumps({"error": f"unknown op: {op}"}))
             return 1
-    except sqlite3.Error as e:
-        print(json.dumps({"error": str(e)}))
+    except Exception as e:  # sqlite/JSON hataları dahil — amele hata görsün
+        print(json.dumps({"error": str(e)}, ensure_ascii=False))
         return 1
     finally:
-        con.close()
+        db.close()
     return 0
 
 

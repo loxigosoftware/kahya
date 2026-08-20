@@ -128,7 +128,7 @@ CREATE TABLE scheduled_tasks (
   amele_id    INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
   record_id   INTEGER REFERENCES records(id) ON DELETE CASCADE, -- null = sabit tarife
   run_at      TEXT NOT NULL,             -- tetikleme zamanı
-  status      TEXT NOT NULL DEFAULT 'pending', -- pending | done | cancelled
+  status      TEXT NOT NULL DEFAULT 'pending', -- pending | success | failed | cancelled
   created_at  TEXT NOT NULL
 );
 
