@@ -2,7 +2,7 @@
   "lang_name": "English",
   "bot": {
     "start_welcome": "🧑💼 <b>Kahya</b> — the steward of your home and small business.\n\nJust talk to me naturally:\n• <i>\"Water bill 3000 TL arrived, due 19 august\"</i>\n• <i>\"Cat Pamuk's rabies shot on september 3\"</i>\n• <i>\"Remind me of rent on the 20th of every month\"</i>\n• <i>\"When was the rabies shot?\"</i> (you can ask questions)\n\nCommands: see <b>/help</b>.",
-    "help": "🧑💼 <b>Kahya — commands</b>\n\n<b>Chat:</b>\nAdd tasks or ask questions in plain language.\n\n<b>Commands:</b>\n/ameleler — list ameleler\n/add-amele — new amele (wizard)\n/edit-amele — edit amele (wizard)\n/delete-amele — delete amele\n/jobs — open tasks\n/add-job — add a task (wizard)\n/done — complete a task\n/settings — setup summary\n/help — this list\n/cancel — cancel a flow",
+    "help": "🧑💼 <b>Kahya — commands</b>\n\n<b>Chat:</b>\nTalk naturally — Kahya routes to the right amele.\n\n<b>Commands:</b>\n/amele — list ameles\n/help — this list\n/cancel — cancel flow/session\n\n<b>Direct amele:</b>\n/<slug> ... — send a message to that amele\n/<slug> — enter chat mode with that amele",
     "unknown_user": "This kahya belongs to another household. 🏠",
     "understand_error": "Couldn.t understand ({code}). Please rephrase or send <b>/cancel</b>.",
     "extract_invalid": "I couldn.t parse that — could you rephrase?",
@@ -56,7 +56,15 @@
     "wizard_edit_done": "✅ <b>{name}</b> updated.",
     "job_flow_title": "📝 Add task (wizard)",
     "job_flow_ask": "Describe the task naturally:\n<i>\"Water bill 3000 TL arrived, due 19 august\"</i>",
-    "job_flow_done": "Task saved ✅"
+    "job_flow_done": "Task saved ✅",
+    "session_started": "💬 Chat mode with <b>{name}</b> — next messages go to this amele. Send <b>/cancel</b> to exit.",
+    "amele_not_found": "No amele found: <code>{slug}</code>. See <b>/amele</b> for the list.",
+    "unknown_command": "Unknown command. See <b>/amele</b> and <b>/help</b> — amele management (add, edit, delete) lives in the web panel.",
+    "approval_forwarded": "✅ Your approval was forwarded to {name}.",
+    "approval_cancelled": "Cancelled — {name} was notified.",
+    "ameleler_header": "🤖 <b>Ameles:</b>",
+    "ameleler_none": "No ameles yet. Create your first one in the web panel.",
+    "ameleler_records": "{n} records"
   },
   "panel": {
     "title": "Kahya — panel",

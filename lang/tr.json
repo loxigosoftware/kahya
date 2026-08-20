@@ -2,7 +2,7 @@
   "lang_name": "Türkçe",
   "bot": {
     "start_welcome": "🧑💼 <b>Kâhya</b> — evinizin ve küçük işletmenizin kâhyası.\n\nBana doğal dille yazın:\n• <i>\"3000 TL su faturası geldi, son ödeme 19 ağustos\"</i>\n• <i>\"Kedi Pamuk'un kuduz aşısı 3 eylülde\"</i>\n• <i>\"Her ayın 20'sinde kira hatırlat\"</i>\n• <i>\"Kuduz aşısı ne zamandı?\"</i> (soru sorabilirsiniz)\n\nKomutlar: <b>/help</b> ile tümünü görün.",
-    "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille görev ekleyin ya da soru sorun.\n\n<b>Komutlar:</b>\n/ameleler — ameleleri listeler\n/add-agent — yeni amele (sihirbaz)\n/edit-agent — amele düzenle (sihirbaz)\n/delete-agent — amele sil\n/jobs — açık görevler\n/add-job — görev ekle (sihirbaz)\n/done — görev tamamla\n/settings — kurulum özeti\n/help — bu liste\n/iptal — akışı iptal et",
+    "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille konuşun — Kâhya uygun ameleye iletir.\n\n<b>Komutlar:</b>\n/amele — ameleleri listeler\n/help — bu liste\n/iptal — akışı/oturumu iptal\n\n<b>Doğrudan amele:</b>\n/<slug> ... — mesajı o ameleye gönderir\n/<slug> — o ameleyle sohbet moduna girer",
     "unknown_user": "Bu kâhya başka bir evin kâhyası. 🏠",
     "understand_error": "Anlayamadım ({code}). Daha net yazın veya <b>/iptal</b>.",
     "extract_invalid": "Bunu çözemedim — biraz daha açık anlatır mısın?",
@@ -56,7 +56,15 @@
     "wizard_edit_done": "✅ <b>{name}</b> güncellendi.",
     "job_flow_title": "📝 Görev ekleme (sihirbaz)",
     "job_flow_ask": "Görevi doğal dille yazın:\n<i>\"3000 TL su faturası geldi, son ödeme 19 ağustos\"</i>",
-    "job_flow_done": "Görev kaydedildi ✅"
+    "job_flow_done": "Görev kaydedildi ✅",
+    "session_started": "💬 <b>{name}</b> ile sohbet modu — sonraki mesajlar bu ameleye gider. Çıkmak için <b>/iptal</b>.",
+    "amele_not_found": "Amele bulunamadı: <code>{slug}</code>. <b>/amele</b> ile listeye bakın.",
+    "unknown_command": "Bilinmeyen komut. <b>/amele</b> ve <b>/help</b>'e bakın — amele yönetimi (ekleme, düzenleme, silme) web panelinde.",
+    "approval_forwarded": "✅ Onayınız {name} amelesine iletildi.",
+    "approval_cancelled": "İptal edildi — {name} amelesine bildirildi.",
+    "ameleler_header": "🤖 <b>Ameleler:</b>",
+    "ameleler_none": "Henüz amele yok. Web panelinden ilk amelenizi oluşturun.",
+    "ameleler_records": "{n} kayıt"
   },
   "panel": {
     "title": "Kâhya — panel",

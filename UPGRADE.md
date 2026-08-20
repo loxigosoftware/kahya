@@ -53,7 +53,7 @@ the owner decision by decision. This `UPGRADE.md` is your execution plan.
 - [x] **Step 1** — DB migration: schema v2 (records, ameleler+model, amele_mcp, pending_actions, scheduled_tasks, conversation_messages+FTS) + veri dönüşümü
 - [x] **Step 2** — Amele altyapısı: db_get/db_put yeniden yazımı + JSON doğrulama + amele index + model atama + ajan→amele adlandırma
 - [x] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameleler / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
-- [ ] **Step 4** — Bot (Telegram): yeni komut seti (`/amele`, otomatik `/<slug>`), yönlendirme, oturum modu, eski komutların kaldırılması, i18n (amele çevrilmez)
+- [x] **Step 4** — Bot (Telegram): yeni komut seti (`/amele`, otomatik `/<slug>`), yönlendirme, oturum modu, eski komutların kaldırılması, i18n (amele çevrilmez)
 - [ ] **Step 5** — Konuşma belleği: conversation_messages kaydı, 40 mesajda bir arşivleme, FTS arama, "geçmişten bak" akışı, gece yedekleme
 - [ ] **Step 6** — Onay akışı + zamanlanmış görev: pending_actions yönetimi (başlıkta amele adı, en güncel eşleşme), scheduled_tasks tarayıcı (success/fallback)
 - [ ] **Step 7** — Panel (web): Ameleler (CRUD + şema editor + model seçimi), Kayıtlar, Onaylar, Ayarlar, Tasks kaldırma, DB/Geçmiş indir butonları
@@ -147,14 +147,14 @@ Alt görevler:
 
 Alt görevler:
 
-- [ ] Komut tablosu: `/amele` (listeleme), `/help`, `/iptal` + her etkin amele için otomatik `/<slug>` (Telegram: `-` → `_`; kullanıcı `/mail-amele` yazarsa tire normalize edilip eşleştirilir)
-- [ ] `setMyCommands` güncellemesi (amele eklenip silindiğinde otomatik)
-- [ ] Mesaj yönlendirme: `/<slug> ...` → doğrudan ameleye; `/` yoksa → Kahya karşılar (kendisi cevaplar / iletir / sorar)
-- [ ] Oturum modu: `/<slug>` argümansız → sonraki mesajlar o ameleye; `/iptal` çıkar
-- [ ] Eski komutları kaldır: `/add-agent`, `/edit-agent`, `/delete-agent`, `/add-job`, `/jobs`, `/done`
-- [ ] Onay cevabı eşleştirme altyapısı (Step 6 ile tamamlanır): "evet/hayır/iptal" bekleyen onaylarla eşleşir, komut değildir
-- [ ] `lang/tr.json` + `lang/en.json`: yeni string'ler; **"amele" çevrilmez** (özel isim — her dilde "amele")
-- [ ] Bot'un Kahya konuşma kalıplarını kullandığını doğrula (Step 3'teki gibi)
+- [x] Komut tablosu: `/amele` (listeleme), `/help`, `/iptal` + her etkin amele için otomatik `/<slug>` (Telegram: `-` → `_`; kullanıcı `/mail-amele` yazarsa tire normalize edilip eşleştirilir)
+- [x] `setMyCommands` güncellemesi (amele eklenip silindiğinde otomatik)
+- [x] Mesaj yönlendirme: `/<slug> ...` → doğrudan ameleye; `/` yoksa → Kahya karşılar (kendisi cevaplar / iletir / sorar)
+- [x] Oturum modu: `/<slug>` argümansız → sonraki mesajlar o ameleye; `/iptal` çıkar
+- [x] Eski komutları kaldır: `/add-agent`, `/edit-agent`, `/delete-agent`, `/add-job`, `/jobs`, `/done`
+- [x] Onay cevabı eşleştirme altyapısı (Step 6 ile tamamlanır): "evet/hayır/iptal" bekleyen onaylarla eşleşir, komut değildir
+- [x] `lang/tr.json` + `lang/en.json`: yeni string'ler; **"amele" çevrilmez** (özel isim — her dilde "amele")
+- [x] Bot'un Kahya konuşma kalıplarını kullandığını doğrula (Step 3'teki gibi)
 
 **Kabul kriterleri:** `/amele` listeliyor; `/mail-amele mailleri oku` doğrudan ameleye gidiyor; `/mail-amele` (tireli) de çalışıyor; eski komutlar ölü; i18n'de "amele" korunuyor.
 
