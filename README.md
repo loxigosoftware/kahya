@@ -103,8 +103,18 @@ Panel tabs (v2): **Overview** (counts + upcoming scheduled tasks),
 **Agents** (CRUD + per-agent model + optional schema editor), **Records**
 (schema table view or raw JSON, search, add/edit/delete), **Approvals**
 (decide pending approvals — approved ones are forwarded to the agent),
-**MCP Servers** (list; binding lands in the next release), **Settings**
-(+ Smithery API key, DB backup & conversation history downloads).
+**MCP Servers** (Smithery catalog search, manual stdio/http servers,
+tool filters, binding agents — the agent's YAML gets its `mcp:` block
+written automatically, `amele explain` preview, liability notice before
+the first bind), **Settings** (+ Smithery API key, DB backup &
+conversation history downloads).
+
+**MCP note:** binding a third-party server means running third-party
+code — the panel shows a liability notice that must be accepted before
+any server can be added or bound. Data stays on your device; hosted
+servers route requests through the provider. OAuth servers
+(`auth: oauth`) are logged in from the terminal (`amele mcp login`), the
+panel shows the exact command and the credential status.
 
 Every setting lives in the SQLite store and applies **immediately** —
 no restarts; if the bot token changes, the bot reconnects on its own.

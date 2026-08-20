@@ -105,6 +105,11 @@ class Config:
         return self._get("smithery_api_key", "SMITHERY_API_KEY")
 
     @property
+    def mcp_liability_accepted(self) -> bool:
+        v = self._get("mcp_liability_accepted", "", "")
+        return str(v or "").lower() in ("1", "true", "yes")
+
+    @property
     def web_port(self) -> int:
         return int(self._get("web_port", "KAHYA_WEB_PORT", DEFAULTS["web_port"]))
 
@@ -200,6 +205,7 @@ class Config:
             "telegram_token_set": bool(self.telegram_token),
             "telegram_chat_id": self.telegram_chat_id,
             "smithery_api_key_set": bool(self.smithery_api_key),
+            "mcp_liability_accepted": self.mcp_liability_accepted,
             "web_port": self.web_port,
             "timezone": self.timezone,
             "model": self.model,

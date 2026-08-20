@@ -571,6 +571,10 @@ class KahyaDB:
         row = self.con.execute("SELECT * FROM mcp_servers WHERE id = ?", (server_id,)).fetchone()
         return dict(row) if row else None
 
+    def get_mcp_server_by_name(self, name: str) -> Optional[dict]:
+        row = self.con.execute("SELECT * FROM mcp_servers WHERE name = ?", (name,)).fetchone()
+        return dict(row) if row else None
+
     def delete_mcp_server(self, server_id: int) -> None:
         self.con.execute("DELETE FROM mcp_servers WHERE id = ?", (server_id,))
         self.con.commit()

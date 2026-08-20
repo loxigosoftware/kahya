@@ -230,13 +230,16 @@ Alt görevler:
 
 Alt görevler:
 
-- [ ] Panel → MCP Sunucuları → **Smithery katalog arama** (API anahtarı Ayarlar'dan)
-- [ ] Sunucu ekleme: stdio (örn. `npx @smithery/cli run ...`) / http (kendi endpoint)
-- [ ] Auth: statik header (${VAR}) veya OAuth (`amele mcp login` akışı)
-- [ ] Amele bağlama: `amele_mcp` kaydı + amele YAML'sine `mcp:` bloğu + `permissions.tools` glob'ları otomatik yazım
-- [ ] Tool filtreleri (include/exclude) + `amele explain` ön izlemesi ("bu sunucu ne katıyor")
-- [ ] **Sorumluluk beyanı ekranı:** ilk sunucu bağlanmadan önce — üçüncü taraf kodu, sorumluluk kullanıcıda, veri kendi cihazında; kabul zorunlu
-- [ ] "required: false" ile sunucu yokken botun açılabilmesi
+- [x] Panel → MCP Sunucuları → **Smithery katalog arama** (API anahtarı Ayarlar'dan)
+- [x] Sunucu ekleme: stdio (örn. `npx @smithery/cli run ...`) / http (kendi endpoint)
+- [x] Auth: statik header (${VAR}) veya OAuth (`amele mcp login` akışı)
+- [x] Amele bağlama: `amele_mcp` kaydı + amele YAML'sine `mcp:` bloğu otomatik yazım
+  (MCP tool'ları amelenin `permissions.default`'una tabi — varsayılan `allow`;
+  erişim `tools.include/exclude` filtreleriyle daraltılır. Tehlikeli aksiyonlar
+  amele içi `ask_confirm` onay akışına bağlanır.)
+- [x] Tool filtreleri (include/exclude) + `amele explain` ön izlemesi ("bu sunucu ne katıyor")
+- [x] **Sorumluluk beyanı ekranı:** ilk sunucu bağlanmadan önce — üçüncü taraf kodu, sorumluluk kullanıcıda, veri kendi cihazında; kabul zorunlu
+- [x] "required: false" ile sunucu yokken botun açılabilmesi
 
 **Kabul kriterleri:** Katalogdan sunucu bulunup ameleye bağlanıyor; amele ilgili tool'ları görüyor; beyan gösterilip kabul edilmeden bağlama yapılamıyor.
 

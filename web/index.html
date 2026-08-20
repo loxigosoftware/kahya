@@ -444,19 +444,185 @@ async function resolveOnay(id, karar){
 // ---------------------------------------------------------------- mcp
 async function loadMcp(){
   try{
-    const {mcp_servers} = await api('/api/v2/mcp');
+    const [mcpData, setData] = await Promise.all([
+      api('/api/v2/mcp'), api('/api/settings')]);
+    const {mcp_servers} = mcpData;
+    const accepted = setData.settings.mcp_liability_accepted;
+    const {ameleler} = await api('/api/v2/ameleler');
     $('tab-mcp').innerHTML = `
+    ${accepted ? '' : `
+    <div class="card" style="border-color:#e0a3a0;background:var(--warn-soft)">
+      <h2 style="color:var(--warn)">${t('panel.mcp_liability_title')}</h2>
+      <p style="font-size:14px;white-space:pre-line;margin:8px 0 12px">${t('panel.mcp_liability_body')}</p>
+      <button onclick="acceptLiability()">${t('panel.mcp_liability_accept')}</button>
+    </div>`}
     <div class="card">
-      <h2>${t('panel.mcp_title')}</h2>
-      <p class="hint">${t('panel.mcp_step8')}</p>
-      ${mcp_servers.length ? `<table><thead><tr><th>${t('panel.agents_name')}</th><th>${t('panel.mcp_tip')}</th><th>${t('panel.mcp_ameleler')}</th></tr></thead>
-        <tbody>${mcp_servers.map(s=>`<tr>
-          <td><b>${esc(s.name)}</b></td><td><span class="pill">${esc(s.kind||'')}</span></td>
-          <td>${(s.ameleler||[]).map(a=>`<span class="pill">${esc(a)}</span>`).join(' ')||'—'}</td>
-        </tr>`).join('')}</tbody></table>`
-        : `<div class="empty">${t('panel.mcp_empty')}</div>`}
+      <h2>Smithery</h2>
+      <p class="hint">${t('panel.mcp_smithery_note')}</p>
+      <div class="btn-row">
+        <input id="mc-q" placeholder="${t('panel.mcp_search_ph')}" style="width:320px"
+               onkeydown="if(event.key==='Enter')mcpSearch()" />
+        <button class="secondary" onclick="mcpSearch()">${t('panel.mcp_search_btn')}</button>
+      </div>
+      <div id="mc-results"></div>
+    </div>
+    <div class="card">
+      <h2>${t('panel.mcp_manual')}</h2>
+      <p class="hint">${t('panel.mcp_manual_hint')}</p>
+      <div class="grid2">
+        <input id="ms-name" placeholder="${t('panel.mcp_name')}" />
+        <select id="ms-kind"><option value="http">http</option><option value="stdio">stdio</option></select>
+      </div>
+      <div id="ms-http-fields">
+        <input id="ms-url" placeholder="${t('panel.mcp_url')}" />
+      </div>
+      <div id="ms-stdio-fields" style="display:none">
+        <input id="ms-command" placeholder="${t('panel.mcp_command')}" />
+      </div>
+      <input id="ms-headers" placeholder="${t('panel.mcp_headers')}" />
+      <div class="grid2">
+        <input id="ms-include" placeholder="${t('panel.mcp_include')}" />
+        <input id="ms-exclude" placeholder="${t('panel.mcp_exclude')}" />
+      </div>
+      <div class="grid2">
+        <input id="ms-client" placeholder="${t('panel.mcp_oauth_client')}" />
+        <input id="ms-scopes" placeholder="${t('panel.mcp_oauth_scopes')}" />
+      </div>
+      <label style="font-size:13px;display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <input type="checkbox" id="ms-required" checked style="width:auto;margin:0" />
+        ${t('panel.mcp_required')}
+      </label>
+      <button onclick="addMcpServer()">${t('panel.mcp_add_btn')}</button>
+    </div>
+    <div class="card">
+      <h2>${t('panel.mcp_list')}</h2>
+      <div id="mc-list">${mcp_servers.length ? mcp_servers.map(s=>mcpRow(s, ameleler)).join('')
+        : `<div class="empty">${t('panel.mcp_empty')}</div>`}</div>
     </div>`;
+    const kindSel = $('ms-kind');
+    if(kindSel) kindSel.onchange = ()=>{
+      const isHttp = kindSel.value==='http';
+      $('ms-http-fields').style.display = isHttp?'':'none';
+      $('ms-stdio-fields').style.display = isHttp?'none':'';
+    };
   }catch(e){ $('tab-mcp').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function mcpRow(s, ameleler){
+  const oauth = !!(s.auth && s.auth.type==='oauth');
+  const detail = s.kind==='http' ? esc(s.url||'') : esc(s.command||'');
+  return `<div class="agent" id="mcp-${s.id}">
+    <div style="flex:1">
+      <div class="name">${esc(s.name)} <span class="pill ${s.kind==='http'?'api':''}">${esc(s.kind)}</span>
+        ${oauth?`<span class="pill">${t('panel.mcp_oauth')}</span>`:''}
+        ${s.required?'' : '<span class="pill over">optional</span>'}</div>
+      <div class="slug">${detail}</div>
+      <div class="model-pill">${t('panel.mcp_bound')} ${(s.ameleler||[]).map(a=>`<span class="pill">${esc(a)}</span>`).join(' ')||'—'}</div>
+      ${oauth? `<div class="btn-row" style="margin-top:6px">
+          <button class="secondary" onclick="mcpStatus(${s.id})">${t('panel.mcp_oauth_status')}</button>
+          <button class="secondary" onclick="mcpLogin(${s.id})">${t('panel.mcp_oauth_login')}</button>
+          <span class="res" id="mcs-${s.id}"></span>
+        </div>`:''}
+      <pre id="mce-${s.id}" style="display:none;margin:8px 0 0;font-size:12px;white-space:pre-wrap;background:var(--soft);border-radius:8px;padding:10px;max-height:260px;overflow:auto"></pre>
+    </div>
+    <div class="actions">
+      <select id="mb-${s.id}" style="width:auto;margin:0 0 0 auto">
+        ${ameleler.map(a=>`<option value="${a.id}">${esc(a.slug)}</option>`).join('')}
+      </select>
+      <button class="ghost" onclick="bindMcp(${s.id})">${t('panel.mcp_bind')}</button>
+      ${(s.ameleler||[]).length? `<button class="ghost red" onclick="unbindMcp(${s.id})">${t('panel.mcp_unbind')}</button>`:''}
+      <button class="ghost" onclick="mcpExplain(${s.id})">${t('panel.mcp_explain')}</button>
+      <button class="ghost red" onclick="delMcp(${s.id})">${t('panel.mcp_delete')}</button>
+    </div>
+  </div>`;
+}
+async function acceptLiability(){
+  try{ await api('/api/settings',{method:'POST',body:JSON.stringify(
+        {settings:{mcp_liability_accepted:'1'}})});
+    toast(t('panel.mcp_liability_ok')); loadMcp(); }catch(e){ toast(e.message); }
+}
+async function mcpSearch(){
+  const q = $('mc-q').value.trim();
+  if(!q) return;
+  $('mc-results').innerHTML = '…';
+  try{
+    const {results} = await api('/api/v2/mcp/search?q='+encodeURIComponent(q));
+    $('mc-results').innerHTML = results.length ? results.map(r=>`
+      <div class="agent">
+        <div style="flex:1">
+          <div class="name">${esc(r.display_name||r.qualified_name)}
+            ${r.verified?`<span class="pill done">${t('panel.mcp_verified')}</span>`:''}
+            <span class="pill">${tf('panel.mcp_uses',{n:r.use_count})}</span>
+            ${r.tool_count?`<span class="pill">${r.tool_count} tools</span>`:''}</div>
+          <div class="slug">${esc(r.qualified_name)}</div>
+          <div style="font-size:13px;color:#444;margin-top:4px">${esc(r.description)}</div>
+        </div>
+        <div class="actions">
+          <button class="ghost" onclick="addFromSmithery('${esc(r.qualified_name)}')">${t('panel.mcp_add_btn')}</button>
+        </div>
+      </div>`).join('') : `<div class="empty">${t('panel.mcp_search_empty')}</div>`;
+  }catch(e){ $('mc-results').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function addFromSmithery(qname){
+  try{ await api('/api/v2/mcp/servers',{method:'POST',body:JSON.stringify(
+        {smithery_qualified_name:qname})});
+    toast(t('panel.mcp_added')); loadMcp(); }catch(e){ toast(e.message); }
+}
+async function addMcpServer(){
+  const body = {
+    name:$('ms-name').value.trim().toLowerCase(),
+    kind:$('ms-kind').value,
+    required:$('ms-required').checked,
+  };
+  if(body.kind==='http') body.url = $('ms-url').value.trim();
+  else body.command = $('ms-command').value.trim();
+  try{ body.headers = $('ms-headers').value.trim()? JSON.parse($('ms-headers').value):null; }catch(e){ toast(t('panel.amele_schema_bad')); return; }
+  body.tools_include = $('ms-include').value.split(',').map(s=>s.trim()).filter(Boolean)||null;
+  body.tools_exclude = $('ms-exclude').value.split(',').map(s=>s.trim()).filter(Boolean)||null;
+  const client = $('ms-client').value.trim(), scopes = $('ms-scopes').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if(client || scopes.length) body.auth = {type:'oauth', client_id:client||null, scopes:scopes.length?scopes:null};
+  if(!body.name){ toast('!'); return; }
+  try{ await api('/api/v2/mcp/servers',{method:'POST',body:JSON.stringify(body)});
+    toast(t('panel.mcp_added')); loadMcp(); }catch(e){ toast(e.message); }
+}
+async function bindMcp(server_id){
+  const amele_id = $('mb-'+server_id).value;
+  try{ await api('/api/v2/mcp/bind',{method:'POST',body:JSON.stringify({server_id,amele_id})});
+    toast(t('panel.mcp_bound_ok')); loadMcp(); }catch(e){ toast(e.message); }
+}
+async function unbindMcp(server_id){
+  const s = (await api('/api/v2/mcp')).mcp_servers.find(x=>x.id===server_id);
+  if(!s || !s.ameleler || !s.ameleler.length) return;
+  const amele_id = $('mb-'+server_id).value;
+  try{ await api('/api/v2/mcp/unbind',{method:'POST',body:JSON.stringify({server_id,amele_id})});
+    toast(t('panel.mcp_unbound_ok')); loadMcp(); }catch(e){ toast(e.message); }
+}
+async function delMcp(id){
+  if(!confirm(t('panel.amele_delete_confirm'))) return;
+  try{ await api('/api/v2/mcp/servers/delete',{method:'POST',body:JSON.stringify({id})});
+    toast(t('panel.mcp_deleted')); loadMcp(); }catch(e){ toast(e.message); }
+}
+async function mcpExplain(server_id){
+  const amele_id = $('mb-'+server_id).value;
+  const pre = $('mce-'+server_id);
+  pre.style.display='block'; pre.textContent = t('panel.mcp_explain_running');
+  try{
+    const r = await api('/api/v2/mcp/explain',{method:'POST',body:JSON.stringify({server_id,amele_id})});
+    pre.textContent = (r.ok? '' : '[exit '+r.exit+']\n') + r.output;
+  }catch(e){ pre.textContent = e.message; }
+}
+async function mcpStatus(server_id){
+  const el = $('mcs-'+server_id); el.textContent='…';
+  try{ const r = await api('/api/v2/mcp/status');
+    const row = (r.oauth_status||[]).find(x=>x.server===server_id);
+    el.textContent = row? (row.ok?'✓':'✗')+' '+row.output.slice(0,300) : '—';
+  }catch(e){ el.textContent = e.message; }
+}
+async function mcpLogin(server_id){
+  const el = $('mcs-'+server_id); el.textContent='…';
+  try{
+    const r = await api('/api/v2/mcp/login',{method:'POST',body:JSON.stringify({server_id})});
+    el.textContent = t('panel.mcp_login_cmd')+' '+r.command;
+  }catch(e){ el.textContent = e.message; }
 }
 
 // ---------------------------------------------------------------- settings

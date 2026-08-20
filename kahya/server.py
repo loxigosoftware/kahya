@@ -12,13 +12,17 @@ Auth: PBKDF2-hashed panel password, session cookie, brute-force lockout
 from __future__ import annotations
 
 import json
+import os
 import re
 import secrets
+import subprocess
 import time
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+import urllib.parse
+import urllib.request
 
 from .amele_runner import AmeleError, run_agent
 from .config import Config, DEFAULT_ADMIN_PASSWORD, hash_password, verify_password
@@ -185,6 +189,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v2/mcp":
             self._v2_mcp_get()
             return
+        if path == "/api/v2/mcp/search":
+            self._v2_mcp_search()
+            return
+        if path == "/api/v2/mcp/status":
+            self._v2_mcp_status()
+            return
         if path == "/api/settings":
             self._json({"settings": self.server.cfg.all_editable()})
             return
@@ -226,6 +236,24 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/v2/approvals/resolve":
             self._v2_approvals_resolve()
+            return
+        if path == "/api/v2/mcp/servers":
+            self._v2_mcp_servers_create()
+            return
+        if path == "/api/v2/mcp/servers/delete":
+            self._v2_mcp_servers_delete()
+            return
+        if path == "/api/v2/mcp/bind":
+            self._v2_mcp_bind()
+            return
+        if path == "/api/v2/mcp/unbind":
+            self._v2_mcp_unbind()
+            return
+        if path == "/api/v2/mcp/explain":
+            self._v2_mcp_explain()
+            return
+        if path == "/api/v2/mcp/login":
+            self._v2_mcp_login()
             return
         if path == "/api/settings":
             self._save_settings()
@@ -564,6 +592,359 @@ class Handler(BaseHTTPRequestHandler):
         db.log("web", {"event": "approval_resolved",
                        "action_id": action_id, "status": karar})
         self._json({"ok": True})
+
+    # --------------------------------------------------------------- v2: mcp
+
+    MCP_NAME_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
+
+    def _mcp_liability_ok(self) -> bool:
+        return self.server.cfg.mcp_liability_accepted
+
+    def _mcp_block_yaml(self, servers: list[dict]) -> str:
+        """Bağlı sunuculardan amele YAML'sına eklenecek mcp: bloğunu üretir."""
+        lines = ["mcp:", "  servers:"]
+        for s in servers:
+            lines.append(f"    - name: {s['name']}")
+            lines.append(f"      required: {str(bool(s.get('required', 1))).lower()}")
+            lines.append("      transport:")
+            lines.append(f"        type: {s['kind']}")
+            if s["kind"] == "http":
+                if s.get("url"):
+                    lines.append(f"        url: {s['url']}")
+                hdrs = {}
+                if s.get("headers"):
+                    try:
+                        hdrs = json.loads(s["headers"]) or {}
+                    except (TypeError, json.JSONDecodeError):
+                        hdrs = {}
+                if hdrs:
+                    lines.append("        headers:")
+                    for k, v in hdrs.items():
+                        lines.append(f'          {k}: "{v}"')
+            else:
+                if s.get("command"):
+                    lines.append(f"        command: {s['command']}")
+                if s.get("env"):
+                    lines.append(f"        env: {s['env']}")
+            inc = exc = []
+            if s.get("tools_include"):
+                try:
+                    inc = json.loads(s["tools_include"]) or []
+                except (TypeError, json.JSONDecodeError):
+                    inc = []
+            if s.get("tools_exclude"):
+                try:
+                    exc = json.loads(s["tools_exclude"]) or []
+                except (TypeError, json.JSONDecodeError):
+                    exc = []
+            if inc or exc:
+                lines.append("      tools:")
+                if inc:
+                    lines.append(f"        include: {json.dumps(inc, ensure_ascii=False)}")
+                if exc:
+                    lines.append(f"        exclude: {json.dumps(exc, ensure_ascii=False)}")
+            auth = None
+            if s.get("auth"):
+                try:
+                    auth = json.loads(s["auth"]) or {}
+                except (TypeError, json.JSONDecodeError):
+                    auth = {}
+            if auth:
+                lines.append("      auth:")
+                lines.append("        type: oauth")
+                if auth.get("client_id"):
+                    lines.append(f"        client_id: {auth['client_id']}")
+                if auth.get("scopes"):
+                    lines.append(f"        scopes: {json.dumps(auth['scopes'], ensure_ascii=False)}")
+        return "\n".join(lines)
+
+    def _mcp_sync_yaml(self, amele: dict) -> None:
+        """Amele YAML'sındaki mcp bloğunu bağlı sunuculara göre yeniden yazar."""
+        path = self.server.ameleler_dir / f"{amele['slug']}.yaml"
+        if not path.exists():
+            return
+        text = path.read_text(encoding="utf-8")
+        # mevcut mcp bloğunu çıkar ("mcp:" satırı girintisiz, sonraki girintili satırlar)
+        lines, out, skipping = text.splitlines(), [], False
+        for ln in lines:
+            if not skipping and re.match(r"^mcp:\s*$", ln):
+                skipping = True
+                continue
+            if skipping:
+                if ln and not ln[0].isspace():
+                    skipping = False
+                else:
+                    continue
+            out.append(ln)
+        text = "\n".join(out).rstrip() + "\n"
+        servers = self.server.db.list_amele_mcp(amele["id"])
+        if servers:
+            text += self._mcp_block_yaml(servers) + "\n"
+        path.write_text(text, encoding="utf-8")
+
+    def _smithery_get(self, path: str) -> dict:
+        """registry.smithery.ai'ye UA'lı GET (403 engelini aşar)."""
+        req = urllib.request.Request(
+            f"https://registry.smithery.ai{path}",
+            headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) "
+                                   "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                   "Chrome/126.0 Safari/537.36"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read().decode())
+
+    def _v2_mcp_search(self):
+        """Smithery katalog araması (registry public; anahtar gerekmez)."""
+        q = (self._query("q") or "").strip()
+        if not q:
+            self._json({"results": []})
+            return
+        try:
+            data = self._smithery_get(f"/servers?q={urllib.parse.quote(q)}")
+        except Exception as e:
+            self._json({"error": f"Smithery: {e}", "results": []}, 502)
+            return
+        results = []
+        for s in data.get("servers", [])[:15]:
+            conn = (s.get("connections") or [{}])[0]
+            results.append({
+                "qualified_name": s.get("qualifiedName", ""),
+                "display_name": s.get("displayName", ""),
+                "description": (s.get("description") or "")[:300],
+                "verified": bool(s.get("verified")),
+                "use_count": s.get("useCount", 0),
+                "remote": bool(s.get("remote")),
+                "deployment_url": conn.get("deploymentUrl") if conn.get("type") == "http" else None,
+                "tool_count": len(s.get("tools") or []),
+            })
+        self._json({"results": results})
+
+    def _v2_mcp_servers_create(self):
+        data = self._read_body()
+        db = self.server.db
+        if not self._mcp_liability_ok():
+            self._json({"error": "liability_not_accepted"}, 403)
+            return
+        # Katalogdan: qualified_name verildiyse deployment bilgisi registry'den çekilir
+        qualified = (data.get("smithery_qualified_name") or "").strip()
+        if qualified:
+            name = qualified.split("/")[-1].lower()[:32]
+            name = re.sub(r"[^a-z0-9_-]", "-", name)
+            url = None
+            try:
+                meta = self._smithery_get(f"/servers/{urllib.parse.quote(qualified)}")
+                for c in meta.get("connections") or []:
+                    if c.get("type") == "http" and c.get("deploymentUrl"):
+                        url = c["deploymentUrl"]
+                        break
+            except Exception as e:
+                self._json({"error": f"Smithery: {e}"}, 502)
+                return
+            if not url:
+                self._json({"error": "sunucuda http bağlantısı yok (stdio sunucular için elle ekleyin)"}, 400)
+                return
+            if db.get_mcp_server_by_name(name):
+                self._json({"error": f"'{name}' zaten kayıtlı"}, 409)
+                return
+            server_id = db.add_mcp_server(
+                name, "http", url=url,
+                headers={"Authorization": "Bearer ${SMITHERY_API_KEY}"},
+                required=1 if data.get("required", True) else 0,
+                tools_include=data.get("tools_include") or None,
+                tools_exclude=data.get("tools_exclude") or None)
+            db.log("web", {"event": "mcp_server_created", "server": name,
+                           "source": "smithery"})
+            self._json({"ok": True, "id": server_id, "name": name,
+                        "url": url, "smithery": True}, 201)
+            return
+        # Elle ekleme
+        name = (data.get("name") or "").strip().lower()
+        kind = (data.get("kind") or "").strip().lower()
+        if not self.MCP_NAME_RE.match(name):
+            self._json({"error": "name: 1-32 chars, a-z0-9_-"}, 400)
+            return
+        if kind not in ("stdio", "http"):
+            self._json({"error": "kind: stdio|http"}, 400)
+            return
+        if db.get_mcp_server_by_name(name):
+            self._json({"error": f"'{name}' zaten kayıtlı"}, 409)
+            return
+        if kind == "http":
+            url = (data.get("url") or "").strip()
+            if not url:
+                self._json({"error": "url gerekli (http)"}, 400)
+                return
+            command = None
+        else:
+            command = data.get("command")
+            if isinstance(command, str):
+                try:
+                    command = json.loads(command)
+                except json.JSONDecodeError:
+                    command = [c.strip() for c in command.split() if c.strip()]
+            if not isinstance(command, list) or not command:
+                self._json({"error": "command gerekli (stdio): argv dizisi"}, 400)
+                return
+            command = json.dumps(command, ensure_ascii=False)
+            url = None
+        headers = data.get("headers") if isinstance(data.get("headers"), dict) else None
+        auth = data.get("auth") if isinstance(data.get("auth"), dict) else None
+        tools_include = (data.get("tools_include")
+                         if isinstance(data.get("tools_include"), list) else None)
+        tools_exclude = (data.get("tools_exclude")
+                         if isinstance(data.get("tools_exclude"), list) else None)
+        env = data.get("env") if isinstance(data.get("env"), list) else None
+        server_id = db.add_mcp_server(
+            name, kind, command=command, url=url, headers=headers, env=env,
+            auth=auth, tools_include=tools_include, tools_exclude=tools_exclude,
+            required=1 if data.get("required", True) else 0)
+        db.log("web", {"event": "mcp_server_created", "server": name, "source": "manual"})
+        self._json({"ok": True, "id": server_id, "name": name}, 201)
+
+    def _v2_mcp_servers_delete(self):
+        data = self._read_body()
+        db = self.server.db
+        srv = db.get_mcp_server(int(data.get("id") or 0))
+        if not srv:
+            self._json({"error": "sunucu bulunamadı"}, 404)
+            return
+        # bağlı amelelerden YAML'ı temizle
+        for a in db.list_ameleler():
+            if any(b["id"] == srv["id"] for b in db.list_amele_mcp(a["id"])):
+                self._mcp_sync_yaml(a)
+        db.delete_mcp_server(srv["id"])
+        db.log("web", {"event": "mcp_server_deleted", "server": srv["name"]})
+        self._json({"ok": True})
+
+    def _v2_mcp_bind(self):
+        data = self._read_body()
+        db = self.server.db
+        if not self._mcp_liability_ok():
+            self._json({"error": "liability_not_accepted"}, 403)
+            return
+        amele = db.get_amele(int(data.get("amele_id") or 0))
+        srv = db.get_mcp_server(int(data.get("server_id") or 0))
+        if not amele or not srv:
+            self._json({"error": "amele veya sunucu bulunamadı"}, 404)
+            return
+        db.bind_amele_mcp(amele["id"], srv["id"])
+        self._mcp_sync_yaml(amele)
+        db.log("web", {"event": "mcp_bound", "server": srv["name"],
+                       "amele": amele["slug"]})
+        self._json({"ok": True})
+
+    def _v2_mcp_unbind(self):
+        data = self._read_body()
+        db = self.server.db
+        amele = db.get_amele(int(data.get("amele_id") or 0))
+        srv = db.get_mcp_server(int(data.get("server_id") or 0))
+        if not amele or not srv:
+            self._json({"error": "amele veya sunucu bulunamadı"}, 404)
+            return
+        db.unbind_amele_mcp(amele["id"], srv["id"])
+        self._mcp_sync_yaml(amele)
+        db.log("web", {"event": "mcp_unbound", "server": srv["name"],
+                       "amele": amele["slug"]})
+        self._json({"ok": True})
+
+    def _v2_mcp_explain(self):
+        """Bağlı amelenin YAML'ı ile `amele explain` — MCP sunucuları gerçekten
+        bağlanır, katkılarını listeler (REDESIGN §6.2 adım 5)."""
+        data = self._read_body()
+        db = self.server.db
+        amele = db.get_amele(int(data.get("amele_id") or 0))
+        srv = db.get_mcp_server(int(data.get("server_id") or 0))
+        if not amele or not srv:
+            self._json({"error": "amele veya sunucu bulunamadı"}, 404)
+            return
+        bound = [b["id"] for b in db.list_amele_mcp(amele["id"])]
+        if srv["id"] not in bound:
+            self._json({"error": "sunucu bu ameleye bağlı değil"}, 400)
+            return
+        yaml_path = self.server.ameleler_dir / f"{amele['slug']}.yaml"
+        if not yaml_path.exists():
+            self._json({"error": "YAML yok"}, 404)
+            return
+        env = {**os.environ, "AMELE_MODEL": "x", "PROVIDER_TYPE": "openai",
+               "BASE_URL": "http://localhost:11434/v1", "API_KEY": "x",
+               "KAHYA_LANGUAGE_NAME": "English"}
+        try:
+            proc = subprocess.run(
+                [str(self.server.cfg.amele_bin), "explain", str(yaml_path)],
+                capture_output=True, text=True, env=env, timeout=60)
+            out = proc.stdout + (proc.stderr or "")
+            ok = proc.returncode == 0
+            db.log("web", {"event": "mcp_explain", "server": srv["name"],
+                           "amele": amele["slug"], "ok": ok})
+            self._json({"ok": ok, "exit": proc.returncode,
+                        "output": out[-4000:]})
+        except subprocess.TimeoutExpired:
+            self._json({"ok": False, "error": "zaman aşımı (60s)"}, 504)
+        except Exception as e:
+            self._json({"ok": False, "error": str(e)}, 502)
+
+    def _v2_mcp_status(self):
+        """OAuth kimlik durumu: bağlı oauth sunucuları için `amele mcp status`."""
+        db = self.server.db
+        rows = []
+        for s in db.list_mcp_servers():
+            auth = {}
+            if s.get("auth"):
+                try:
+                    auth = json.loads(s["auth"]) or {}
+                except (TypeError, json.JSONDecodeError):
+                    auth = {}
+            if not auth:
+                continue
+            # oauth sunucusu bağlı olan ilk amelenin YAML'ı ile status
+            for a in db.list_ameleler():
+                if any(b["id"] == s["id"] for b in db.list_amele_mcp(a["id"])):
+                    yaml_path = self.server.ameleler_dir / f"{a['slug']}.yaml"
+                    if yaml_path.exists():
+                        env = {**os.environ, "KAHYA_LANGUAGE_NAME": "English"}
+                        try:
+                            proc = subprocess.run(
+                                [str(self.server.cfg.amele_bin), "mcp", "status",
+                                 str(yaml_path)], capture_output=True, text=True,
+                                env=env, timeout=30)
+                            rows.append({"server": s["name"], "amele": a["slug"],
+                                         "ok": proc.returncode == 0,
+                                         "output": (proc.stdout + proc.stderr)[-1500:]})
+                        except Exception as e:
+                            rows.append({"server": s["name"], "ok": False,
+                                         "output": str(e)})
+                    break
+        self._json({"oauth_status": rows})
+
+    def _v2_mcp_login(self):
+        """OAuth login TTY ister — panel terminalde çalıştırılacak komutu verir."""
+        data = self._read_body()
+        db = self.server.db
+        srv = db.get_mcp_server(int(data.get("server_id") or 0))
+        if not srv:
+            self._json({"error": "sunucu bulunamadı"}, 404)
+            return
+        auth = {}
+        if srv.get("auth"):
+            try:
+                auth = json.loads(srv["auth"]) or {}
+            except (TypeError, json.JSONDecodeError):
+                auth = {}
+        if not auth:
+            self._json({"error": "bu sunucu oauth kullanmıyor (statik header yeterli)"}, 400)
+            return
+        # oauth sunucusu bağlı olan ilk amelenin YAML'ı
+        yaml_path = None
+        for a in db.list_ameleler():
+            if any(b["id"] == srv["id"] for b in db.list_amele_mcp(a["id"])):
+                yaml_path = self.server.ameleler_dir / f"{a['slug']}.yaml"
+                break
+        if not yaml_path or not yaml_path.exists():
+            self._json({"error": "önce sunucuyu bir ameleye bağlayın"}, 400)
+            return
+        cmd = (f"cd {self.server.cfg.dir} && {self.server.cfg.amele_bin} "
+               f"mcp login {yaml_path} {srv['name']}")
+        db.log("web", {"event": "mcp_login_hint", "server": srv["name"]})
+        self._json({"ok": True, "command": cmd})
 
     # -------------------------------------------------------------- v2: tasks
 
