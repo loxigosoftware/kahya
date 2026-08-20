@@ -36,32 +36,32 @@ def main():
     db = KahyaDB(db_path)
     try:
         if "amele_id" in req:
-            agent = db.get_amele(req["amele_id"])
+            amele = db.get_amele(req["amele_id"])
         elif req.get("slug"):
-            agent = db.get_amele_by_slug(req["slug"])
+            amele = db.get_amele_by_slug(req["slug"])
         else:
             print(json.dumps({"error": "amele_id veya slug gerekli"}))
             return 1
-        if not agent:
+        if not amele:
             print(json.dumps({"error": f"amele bulunamadı: {req}"}, ensure_ascii=False))
             return 1
         schema = None
-        if agent.get("schema_json"):
+        if amele.get("schema_json"):
             try:
-                schema = json.loads(agent["schema_json"]) or None
+                schema = json.loads(amele["schema_json"]) or None
             except (TypeError, json.JSONDecodeError):
                 schema = None
         mcp = [{"name": s["name"], "kind": s["kind"],
                 "url": s.get("url"), "command": s.get("command"),
                 "tools_include": s.get("tools_include")}
-               for s in db.list_amele_mcp(agent["id"])]
+               for s in db.list_amele_mcp(amele["id"])]
         out = {
-            "id": agent["id"], "slug": agent["slug"], "name": agent["name"],
-            "description": agent.get("description", ""),
+            "id": amele["id"], "slug": amele["slug"], "name": amele["name"],
+            "description": amele.get("description", ""),
             "schema": schema,
-            "model_kind": agent.get("model_kind", "local"),
-            "model_name": agent.get("model_name"),
-            "enabled": agent.get("enabled", 1),
+            "model_kind": amele.get("model_kind", "local"),
+            "model_name": amele.get("model_name"),
+            "enabled": amele.get("enabled", 1),
             "mcp_servers": mcp,
         }
         print(json.dumps(out, ensure_ascii=False))

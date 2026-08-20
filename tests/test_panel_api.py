@@ -196,7 +196,7 @@ check("6b DB yedeği indir", "kahya-backup" in head)
 st, out = call("GET", "/api/items")
 check("7a /api/items kaldırıldı (404)", st == 404)
 st, out = call("GET", "/api/agents")
-check("7b /api/agents kaldırıldı (404)", st == 404)
+check("7b eski v1 agents endpoint kaldırıldı (404)", st == 404)
 st, out = call("POST", "/api/items", {"data": {"title": "x"}})
 check("7c item oluşturma kaldırıldı (404)", st == 404)
 

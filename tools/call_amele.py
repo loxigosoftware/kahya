@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from kahya.amele_runner import AmeleError, agent_yaml, run_agent  # noqa: E402
+from kahya.amele_runner import AmeleError, amele_yaml, run_amele  # noqa: E402
 from kahya.config import Config  # noqa: E402
 from kahya.db import KahyaDB  # noqa: E402
 
@@ -55,7 +55,7 @@ def main():
     db = KahyaDB(os.environ.get("KAHYA_DB", ""))
     cfg = Config(db)
     try:
-        yaml_path = agent_yaml(cfg, slug)
+        yaml_path = amele_yaml(cfg, slug)
         if yaml_path is None:
             # DB'de kayıtlı olmayan ama YAML'ı olan ameleler de çağrılabilir
             alt = cfg.ameleler_dir / f"{slug}.yaml"
@@ -71,7 +71,7 @@ def main():
             full = (f"{task}\n\nBağlam (JSON):\n"
                     f"{json.dumps(bağlam, ensure_ascii=False)}")
         os.environ["KAHYA_PASLAMA_DEPTH"] = str(depth + 1)
-        res = run_agent(cfg, yaml_path, full, timeout_s=180)
+        res = run_amele(cfg, yaml_path, full, timeout_s=180)
         out = {"slug": slug, "çıktı": res}
         print(json.dumps(out, ensure_ascii=False))
     except AmeleError as e:

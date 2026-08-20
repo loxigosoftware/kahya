@@ -4,7 +4,7 @@ One file, zero setup: `data/kahya.db`. Backup = copy the file.
 
 v2: ameleler / records / mcp_servers / amele_mcp / pending_actions /
     scheduled_tasks / conversation_messages + FTS.
-v1 API (agents / items / reminders) alttaki DEPRECATED bölümünde records
+v1 API (items / reminders) alttaki DEPRECATED bölümünde records
 üzerinden uyumluluk katmanı olarak çalışır — Step 4/6/7'de kaldırılacak.
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 SCHEMA = """
--- ameleler (v2; v1 "agents" tablosunun yerine)
+-- ameleler (v2; v1 tablosunun yerine)
 CREATE TABLE IF NOT EXISTS ameleler (
   id          INTEGER PRIMARY KEY,
   slug        TEXT UNIQUE NOT NULL,      -- ^[a-z0-9_-]{1,32}$
@@ -394,10 +394,10 @@ class KahyaDB:
         "virtual": true, "display": true}]} → data'daki due_date, kaydın
         zamanlanmış tetikleme zamanı olur (bekleyen görev varsa güncellenir).
         """
-        agent = self.get_amele(amele_id)
-        if not agent or not agent.get("schema_json"):
+        amele = self.get_amele(amele_id)
+        if not amele or not amele.get("schema_json"):
             return
-        raw = agent["schema_json"]
+        raw = amele["schema_json"]
         try:
             schema = json.loads(raw) if isinstance(raw, str) else raw
             schema = schema or {}
@@ -598,30 +598,9 @@ class KahyaDB:
         return [dict(r) for r in rows]
 
     # =====================================================================
-    # DEPRECATED v1 uyumluluk — agents / items / reminders
-    # (Step 4/6/7'de kaldırılacak; şimdilik records üzerinden çalışır)
+    # DEPRECATED v1 uyumluluk — items / reminders
+    # (kaldırılacak; şimdilik records üzerinden çalışır)
     # =====================================================================
-
-    def list_agents(self) -> list[dict]:
-        rows = self.con.execute("SELECT * FROM ameleler ORDER BY name").fetchall()
-        out = []
-        for r in rows:
-            d = dict(r)
-            d["role_prompt"] = d.get("description", "")
-            out.append(d)
-        return out
-
-    def get_agent_by_slug(self, slug: str) -> Optional[dict]:
-        row = self.con.execute("SELECT * FROM ameleler WHERE slug = ?", (slug,)).fetchone()
-        if not row:
-            return None
-        d = dict(row)
-        d["role_prompt"] = d.get("description", "")
-        return d
-
-    def create_agent(self, slug: str, name: str, role_prompt: str,
-                     yaml_path: str = "") -> int:
-        return self.create_amele(slug, name, description=role_prompt, yaml_path=yaml_path)
 
     @staticmethod
     def normalize_date(value) -> Optional[str]:
@@ -683,7 +662,7 @@ class KahyaDB:
         amount, currency = self._parse_amount(data.get("tutar", ""))
         item = {
             "id": rec["id"],
-            "agent_id": rec["amele_id"],
+            "amele_id": rec["amele_id"],
             "title": data.get("ad", ""),
             "kind": data.get("tür", "task"),
             "amount": amount if amount is not None else data.get("amount"),
@@ -696,8 +675,8 @@ class KahyaDB:
             "status": data.get("status", "open"),
             "meta_json": data.get("meta_json"),
             "created_at": rec["created_at"],
-            "agent_slug": None,
-            "agent_name": None,
+            "amele_slug": None,
+            "amele_name": None,
         }
         return item
 
@@ -724,37 +703,37 @@ class KahyaDB:
         return out
 
     def _fallback_amele_id(self) -> int:
-        """agent_id'siz v1 kayıtları için 'v1' amelesini bul/oluştur."""
+        """amele_id'siz v1 kayıtları için 'v1' amelesini bul/oluştur."""
         row = self.con.execute("SELECT id FROM ameleler WHERE slug = 'v1'").fetchone()
         if row:
             return row["id"]
         return self.create_amele("v1", "v1 (taşınan kayıtlar)",
-                                 description="v1'den agentsız taşınan kayıtlar",
+                                 description="v1'den amelesiz taşınan kayıtlar",
                                  yaml_path="", enabled=1)
 
-    def insert_item(self, data: dict, agent_id: Optional[int] = None) -> int:
-        if agent_id is not None:
-            data = {**data, "agent_id": agent_id}
+    def insert_item(self, data: dict, amele_id: Optional[int] = None) -> int:
+        if amele_id is not None:
+            data = {**data, "amele_id": amele_id}
         if data.get("due_date"):
             data = {**data, "due_date": self.normalize_date(data["due_date"])}
         if data.get("amount") in ("", None):
             data = {**data, "amount": None}
         rec = self._item_to_data(data)
-        aid = data.get("agent_id")
+        aid = data.get("amele_id")
         if aid is None:
             aid = self._fallback_amele_id()
         return self.add_record(aid, rec)
 
     def get_item(self, item_id: int) -> Optional[dict]:
         rec = self.con.execute(
-            "SELECT r.*, a.slug AS agent_slug, a.name AS agent_name "
+            "SELECT r.*, a.slug AS amele_slug, a.name AS amele_name "
             "FROM records r LEFT JOIN ameleler a ON a.id = r.amele_id "
             "WHERE r.id = ?", (item_id,)).fetchone()
         if not rec:
             return None
         item = self._record_to_item(dict(rec))
-        item["agent_slug"] = rec["agent_slug"]
-        item["agent_name"] = rec["agent_name"]
+        item["amele_slug"] = rec["amele_slug"]
+        item["amele_name"] = rec["amele_name"]
         return item
 
     def update_item(self, item_id: int, data: dict) -> None:
@@ -774,14 +753,14 @@ class KahyaDB:
             (json.dumps(merged, ensure_ascii=False), item_id))
         self.con.commit()
 
-    def list_items(self, agent_slug: Optional[str] = None,
+    def list_items(self, amele_slug: Optional[str] = None,
                    status: Optional[str] = None) -> list[dict]:
-        q = ("SELECT r.*, a.slug AS agent_slug, a.name AS agent_name "
+        q = ("SELECT r.*, a.slug AS amele_slug, a.name AS amele_name "
              "FROM records r LEFT JOIN ameleler a ON a.id = r.amele_id WHERE 1=1")
         args: list[Any] = []
-        if agent_slug:
+        if amele_slug:
             q += " AND a.slug = ?"
-            args.append(agent_slug)
+            args.append(amele_slug)
         if status:
             q += " AND json_extract(r.data_json, '$.status') = ?"
             args.append(status)
@@ -790,8 +769,8 @@ class KahyaDB:
         out = []
         for rec in rows:
             item = self._record_to_item(dict(rec))
-            item["agent_slug"] = rec["agent_slug"]
-            item["agent_name"] = rec["agent_name"]
+            item["amele_slug"] = rec["amele_slug"]
+            item["amele_name"] = rec["amele_name"]
             out.append(item)
         return out
 
@@ -815,7 +794,7 @@ class KahyaDB:
 
     def due_for_reminder(self, today: date) -> list[dict]:
         rows = self.con.execute(
-            """SELECT r.*, a.slug AS agent_slug, a.yaml_path
+            """SELECT r.*, a.slug AS amele_slug, a.yaml_path
                FROM records r LEFT JOIN ameleler a ON a.id = r.amele_id
                WHERE json_extract(r.data_json, '$.status') = 'open'
                  AND json_extract(r.data_json, '$.due_date') IS NOT NULL
@@ -829,7 +808,7 @@ class KahyaDB:
         out = []
         for rec in rows:
             item = self._record_to_item(dict(rec))
-            item["agent_slug"] = rec["agent_slug"]
+            item["amele_slug"] = rec["amele_slug"]
             item["yaml_path"] = rec["yaml_path"]
             out.append(item)
         return out

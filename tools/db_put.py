@@ -97,14 +97,14 @@ def main():
     db = KahyaDB(db_path)
     try:
         aid = _amele_id()
-        agent = db.get_amele(aid)
-        if not agent:
+        amele = db.get_amele(aid)
+        if not amele:
             print(json.dumps({"error": f"amele {aid} bulunamadı"}, ensure_ascii=False))
             return 1
         schema = None
-        if agent.get("schema_json"):
+        if amele.get("schema_json"):
             try:
-                schema = json.loads(agent["schema_json"]) or None
+                schema = json.loads(amele["schema_json"]) or None
             except (TypeError, json.JSONDecodeError):
                 schema = None
 

@@ -48,11 +48,11 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
   @media(max-width:760px){.grid2,.grid3{grid-template-columns:1fr}}
-  .agent{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  .amele{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
     padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
-  .agent .name{font-weight:600}
-  .agent .slug{color:var(--muted);font-size:12px;font-family:ui-monospace,Menlo,monospace}
-  .agent .actions{display:flex;gap:8px;flex-shrink:0}
+  .amele .name{font-weight:600}
+  .amele .slug{color:var(--muted);font-size:12px;font-family:ui-monospace,Menlo,monospace}
+  .amele .actions{display:flex;gap:8px;flex-shrink:0}
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px}
   .stat{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px}
   .stat .n{font-size:28px;font-weight:700;letter-spacing:-.03em}
@@ -228,8 +228,8 @@ function ameleRow(a, editing, confirming){
       <button onclick="saveEditAmele(${a.id})">${t('panel.settings_save')}</button>
       <button class="secondary" onclick="loadAmeleler()">✕</button>`
     : confirming ? `
-      <button class="ghost red" onclick="doDelAmele(${a.id})">${t('panel.agents_delete_yes')||'Delete'}</button>
-      <button class="secondary" onclick="loadAmeleler()">${t('panel.agents_delete_no')||'Keep'}</button>`
+      <button class="ghost red" onclick="doDelAmele(${a.id})">${t('panel.ameleler_delete_yes')||'Delete'}</button>
+      <button class="secondary" onclick="loadAmeleler()">${t('panel.ameleler_delete_no')||'Keep'}</button>`
     : `
       <button class="ghost" onclick="startEditAmele(${a.id})">${t('panel.amele_edit')}</button>
       <button class="ghost red" onclick="confirmDelAmele(${a.id})">${t('panel.amele_delete')}</button>`;
@@ -255,7 +255,7 @@ function ameleRow(a, editing, confirming){
       <div class="slug">${esc(a.slug)}</div>
       ${modelPill(a)}
       <div class="yaml" style="color:var(--muted);font-size:12px;margin-top:6px">${esc(a.description||'').slice(0,160)}</div>`;
-  return `<div class="agent" id="amele-${a.id}">
+  return `<div class="amele" id="amele-${a.id}">
     <div style="flex:1">${body}</div>
     <div class="actions">${actions}</div>
   </div>`;
@@ -384,7 +384,7 @@ function kayitlarHtml(records, fields, view){
         </td></tr>`).join('')}
     </tbody></table>`;
   }
-  return records.map(r=>`<div class="agent">
+  return records.map(r=>`<div class="amele">
     <div style="flex:1"><div class="slug">#${r.id} · ${esc(r.amele_slug)}</div>
       <pre style="margin:6px 0 0;font-size:12.5px;white-space:pre-wrap;color:#333">${esc(JSON.stringify(r.data,null,1))}</pre></div>
     <div class="actions">
@@ -421,7 +421,7 @@ async function loadOnaylar(){
       <h2>${t('panel.onay_title')}</h2>
       <p class="hint">${t('panel.onay_hint')}</p>
       ${approvals.length ? approvals.map(pa=>`
-        <div class="agent">
+        <div class="amele">
           <div style="flex:1">
             <div class="name">📋 ${esc(pa.amele_name)} <span class="slug">(${esc(pa.amele_slug)})</span></div>
             <div class="slug" style="margin-top:4px">#${pa.id} · ${esc(pa.asked_at)}</div>
@@ -510,7 +510,7 @@ async function loadMcp(){
 function mcpRow(s, ameleler){
   const oauth = !!(s.auth && s.auth.type==='oauth');
   const detail = s.kind==='http' ? esc(s.url||'') : esc(s.command||'');
-  return `<div class="agent" id="mcp-${s.id}">
+  return `<div class="amele" id="mcp-${s.id}">
     <div style="flex:1">
       <div class="name">${esc(s.name)} <span class="pill ${s.kind==='http'?'api':''}">${esc(s.kind)}</span>
         ${oauth?`<span class="pill">${t('panel.mcp_oauth')}</span>`:''}
@@ -547,7 +547,7 @@ async function mcpSearch(){
   try{
     const {results} = await api('/api/v2/mcp/search?q='+encodeURIComponent(q));
     $('mc-results').innerHTML = results.length ? results.map(r=>`
-      <div class="agent">
+      <div class="amele">
         <div style="flex:1">
           <div class="name">${esc(r.display_name||r.qualified_name)}
             ${r.verified?`<span class="pill done">${t('panel.mcp_verified')}</span>`:''}

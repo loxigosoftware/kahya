@@ -24,7 +24,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Optional
 
-from .amele_runner import AmeleError, run_agent
+from .amele_runner import AmeleError, run_amele
 from .config import Config
 from .db import KahyaDB
 from .i18n import I18n
@@ -187,7 +187,7 @@ class Bot:
 
     def _run(self, yaml_path, task: str, timeout_s: float = 180) -> str:
         """Run an amele and stringify its answer for the owner."""
-        res = run_agent(self.cfg, yaml_path, task, timeout_s=timeout_s)
+        res = run_amele(self.cfg, yaml_path, task, timeout_s=timeout_s)
         if isinstance(res, dict):
             return json.dumps(res, ensure_ascii=False)
         return str(res) if res is not None else ""

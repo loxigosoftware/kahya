@@ -18,7 +18,7 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from .amele_runner import AmeleError, agent_yaml, run_agent
+from .amele_runner import AmeleError, amele_yaml, run_amele
 from .bot import TG
 from .config import Config
 from .db import KahyaDB
@@ -58,10 +58,10 @@ def _run_due_tasks(cfg: Config, db: KahyaDB, quiet: bool,
     """v2: scheduled_tasks tarayıcı (REDESIGN §8)."""
     sent: list[dict] = []
     for task in db.due_scheduled_tasks(now.strftime("%Y-%m-%d %H:%M:%S")):
-        agent = db.get_amele(task["amele_id"])
-        record = {"task_id": task["id"], "agent": agent["slug"] if agent else "?",
+        amele = db.get_amele(task["amele_id"])
+        record = {"task_id": task["id"], "amele": amele["slug"] if amele else "?",
                   "record_id": task["record_id"], "run_at": task["run_at"]}
-        if not agent:
+        if not amele:
             db.set_task_status(task["id"], "failed")
             db.log("scheduler", {"event": "task_failed", **record, "error": "amele yok"})
             sent.append({**record, "sent": False, "error": "amele yok"})
@@ -71,14 +71,14 @@ def _run_due_tasks(cfg: Config, db: KahyaDB, quiet: bool,
             sent.append({**record, "held": True})
             continue
 
-        yaml_path = agent_yaml(cfg, agent["slug"])
+        yaml_path = amele_yaml(cfg, amele["slug"])
         task_msg = json.dumps({"olay": "zaman", "record_id": task["record_id"]},
                               ensure_ascii=False)
         if dry_run:
             sent.append({**record, "dry": True})
             continue
         try:
-            run_agent(cfg, yaml_path, task_msg, timeout_s=180)
+            run_amele(cfg, yaml_path, task_msg, timeout_s=180)
             db.set_task_status(task["id"], "success")
             db.log("scheduler", {"event": "task_success", **record})
             sent.append({**record, "sent": True})
@@ -89,7 +89,7 @@ def _run_due_tasks(cfg: Config, db: KahyaDB, quiet: bool,
             if attempts >= MAX_ATTEMPTS:
                 db.set_task_status(task["id"], "failed")
                 db.log("scheduler", {"event": "task_failed", **record, "error": str(e)})
-                _notify_failed(cfg, agent["slug"], str(e))
+                _notify_failed(cfg, amele["slug"], str(e))
             sent.append({**record, "sent": False, "error": str(e)})
     return sent
 
@@ -108,14 +108,14 @@ def _run_legacy_items(cfg: Config, db: KahyaDB, today: date, quiet: bool,
             continue
 
         yaml_path: Path | None = None
-        if item.get("agent_slug"):
-            yaml_path = agent_yaml(cfg, item["agent_slug"])
+        if item.get("amele_slug"):
+            yaml_path = amele_yaml(cfg, item["amele_slug"])
         if yaml_path is None:
             yaml_path = cfg.ameleler_dir / "hatirlatıcı-amele.yaml"
 
         task = (f"TASK olay=zaman record_id={item['id']} "
                 f"now={now.strftime('%Y-%m-%d %H:%M')}")
-        record = {"item_id": item["id"], "agent": yaml_path.stem,
+        record = {"item_id": item["id"], "amele": yaml_path.stem,
                   "due": item["due_date"]}
 
         if dry_run:
@@ -124,7 +124,7 @@ def _run_legacy_items(cfg: Config, db: KahyaDB, today: date, quiet: bool,
             continue
 
         try:
-            run_agent(cfg, yaml_path, task, timeout_s=180)
+            run_amele(cfg, yaml_path, task, timeout_s=180)
             db.mark_reminded(item["id"], item["due_date"])
             record["sent"] = True
             db.log("scheduler", {"event": "reminder_sent", **record})
@@ -157,7 +157,7 @@ def run_forever(cfg: Config, db: KahyaDB) -> None:
                 status = "sent" if r.get("sent") else ("dry" if r.get("dry")
                                                        else "FAILED")
                 what = f"task {r['task_id']}" if "task_id" in r else f"item {r['item_id']}"
-                print(f"  [{status}] {what} via {r['agent']}")
+                print(f"  [{status}] {what} via {r['amele']}")
         except Exception as e:
             print(f"  [ERROR] tick failed: {e}")
         time.sleep(TICK_SECONDS)
@@ -174,9 +174,9 @@ if __name__ == "__main__":
             print(f"[kahya scheduler] DRY RUN — {len(results)} item(s) due:")
             for r in results:
                 if "task_id" in r:
-                    print(f"  - task {r['task_id']} via {r['agent']} (record {r['record_id']})")
+                    print(f"  - task {r['task_id']} via {r['amele']} (record {r['record_id']})")
                 else:
-                    print(f"  - item {r['item_id']} via {r['agent']} (due {r['due']})")
+                    print(f"  - item {r['item_id']} via {r['amele']} (due {r['due']})")
             sys.exit(0)
         run_forever(cfg, db)
     except KeyboardInterrupt:

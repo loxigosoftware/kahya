@@ -1,7 +1,7 @@
-"""amele runner — spawn an amele agent, get its schema-validated output.
+"""amele runner — spawn an amele, get its schema-validated output.
 
 Kahya never talks to the LLM directly; every AI step goes through an amele
-agent (ameleler/*.yaml). This module is the one place that shells out.
+(ameleler/*.yaml). This module is the one place that shells out.
 
 Model atama (REDESIGN §2.4): her amele kendi modelini kullanır —
 ameleler tablosundaki model_kind/model_name/model_cfg'den çözülür.
@@ -19,7 +19,7 @@ from typing import Any, Optional
 
 from .config import Config
 
-# panel language code → full name for agent prompts ("in Turkish")
+# panel language code → full name for amele prompts ("in Turkish")
 _LANG_NAMES = {"tr": "Turkish", "en": "English", "de": "German",
                "fr": "French", "es": "Spanish", "it": "Italian"}
 
@@ -58,17 +58,17 @@ def _amele_model_env(cfg: Config, slug: str) -> dict:
         "BASE_URL": cfg.base_url,
         "API_KEY": cfg.api_key,
     }
-    agent = cfg._db.get_amele_by_slug(slug)
-    if not agent:
+    amele = cfg._db.get_amele_by_slug(slug)
+    if not amele:
         return env
-    model_name = agent.get("model_name") or cfg.model
+    model_name = amele.get("model_name") or cfg.model
     cfg_map: dict = {}
-    if agent.get("model_cfg"):
+    if amele.get("model_cfg"):
         try:
-            cfg_map = json.loads(agent["model_cfg"]) or {}
+            cfg_map = json.loads(amele["model_cfg"]) or {}
         except (TypeError, json.JSONDecodeError):
             cfg_map = {}
-    kind = agent.get("model_kind", "local")
+    kind = amele.get("model_kind", "local")
     env["AMELE_MODEL"] = model_name
     if kind == "api":
         base = cfg_map.get("base_url")
@@ -89,11 +89,11 @@ def _amele_model_env(cfg: Config, slug: str) -> dict:
     return env
 
 
-def run_agent(cfg: Config, yaml_path: Path, task: str,
+def run_amele(cfg: Config, yaml_path: Path, task: str,
               timeout_s: float = 180) -> Any:
     """Run `amele run <yaml> <task>`.
 
-    Returns the parsed stdout payload (JSON when the agent declares an
+    Returns the parsed stdout payload (JSON when the amele declares an
     output.schema, otherwise the raw text). Raises AmeleError on any
     non-zero exit.
     """
@@ -107,9 +107,9 @@ def run_agent(cfg: Config, yaml_path: Path, task: str,
         "KAHYA_LANGUAGE": cfg.language,
         "KAHYA_LANGUAGE_NAME": _LANG_NAMES.get(cfg.language, "English"),
     }
-    agent = cfg._db.get_amele_by_slug(slug)
-    if agent:
-        env["KAHYA_AMELE_ID"] = str(agent["id"])
+    amele = cfg._db.get_amele_by_slug(slug)
+    if amele:
+        env["KAHYA_AMELE_ID"] = str(amele["id"])
     cmd = [str(cfg.amele_bin), "run", str(yaml_path), task]
     proc = subprocess.run(
         cmd, capture_output=True, text=True, timeout=timeout_s, env=env,
@@ -126,7 +126,7 @@ def run_agent(cfg: Config, yaml_path: Path, task: str,
         return out
 
 
-def agent_yaml(cfg: Config, slug: str) -> Optional[Path]:
+def amele_yaml(cfg: Config, slug: str) -> Optional[Path]:
     """Path to an amele's YAML by slug (ameleler/<slug>.yaml)."""
     p = cfg.ameleler_dir / f"{slug}.yaml"
     return p if p.exists() else None

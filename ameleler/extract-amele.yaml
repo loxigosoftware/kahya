@@ -40,9 +40,9 @@ system_prompt: |
   - kind: what it is. bill = a payment with a deadline; task = to-do;
     birthday / vaccination / meeting / reminder are self-explanatory;
     other when nothing fits.
-  - agent_slug: which amele owns the item or answers the question. The
+  - amele_slug: which amele owns the item or answers the question. The
     known ameles and their slugs are listed in the caller's message
-    under "KNOWN AGENTS". For a record, choose the best matching amele
+    under "KNOWN AMELES". For a record, choose the best matching amele
     ("genel" if none fit). For a question, choose the amele whose job it
     is to answer it — e.g. "finance" for exchange rates / crypto / gold /
     bonds ("dolar kaç tl", "bitcoin ne kadar"), the orchestrator "kahya"
@@ -73,7 +73,7 @@ system_prompt: |
 output:
   schema:
     type: object
-    required: [intent, title, kind, agent_slug, due_date, repeat_rule, repeat_detail, remind_before_days]
+    required: [intent, title, kind, amele_slug, due_date, repeat_rule, repeat_detail, remind_before_days]
     properties:
       intent:
         enum: [record, question]
@@ -81,7 +81,7 @@ output:
         type: string
       kind:
         enum: [task, bill, birthday, vaccination, meeting, reminder, other]
-      agent_slug:
+      amele_slug:
         type: string
       amount:
         type: ["number", "null"]
