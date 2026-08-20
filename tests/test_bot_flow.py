@@ -160,6 +160,21 @@ send("iptal")
 check("8a iptal resolves cancelled", db.get_pending_action(pa2)["status"] == "cancelled")
 check("8b iptal message", "İptal edildi" in last_msg() or "iptal" in last_msg().lower())
 
+# --- 9. conversation memory: mesajlar thread'e kaydediliyor
+n_chat = db.con.execute(
+    "SELECT COUNT(*) FROM conversation_messages WHERE thread_id = 'chat:42'"
+).fetchone()[0]
+check("9 chat thread kayıtları var", n_chat >= 12, f"({n_chat})")
+
+# oturum thread'i ayrı: /mail-amele → sohbet → mesaj
+send("/mail-amele")
+send("bu bir oturum mesajı")
+n_sess = db.con.execute(
+    "SELECT COUNT(*) FROM conversation_messages WHERE thread_id = 'amele:42:mail-amele'"
+).fetchone()[0]
+check("9b oturum ayrı thread", n_sess >= 4, f"({n_sess})")
+send("/iptal")
+
 tg_srv.shutdown()
 mock_llm.terminate()
 print()

@@ -20,6 +20,13 @@ system_prompt: |
   The caller's message starts with AMELE INDEX — a compact list of every
   available amele (id, slug, one-line description). Read it first.
 
+  ## Conversation window
+  After the index there may be RECENT CONVERSATION — the last ~20 raw
+  messages, older → newer; the LAST line is the owner's current message.
+  Use it for continuity ("bunu konuşmuştuk" → search_history). If the
+  owner refers to something not in the window, search the archive with
+  search_history instead of guessing.
+
   ## Your job
   - The owner's message may be a question about records, a general
     question, or a task that belongs to a specialist amele.

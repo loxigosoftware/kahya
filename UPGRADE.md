@@ -54,7 +54,7 @@ the owner decision by decision. This `UPGRADE.md` is your execution plan.
 - [x] **Step 2** — Amele altyapısı: db_get/db_put yeniden yazımı + JSON doğrulama + amele index + model atama + ajan→amele adlandırma
 - [x] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameleler / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
 - [x] **Step 4** — Bot (Telegram): yeni komut seti (`/amele`, otomatik `/<slug>`), yönlendirme, oturum modu, eski komutların kaldırılması, i18n (amele çevrilmez)
-- [ ] **Step 5** — Konuşma belleği: conversation_messages kaydı, 40 mesajda bir arşivleme, FTS arama, "geçmişten bak" akışı, gece yedekleme
+- [x] **Step 5** — Konuşma belleği: conversation_messages kaydı, 40 mesajda bir arşivleme, FTS arama, "geçmişten bak" akışı, gece yedekleme
 - [ ] **Step 6** — Onay akışı + zamanlanmış görev: pending_actions yönetimi (başlıkta amele adı, en güncel eşleşme), scheduled_tasks tarayıcı (success/fallback)
 - [ ] **Step 7** — Panel (web): Ameleler (CRUD + şema editor + model seçimi), Kayıtlar, Onaylar, Ayarlar, Tasks kaldırma, DB/Geçmiş indir butonları
 - [ ] **Step 8** — MCP / Smithery: katalog arama, sunucu ekleme, amele bağlama, `amele mcp login`, sorumluluk beyanı ekranı
@@ -168,13 +168,13 @@ Alt görevler:
 
 Alt görevler:
 
-- [ ] Her mesajda `conversation_messages` kaydı (thread_id: `chat:<id>` veya `amele:<id>:<slug>`; role; content; ts) + FTS index satırı
-- [ ] **Arşivleme:** thread 40 mesajı aşınca en eski 20 mesaj `archived=1` (bağlamdan düşer); Kahya çağrılarında bağlam = son 20 ham mesaj
-- [ ] FTS5 araması (`conversation_fts`); FTS5 yoksa LIKE fallback
-- [ ] `search_history` tool'unu Kahya'ya bağla: "bunu konuşmuştuk / geçmişten bak" → arşivde ara → bulunan mesajlar bağlama eklenir
-- [ ] Oturum modu mesajları da aynı kurala tabi (ayrı thread)
-- [ ] **Gece yedekleme:** `scripts/backup.sh` (DB + agents + geçmiş dump) + örnek cron notu; yedek proje klasörüne
-- [ ] Test: 60 mesajlık sohbet simüle et — bağlam hep ≤20 mesaj, arşivde hepsi duruyor, arama buluyor
+- [x] Her mesajda `conversation_messages` kaydı (thread_id: `chat:<id>` veya `amele:<id>:<slug>`; role; content; ts) + FTS index satırı
+- [x] **Arşivleme:** thread 40 mesajı aşınca en eski 20 mesaj `archived=1` (bağlamdan düşer); Kahya çağrılarında bağlam = son 20 ham mesaj
+- [x] FTS5 araması (`conversation_fts`); FTS5 yoksa LIKE fallback
+- [x] `search_history` tool'unu Kahya'ya bağla: "bunu konuşmuştuk / geçmişten bak" → arşivde ara → bulunan mesajlar bağlama eklenir
+- [x] Oturum modu mesajları da aynı kurala tabi (ayrı thread)
+- [x] **Gece yedekleme:** `scripts/backup.sh` (DB + agents + geçmiş dump) + örnek cron notu; yedek proje klasörüne
+- [x] Test: 60 mesajlık sohbet simüle et — bağlam hep ≤20 mesaj, arşivde hepsi duruyor, arama buluyor
 
 **Kabul kriterleri:** Bağlam sabit boyutta; arşiv eksiksiz; "geçmişten bak" çalışıyor; yedek script'i çalışıyor.
 

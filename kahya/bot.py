@@ -105,6 +105,34 @@ class Bot:
         self.i18n.set_language(self.cfg.language)
         return self.i18n.t(key, **kw)
 
+    # -- conversation memory (REDESIGN §3.5) ------------------------
+
+    def _remember(self, role: str, content: str) -> None:
+        """Kaydet + arşivle (thread 40'ı aşınca en eski 20 arşive)."""
+        thread = getattr(self, "_thread", None)
+        if thread and content:
+            self.db.add_message(thread, role, content)
+            self.db.archive_old_messages(thread)
+
+    def _send(self, chat_id, text: str, html: bool = True) -> bool:
+        """Send + remember (assistant side of the conversation)."""
+        ok = self.tg.send(chat_id, text, html=html)
+        if ok:
+            self._remember("assistant", text)
+        return ok
+
+    def _context(self, limit: int = 20) -> str:
+        """Son N ham mesaj — sabit boyutlu bağlam penceresi (REDESIGN §3.5)."""
+        msgs = self.db.recent_messages(self._thread, limit)
+        return "\n".join(f"{m['role']}: {m['content']}" for m in msgs)
+
+    @staticmethod
+    def _with_context(task: str, context: str) -> str:
+        if not context:
+            return task
+        return (f"{task}\n\nRECENT CONVERSATION (older → newer; the last "
+                f"line is the owner's latest message):\n{context}")
+
     def _refresh_tg(self) -> None:
         if self.tg.token != self.cfg.telegram_token:
             self.tg = TG(self.cfg.telegram_token)
@@ -164,45 +192,47 @@ class Bot:
             return json.dumps(res, ensure_ascii=False)
         return str(res) if res is not None else ""
 
-    def _ask_kahya(self, message: str) -> str:
-        """Orchestrator: Kahya with the compact amele index (REDESIGN §3.2)."""
+    def _ask_kahya(self, message: str, context: str = "") -> str:
+        """Orchestrator: Kahya with the compact amele index (REDESIGN §3.2)
+        and the fixed-size conversation window (§3.5)."""
         idx = self._amele_index()
         lines = [f"{a['id']} | {a['slug']} | {a['description']}" for a in idx]
         task = ("AMELE INDEX:\n" + "\n".join(lines)
                 + f"\n\nOwner message:\n{message}")
-        return self._run(self.kahya_yaml, task)
+        return self._run(self.kahya_yaml, self._with_context(task, context))
 
-    def _ask_amele(self, slug: str, message: str) -> str:
+    def _ask_amele(self, slug: str, message: str, context: str = "") -> str:
         yaml_path = self.cfg.ameleler_dir / f"{slug}.yaml"
         if not yaml_path.exists():
             raise AmeleError(1, f"amele YAML'ı yok: {slug}")
-        return self._run(yaml_path, message)
+        task = f"Owner message:\n{message}"
+        return self._run(yaml_path, self._with_context(task, context))
 
     # -- commands --------------------------------------------------
 
     def _cmd_help(self, chat_id: int) -> None:
-        self.tg.send(chat_id, self._t("bot.help"))
+        self._send(chat_id, self._t("bot.help"))
 
     def _cmd_ameleler(self, chat_id: int) -> None:
         ameleler = self._ameleler()
         if not ameleler:
-            self.tg.send(chat_id, self._t("bot.ameleler_none"))
+            self._send(chat_id, self._t("bot.ameleler_none"))
             return
         lines = [self._t("bot.ameleler_header"), ""]
         for a in ameleler:
             n = self.db.count_records(a["id"])
             lines.append(f"• <b>{a['name']}</b> (<code>/{a['slug']}</code>) — "
                          f"{self._t('bot.ameleler_records', n=n)}")
-        self.tg.send(chat_id, "\n".join(lines))
+        self._send(chat_id, "\n".join(lines))
 
     def _cmd_session(self, chat_id: int, slug: str) -> None:
         """/<slug> (argümansız) → chat mode with that amele."""
         amele = self.db.get_amele_by_slug(slug)
         if not amele:
-            self.tg.send(chat_id, self._t("bot.amele_not_found", slug=slug))
+            self._send(chat_id, self._t("bot.amele_not_found", slug=slug))
             return
         self.db.set_chat_state(chat_id, {"session_slug": slug})
-        self.tg.send(chat_id, self._t("bot.session_started", name=amele["name"]))
+        self._send(chat_id, self._t("bot.session_started", name=amele["name"]))
 
     def _cmd_cancel(self, chat_id: int, notify_pending: bool = True) -> None:
         """Cancel the current flow/session (and a pending approval if any)."""
@@ -212,7 +242,7 @@ class Bot:
             if pa:
                 self._forward_approval(chat_id, pa, "cancelled")
                 return
-        self.tg.send(chat_id, self._t("bot.cancel_ok"))
+        self._send(chat_id, self._t("bot.cancel_ok"))
 
     # -- approval matching (REDESIGN §4.2) --------------------------
 
@@ -240,7 +270,7 @@ class Bot:
                             "action_id": pa["id"], "status": status})
         msg = (self._t("bot.approval_forwarded", name=name) if verdict == "approved"
                else self._t("bot.approval_cancelled", name=name))
-        self.tg.send(chat_id, msg)
+        self._send(chat_id, msg)
 
     def _try_approval(self, chat_id: int, low: str, in_session: bool = False) -> bool:
         """Onay kelimesi + bekleyen onay varsa iletir. True = handled."""
@@ -258,7 +288,7 @@ class Bot:
             if in_session:
                 return False  # oturum amelesine gitsin — onay cevabı olabilir
             self.db.set_chat_state(chat_id, {})
-            self.tg.send(chat_id, self._t("bot.cancel_ok"))
+            self._send(chat_id, self._t("bot.cancel_ok"))
             return True
         if low in CANCEL_WORDS:
             self.db.set_chat_state(chat_id, {})
@@ -266,7 +296,7 @@ class Bot:
             if pa:
                 self._forward_approval(chat_id, pa, "cancelled")
             else:
-                self.tg.send(chat_id, self._t("bot.cancel_ok"))
+                self._send(chat_id, self._t("bot.cancel_ok"))
             return True
         return False
 
@@ -276,6 +306,11 @@ class Bot:
         low = text.strip().lower()
         session_slug = state.get("session_slug")
 
+        # conversation memory: thread + user side kaydı (REDESIGN §3.5)
+        self._thread = (f"amele:{chat_id}:{session_slug}" if session_slug
+                        else f"chat:{chat_id}")
+        self._remember("user", text)
+
         # chat mode: non-command messages go to the session amele
         if session_slug and not low.startswith("/"):
             if low in CANCEL_WORDS:
@@ -284,12 +319,12 @@ class Bot:
             if self._try_approval(chat_id, low, in_session=True):
                 return
             try:
-                answer = self._ask_amele(session_slug, text)
+                answer = self._ask_amele(session_slug, text, self._context())
             except Exception as e:
-                self.tg.send(chat_id, self._t("bot.understand_error",
+                self._send(chat_id, self._t("bot.understand_error",
                                               code=getattr(e, "exit_code", "?")))
                 return
-            self.tg.send(chat_id, answer, html=False)
+            self._send(chat_id, answer, html=False)
             return
         if session_slug and low.startswith("/"):
             # komut oturumu keser mi? /iptal keser; diğerleri işlenir,
@@ -298,7 +333,7 @@ class Bot:
 
         # ---- commands ----
         if low in ("/start", "start", "merhaba", "selam", "hi", "hello"):
-            self.tg.send(chat_id, self._t("bot.start_welcome"))
+            self._send(chat_id, self._t("bot.start_welcome"))
             return
         if low in ("/help", "help", "yardım", "yardim"):
             self._cmd_help(chat_id)
@@ -317,16 +352,17 @@ class Bot:
                 rest = low.split(" ", 1)[1].strip() if " " in low else ""
                 if rest:
                     try:
-                        answer = self._ask_amele(slug, text.split(" ", 1)[1].strip())
+                        answer = self._ask_amele(slug, text.split(" ", 1)[1].strip(),
+                                                 self._context())
                     except AmeleError as e:
-                        self.tg.send(chat_id, self._t("bot.understand_error",
+                        self._send(chat_id, self._t("bot.understand_error",
                                                       code=e.exit_code))
                         return
-                    self.tg.send(chat_id, answer, html=False)
+                    self._send(chat_id, answer, html=False)
                 else:
                     self._cmd_session(chat_id, slug)
                 return
-            self.tg.send(chat_id, self._t("bot.unknown_command"))
+            self._send(chat_id, self._t("bot.unknown_command"))
             return
 
         # ---- approval words (full-message only) ----
@@ -335,12 +371,12 @@ class Bot:
 
         # ---- natural language → Kahya (orchestrator) ----
         try:
-            answer = self._ask_kahya(text)
+            answer = self._ask_kahya(text, self._context())
         except AmeleError as e:
-            self.tg.send(chat_id, self._t("bot.understand_error", code=e.exit_code))
+            self._send(chat_id, self._t("bot.understand_error", code=e.exit_code))
             return
         if answer:
-            self.tg.send(chat_id, answer, html=False)
+            self._send(chat_id, answer, html=False)
 
     # -- main loop --------------------------------------------------
 
@@ -359,7 +395,7 @@ class Bot:
                         continue
                     chat_id = msg["chat"]["id"]
                     if str(chat_id) != str(self.cfg.telegram_chat_id):
-                        self.tg.send(chat_id, self._t("bot.unknown_user"))
+                        self._send(chat_id, self._t("bot.unknown_user"))
                         continue
                     state = self.db.get_chat_state(chat_id)
                     print(f"  [msg] {msg['text'][:80]!r}")
