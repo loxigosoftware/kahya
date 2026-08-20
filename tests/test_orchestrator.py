@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Orkestratör (Kahya) testleri — REDESIGN §3.
 
-get_amele_profile, find_ameleler, call_amele (mock LLM ile), paslama
+get_amele_profile, find_ameles, call_amele (mock LLM ile), paslama
 limiti (3), search_history.
 """
 import json
@@ -52,15 +52,15 @@ def tool(script, payload, extra_env=None):
     return r.returncode, r.stdout.strip()
 
 
-# --- fixture: ameleler ---
+# --- fixture: ameles ---
 mail_id = db.create_amele("mail-amele", "Mail", "mailleri okur, taslak hazırlar",
-                          "ameleler/mail-amele.yaml", model_kind="api",
+                          "ameles/mail-amele.yaml", model_kind="api",
                           model_name="gpt-4o-mini",
                           model_cfg={"base_url": "http://127.0.0.1:9441/v1"})
-db.create_amele("hatirlatıcı-amele", "Hatırlatıcı", "zamanlı hatırlatmalar kurar",
-                "ameleler/hatirlatıcı-amele.yaml")
+db.create_amele("reminder-amele", "Reminder", "sets up timed reminders",
+                "ameles/reminder-amele.yaml")
 db.create_amele("pets-amele", "Pets", "evcil hayvan takibi",
-                "ameleler/pets-amele.yaml")
+                "ameles/pets-amele.yaml")
 
 # --- get_amele_profile ---
 rc, out = tool("get_amele_profile.py", {"amele_id": mail_id})
@@ -72,11 +72,11 @@ check("profile by slug", rc == 0 and json.loads(out)["name"] == "Pets")
 rc, out = tool("get_amele_profile.py", {"amele_id": 999})
 check("profile not found", rc == 1 and "bulunamadı" in out)
 
-# --- find_ameleler ---
-rc, out = tool("find_ameleler.py", {"q": "mail"})
+# --- find_ameles ---
+rc, out = tool("find_ameles.py", {"q": "mail"})
 hits = json.loads(out) if rc == 0 else []
 check("find by keyword", rc == 0 and any(h["slug"] == "mail-amele" for h in hits))
-rc, out = tool("find_ameleler.py", {"q": "kronikleşmiş gibisinden"})
+rc, out = tool("find_ameles.py", {"q": "kronikleşmiş gibisinden"})
 check("find no match", rc == 0 and json.loads(out) == [])
 
 # --- call_amele (mock LLM: hedef ameleyi çalıştırır) ---
@@ -94,12 +94,12 @@ rc, out = tool("call_amele.py", {"slug": "pets-amele", "görev": "x"},
 check("paslama limiti aşılınca durur", rc == 1 and "paslama limiti" in out)
 
 # --- search_history (FTS) ---
-db.add_message("chat:42", "user", "köpek aşısı ne zaman yapıldı")
-db.add_message("chat:42", "assistant", "19 ağustosta yapıldı")
-rc, out = tool("search_history.py", {"q": "aşısı"})
+db.add_message("chat:42", "user", "when was the dog vaccine done")
+db.add_message("chat:42", "assistant", "done on 19 august")
+rc, out = tool("search_history.py", {"q": "vaccine"})
 hits = json.loads(out) if rc == 0 else []
-check("search_history finds", rc == 0 and any("aşısı" in h["content"] for h in hits))
-rc, out = tool("search_history.py", {"q": "yok böyle bir şey"})
+check("search_history finds", rc == 0 and any("vaccine" in h["content"] for h in hits))
+rc, out = tool("search_history.py", {"q": "no such thing"})
 check("search_history empty", rc == 0 and json.loads(out) == [])
 
 db.close()

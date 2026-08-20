@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# E2E test: auth + v2 web API (ameleler/records/tasks) + backup + scheduler dry-run.
+# E2E test: auth + v2 web API (ameles/records/tasks) + backup + scheduler dry-run.
 set -euo pipefail
 
 KAHYA_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -7,7 +7,7 @@ cd "$KAHYA_ROOT"
 
 TEST_ROOT="/tmp/kahya_e2e_root"
 rm -rf "$TEST_ROOT"
-mkdir -p "$TEST_ROOT/ameleler"
+mkdir -p "$TEST_ROOT/ameles"
 ln -s "$KAHYA_ROOT/web" "$TEST_ROOT/web"
 ln -s "$KAHYA_ROOT/tools" "$TEST_ROOT/tools"
 
@@ -30,7 +30,7 @@ ck() {
 }
 
 echo "== auth =="
-out=$(curl -s "$B/api/v2/ameleler")
+out=$(curl -s "$B/api/v2/ameles")
 ck "API protected without login" "$(echo "$out" | grep -q unauthorized && echo true || echo false)"
 
 out=$(curl -s -X POST "$B/api/login" -H 'Content-Type: application/json' \
@@ -49,21 +49,21 @@ out=$(curl -s -X POST "$B/api/login" -H 'Content-Type: application/json' \
   -d '{"user":"admin","password":"kahya123"}')
 ck "brute-force lockout after 5 fails" "$(echo "$out" | grep -q locked && echo true || echo false)"
 
-echo "== ameleler (v2) =="
-out=$(curl -s -b "$JAR" "$B/api/v2/ameleler")
-ck "authenticated amele list" "$(echo "$out" | grep -q 'ameleler' && echo true || echo false)"
+echo "== ameles (v2) =="
+out=$(curl -s -b "$JAR" "$B/api/v2/ameles")
+ck "authenticated amele list" "$(echo "$out" | grep -q 'ameles' && echo true || echo false)"
 
-out=$(curl -s -b "$JAR" -X POST "$B/api/v2/ameleler" -H 'Content-Type: application/json' \
+out=$(curl -s -b "$JAR" -X POST "$B/api/v2/ameles" -H 'Content-Type: application/json' \
   -d '{"name":"Fatura Takipcisi","slug":"fatura","description":"Faturalari takip et, 2 gun onceden hatirlat.","model_kind":"api","model_name":"gpt-4o-mini","model_cfg":{"base_url":"https://api.example.com/v1"},"schema_json":{"fields":[{"name":"ad","type":"text","display":true},{"name":"due_date","type":"date","display":true,"virtual":true}]}}')
 ck "amele created (api model + schema)" "$(echo "$out" | grep -q '"id"' && echo true || echo false)"
-ck "yaml file written" "$([ -f "$TEST_ROOT/ameleler/fatura.yaml" ] && echo true || echo false)"
-ck "yaml valid amele config" "$(KAHYA_DIR="$KAHYA_ROOT" AMELE_MODEL=qwen3-vl:8b PROVIDER_TYPE=openai BASE_URL=http://localhost:11434/v1 API_KEY=x "$KAHYA_ROOT/bin/amele" validate "$TEST_ROOT/ameleler/fatura.yaml" >/dev/null 2>&1 && echo true || echo false)"
+ck "yaml file written" "$([ -f "$TEST_ROOT/ameles/fatura.yaml" ] && echo true || echo false)"
+ck "yaml valid amele config" "$(KAHYA_DIR="$KAHYA_ROOT" AMELE_MODEL=qwen3-vl:8b PROVIDER_TYPE=openai BASE_URL=http://localhost:11434/v1 API_KEY=x "$KAHYA_ROOT/bin/amele" validate "$TEST_ROOT/ameles/fatura.yaml" >/dev/null 2>&1 && echo true || echo false)"
 
 AMELE_ID=$(echo "$out" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])")
-out=$(curl -s -b "$JAR" -X POST "$B/api/v2/ameleler/edit" -H 'Content-Type: application/json' \
+out=$(curl -s -b "$JAR" -X POST "$B/api/v2/ameles/edit" -H 'Content-Type: application/json' \
   -d "{\"id\":$AMELE_ID,\"name\":\"Fatura Takipcisi v2\",\"description\":\"Yeni gorev tanimi\"}")
 ck "amele edited" "$(echo "$out" | grep -q ok && echo true || echo false)"
-ck "yaml updated" "$(grep -q 'Yeni gorev tanimi' "$TEST_ROOT/ameleler/fatura.yaml" && echo true || echo false)"
+ck "yaml updated" "$(grep -q 'Yeni gorev tanimi' "$TEST_ROOT/ameles/fatura.yaml" && echo true || echo false)"
 
 echo "== records (v2) =="
 out=$(curl -s -b "$JAR" -X POST "$B/api/v2/records" -H 'Content-Type: application/json' \
@@ -94,10 +94,10 @@ ck "overview counts" "$(echo "$out" | grep -q 'bekleyen_onaylar' && echo true ||
 echo "== backup =="
 out=$(curl -s -b "$JAR" "$B/api/backup/history")
 ck "history backup json" "$(echo "$out" | grep -q 'mesajlar' && echo true || echo false)"
-out=$(curl -s -b "$JAR" -X POST "$B/api/v2/ameleler/delete" -H 'Content-Type: application/json' \
+out=$(curl -s -b "$JAR" -X POST "$B/api/v2/ameles/delete" -H 'Content-Type: application/json' \
   -d "{\"id\":$AMELE_ID}")
 ck "amele deleted" "$(echo "$out" | grep -q ok && echo true || echo false)"
-ck "yaml removed" "$([ ! -f "$TEST_ROOT/ameleler/fatura.yaml" ] && echo true || echo false)"
+ck "yaml removed" "$([ ! -f "$TEST_ROOT/ameles/fatura.yaml" ] && echo true || echo false)"
 
 echo "== settings =="
 out=$(curl -s -b "$JAR" "$B/api/settings")

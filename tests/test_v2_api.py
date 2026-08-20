@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v2 API testleri — ameleler (model), records, pending_actions,
+"""v2 API testleri — ameles (model), records, pending_actions,
 scheduled_tasks, conversation_messages (FTS), MCP bağlama."""
 import json
 import os
@@ -23,9 +23,9 @@ def check(name, cond, extra=""):
         fails.append(name)
 
 
-# --- ameleler + model atama ---
+# --- ameles + model atama ---
 mail_id = db.create_amele("mail-amele", "Mail", "mailleri okur ve taslak hazırlar",
-                          "ameleler/mail-amele.yaml", model_kind="api",
+                          "ameles/mail-amele.yaml", model_kind="api",
                           model_name="gpt-4o-mini",
                           model_cfg={"base_url": "https://api.example.com/v1",
                                      "api_key_ref": "${MAIL_API_KEY}"})
@@ -36,7 +36,7 @@ check("model_cfg roundtrip",
       json.loads(db.get_amele(mail_id)["model_cfg"])["api_key_ref"] == "${MAIL_API_KEY}")
 
 gorsel_id = db.create_amele("gorsel-amele", "Görsel", "görüntü analizi",
-                            "ameleler/gorsel-amele.yaml", model_kind="local",
+                            "ameles/gorsel-amele.yaml", model_kind="local",
                             model_name="qwen3-vl:8b")
 check("local model default", db.get_amele(gorsel_id)["model_kind"] == "local"
       and db.get_amele(gorsel_id)["model_name"] == "qwen3-vl:8b")

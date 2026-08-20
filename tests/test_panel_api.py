@@ -22,10 +22,10 @@ sys.path.insert(0, ROOT)
 TEST_ROOT = "/tmp/kahya_panel_root"
 shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
-Path(TEST_ROOT, "ameleler").mkdir()
-for name in ("extract-amele.yaml", "kahya.yaml", "hatirlatıcı-amele.yaml",
-             "mail-amele.yaml", "fatura-amele.yaml"):
-    (Path(TEST_ROOT) / "ameleler" / name).symlink_to(Path(ROOT) / "ameleler" / name)
+Path(TEST_ROOT, "ameles").mkdir()
+for name in ("extract-amele.yaml", "kahya.yaml", "reminder-amele.yaml",
+             "mail-amele.yaml", "invoice-amele.yaml"):
+    (Path(TEST_ROOT) / "ameles" / name).symlink_to(Path(ROOT) / "ameles" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")
 (Path(TEST_ROOT) / "web").symlink_to(Path(ROOT) / "web")
 
@@ -84,7 +84,7 @@ def call(method, path, body=None):
 
 
 # --- auth ---
-st, out = call("GET", "/api/v2/ameleler")
+st, out = call("GET", "/api/v2/ameles")
 check("1a API korumalı (401)", st == 401)
 st, out = call("POST", "/api/login", {"user": "admin", "password": "yanlis"})
 check("1b yanlış şifre reddedildi", st == 401 and out.get("error") == "bad_credentials")
@@ -95,11 +95,11 @@ with opener.open(req, timeout=30) as r:
     html = r.read().decode()
 check("1d panel servis ediliyor", "<title>Kâhya" in html and "tabs_overview" in html)
 
-# --- ameleler CRUD + model + şema ---
-st, out = call("GET", "/api/v2/ameleler")
-check("2a amele listesi", st == 200 and isinstance(out.get("ameleler"), list))
+# --- ameles CRUD + model + şema ---
+st, out = call("GET", "/api/v2/ameles")
+check("2a amele listesi", st == 200 and isinstance(out.get("ameles"), list))
 
-st, out = call("POST", "/api/v2/ameleler", {
+st, out = call("POST", "/api/v2/ameles", {
     "name": "Fatura", "slug": "fatura-test", "description": "faturaları takip eder",
     "model_kind": "api", "model_name": "gpt-4o-mini",
     "model_cfg": {"base_url": "https://api.example.com/v1"},
@@ -108,41 +108,41 @@ st, out = call("POST", "/api/v2/ameleler", {
                                 "virtual": True}]}})
 check("2b api model + şema ile oluşturma", st == 201 and out.get("id"))
 aid = out["id"]
-check("2c YAML yazıldı", (Path(TEST_ROOT) / "ameleler" / "fatura-test.yaml").exists())
+check("2c YAML yazıldı", (Path(TEST_ROOT) / "ameles" / "fatura-test.yaml").exists())
 
-st, out = call("GET", "/api/v2/ameleler")
-a = next(x for x in out["ameleler"] if x["id"] == aid)
+st, out = call("GET", "/api/v2/ameles")
+a = next(x for x in out["ameles"] if x["id"] == aid)
 check("2d model + şema roundtrip", a["model_kind"] == "api"
       and a["model_cfg"]["base_url"] == "https://api.example.com/v1"
       and a["schema_json"]["fields"][1]["virtual"] is True)
 
-st, out = call("POST", "/api/v2/ameleler", {"name": "x", "slug": "x", "description": "y"})
+st, out = call("POST", "/api/v2/ameles", {"name": "x", "slug": "x", "description": "y"})
 check("2e model_kind geçersizse 400", st == 400)
-st, out = call("POST", "/api/v2/ameleler", {
+st, out = call("POST", "/api/v2/ameles", {
     "name": "X", "slug": "api-test", "description": "z",
     "model_kind": "api", "model_name": "m", "model_cfg": None})
 check("2f api model base_url'siz 400", st == 400)
 
-st, out = call("POST", "/api/v2/ameleler/edit", {
+st, out = call("POST", "/api/v2/ameles/edit", {
     "id": aid, "name": "Fatura v2", "description": "yeni tanım",
     "model_kind": "local", "model_name": "qwen3:27b", "model_cfg": None,
     "schema_json": None})
 check("2g düzenleme", st == 200)
-yaml_text = (Path(TEST_ROOT) / "ameleler" / "fatura-test.yaml").read_text(encoding="utf-8")
+yaml_text = (Path(TEST_ROOT) / "ameles" / "fatura-test.yaml").read_text(encoding="utf-8")
 check("2h YAML güncellendi", "yeni tanım" in yaml_text)
-st, out = call("GET", "/api/v2/ameleler")
-a = next(x for x in out["ameleler"] if x["id"] == aid)
+st, out = call("GET", "/api/v2/ameles")
+a = next(x for x in out["ameles"] if x["id"] == aid)
 check("2i model local'e döndü, şema silindi", a["model_kind"] == "local"
       and a["schema_json"] is None)
 
 # --- records CRUD ---
 st, out = call("POST", "/api/v2/records", {"amele_id": aid,
-                                           "data": {"ad": "Su faturası", "due_date": "2026-09-20"}})
+                                           "data": {"ad": "Su invoice", "due_date": "2026-09-20"}})
 check("3a kayıt oluşturma", st == 201 and out.get("id"))
 rid = out["id"]
 st, out = call("GET", "/api/v2/records?amele_id=%d" % aid)
 check("3b kayıt listesi + amele adı", st == 200
-      and out["records"][0]["data"]["ad"] == "Su faturası"
+      and out["records"][0]["data"]["ad"] == "Su invoice"
       and out["records"][0]["amele_slug"] == "fatura-test")
 st, out = call("GET", "/api/v2/records?amele_id=%d&q=su" % aid)
 check("3c arama", st == 200 and len(out["records"]) == 1)

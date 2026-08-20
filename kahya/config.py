@@ -75,7 +75,7 @@ class Config:
         self._overrides = overrides or {}
 
         self.amele_bin = Path(os.environ.get("AMELE_BIN", str(self.dir / "bin" / "amele")))
-        self.ameleler_dir = self.dir / "ameleler"
+        self.ameles_dir = self.dir / "ameles"
         self.tools_dir = self.dir / "tools"
 
     # -- the three-layer lookup -------------------------------------

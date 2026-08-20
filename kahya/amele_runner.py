@@ -1,11 +1,11 @@
 """amele runner — spawn an amele, get its schema-validated output.
 
 Kahya never talks to the LLM directly; every AI step goes through an amele
-(ameleler/*.yaml). This module is the one place that shells out.
+(ameles/*.yaml). This module is the one place that shells out.
 
 Model atama (REDESIGN §2.4): her amele kendi modelini kullanır —
-ameleler tablosundaki model_kind/model_name/model_cfg'den çözülür.
-Sistem ayarındaki LLM (cfg.model) YALNIZ Kahya içindir; diğer ameleler
+ameles tablosundaki model_kind/model_name/model_cfg'den çözülür.
+Sistem ayarındaki LLM (cfg.model) YALNIZ Kahya içindir; diğer ameles
 kendi model ayarlarıyla çağrılır.
 """
 from __future__ import annotations
@@ -74,7 +74,7 @@ def _amele_model_env(cfg: Config, slug: str) -> dict:
         base = cfg_map.get("base_url")
         if not base:
             raise AmeleError(9, f"amele '{slug}' api model seçili ama "
-                                 f"model_cfg.base_url yok (panel → Ameleler)")
+                                 f"model_cfg.base_url yok (panel → Ameles)")
         env["BASE_URL"] = str(base)
         key = resolve_env_ref(cfg_map.get("api_key_ref"))
         if key is not None:
@@ -127,6 +127,6 @@ def run_amele(cfg: Config, yaml_path: Path, task: str,
 
 
 def amele_yaml(cfg: Config, slug: str) -> Optional[Path]:
-    """Path to an amele's YAML by slug (ameleler/<slug>.yaml)."""
-    p = cfg.ameleler_dir / f"{slug}.yaml"
+    """Path to an amele's YAML by slug (ameles/<slug>.yaml)."""
+    p = cfg.ameles_dir / f"{slug}.yaml"
     return p if p.exists() else None

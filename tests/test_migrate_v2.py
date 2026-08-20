@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Migration testi: sentetik v1 DB → migrate_v2 → veri bütünlüğü doğrulaması.
 
-Veri kaybı olmadığını kanıtlar: agents→ameleler, items→records (alan
+Veri kaybı olmadığını kanıtlar: agents→ameles, items→records (alan
 eşlemesi dahil), reminders→silinir, korunan tablolar aynen kalır.
 """
 import json
@@ -64,7 +64,7 @@ def build_fixture():
          (2, 1, "Su", "fatura", 850.5, "TRY", "2026-08-19", "none", None, 2,
           None, "open", "2026-08-10 09:00:00"),
          (3, None, "Bağsız", "task", None, None, "2026-08-25", "none", None, 0,
-          "agentsız", "open", "2026-08-15 08:30:00"),
+          "agentless", "open", "2026-08-15 08:30:00"),
          (4, 2, "Ödenmiş", "task", 100, "TL", "2026-07-01", "none", None, 0,
           None, "done", "2026-06-01 12:00:00")])
     con.executemany(
@@ -98,11 +98,11 @@ def main():
     check("korunan tablolar duruyor",
           {"chat_state", "logs", "settings", "sessions", "login_attempts"} <= tables)
 
-    n_amele = con.execute("SELECT COUNT(*) FROM ameleler").fetchone()[0]
-    check("ameleler: 2 + 1 (v1 fallback)", n_amele == 3)
-    desc = con.execute("SELECT description FROM ameleler WHERE slug='fatura'").fetchone()[0]
+    n_amele = con.execute("SELECT COUNT(*) FROM ameles").fetchone()[0]
+    check("ameles: 2 + 1 (v1 fallback)", n_amele == 3)
+    desc = con.execute("SELECT description FROM ameles WHERE slug='fatura'").fetchone()[0]
     check("role_prompt → description", desc == "faturaları takip et")
-    model = con.execute("SELECT model_kind, model_name FROM ameleler WHERE slug='pets'").fetchone()
+    model = con.execute("SELECT model_kind, model_name FROM ameles WHERE slug='pets'").fetchone()
     check("model defaultları", model[0] == "local" and model[1] == "qwen3:27b")
 
     n_rec = con.execute("SELECT COUNT(*) FROM records").fetchone()[0]
@@ -114,8 +114,8 @@ def main():
     check("v1 alanları korundu (status/repeat)",
           d1["status"] == "open" and d1["repeat_rule"] == "monthly")
     r3 = con.execute("SELECT amele_id FROM records WHERE id=3").fetchone()[0]
-    v1_id = con.execute("SELECT id FROM ameleler WHERE slug='v1'").fetchone()[0]
-    check("agentsız item → v1 amelesi", r3 == v1_id)
+    v1_id = con.execute("SELECT id FROM ameles WHERE slug='v1'").fetchone()[0]
+    check("agentless item → v1 amelesi", r3 == v1_id)
     check("reminders verisi yok (tablo kaldırıldı)",
           "reminders" not in tables)
     check("settings korundu", con.execute(

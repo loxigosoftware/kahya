@@ -2,7 +2,7 @@
 
 Every tick:
 1. v2: scan `scheduled_tasks` for due tasks and fire the owning amele
-   with a generic trigger: `{"olay": "zaman", "record_id": N}` — the
+   with a generic trigger: `{"event": "time", "record_id": N}` — the
    amele reads its own record and decides (info, warning, MCP action,
    ask_confirm...). Success → status='success' + log; failure → up to
    3 attempts, then status='failed' + owner notification (REDESIGN §8).
@@ -44,18 +44,18 @@ def _in_quiet_hours(cfg: Config, now: datetime) -> bool:
 
 
 def _notify_failed(cfg: Config, slug: str, error: str) -> None:
-    """Kullanıcıya bildirim: görev çalışmadı, beklemeye alındı (§8)."""
+    """Notify the user: task failed and was put on hold (§8)."""
     try:
         i18n = I18n(cfg.dir / "lang", cfg.language)
         msg = i18n.t("bot.task_failed", isim=slug, hata=str(error)[:200])
         TG(cfg.telegram_token).send(cfg.telegram_chat_id, msg, html=True)
     except Exception as e:  # noqa: BLE001 — bildirim asla tick'i düşürmesin
-        print(f"  [ERROR] bildirim gönderilemedi: {e}")
+        print(f"  [ERROR] could not send notification: {e}")
 
 
 def _run_due_tasks(cfg: Config, db: KahyaDB, quiet: bool,
                    now: datetime, dry_run: bool) -> list[dict]:
-    """v2: scheduled_tasks tarayıcı (REDESIGN §8)."""
+    """v2: scheduled_tasks scanner (REDESIGN §8)."""
     sent: list[dict] = []
     for task in db.due_scheduled_tasks(now.strftime("%Y-%m-%d %H:%M:%S")):
         amele = db.get_amele(task["amele_id"])
@@ -63,8 +63,8 @@ def _run_due_tasks(cfg: Config, db: KahyaDB, quiet: bool,
                   "record_id": task["record_id"], "run_at": task["run_at"]}
         if not amele:
             db.set_task_status(task["id"], "failed")
-            db.log("scheduler", {"event": "task_failed", **record, "error": "amele yok"})
-            sent.append({**record, "sent": False, "error": "amele yok"})
+            db.log("scheduler", {"event": "task_failed", **record, "error": "amele missing"})
+            sent.append({**record, "sent": False, "error": "amele missing"})
             continue
         if quiet and not dry_run:
             db.log("scheduler", {"event": "task_held_quiet", **record})
@@ -72,7 +72,7 @@ def _run_due_tasks(cfg: Config, db: KahyaDB, quiet: bool,
             continue
 
         yaml_path = amele_yaml(cfg, amele["slug"])
-        task_msg = json.dumps({"olay": "zaman", "record_id": task["record_id"]},
+        task_msg = json.dumps({"event": "time", "record_id": task["record_id"]},
                               ensure_ascii=False)
         if dry_run:
             sent.append({**record, "dry": True})
@@ -111,9 +111,9 @@ def _run_legacy_items(cfg: Config, db: KahyaDB, today: date, quiet: bool,
         if item.get("amele_slug"):
             yaml_path = amele_yaml(cfg, item["amele_slug"])
         if yaml_path is None:
-            yaml_path = cfg.ameleler_dir / "hatirlatıcı-amele.yaml"
+            yaml_path = cfg.ameles_dir / "reminder-amele.yaml"
 
-        task = (f"TASK olay=zaman record_id={item['id']} "
+        task = (f"TASK event=time record_id={item['id']} "
                 f"now={now.strftime('%Y-%m-%d %H:%M')}")
         record = {"item_id": item["id"], "amele": yaml_path.stem,
                   "due": item["due_date"]}

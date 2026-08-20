@@ -155,7 +155,7 @@ async function render(){
   if(!SESSION.authed){ renderLogin(); return; }
   const warn = SESSION.usingDefault ? `<div class="warn-banner">⚠️ ${t('panel.login_default_warn')}</div>` : '';
   const tabs = [
-    ['overview', t('panel.tabs_overview')], ['ameleler', t('panel.tabs_ameleler')],
+    ['overview', t('panel.tabs_overview')], ['ameles', t('panel.tabs_ameles')],
     ['kayitlar', t('panel.tabs_kayitlar')], ['onaylar', t('panel.tabs_onaylar')],
     ['mcp', t('panel.tabs_mcp')], ['settings', t('panel.tabs_settings')],
     ['guide', t('panel.tabs_guide')], ['license', t('panel.tabs_license')],
@@ -180,7 +180,7 @@ async function render(){
 }
 function loadTab(id){
   if(id==='overview') loadOverview();
-  if(id==='ameleler') loadAmeleler();
+  if(id==='ameles') loadAmeles();
   if(id==='kayitlar') loadKayitlar();
   if(id==='onaylar') loadOnaylar();
   if(id==='mcp') loadMcp();
@@ -195,7 +195,7 @@ async function loadOverview(){
     const o = await api('/api/v2/overview');
     $('tab-overview').innerHTML = `
     <div class="stats">
-      <div class="stat"><div class="n">${o.ameleler}</div><div class="l">${t('panel.overview_ameleler')}</div></div>
+      <div class="stat"><div class="n">${o.ameles}</div><div class="l">${t('panel.overview_ameles')}</div></div>
       <div class="stat"><div class="n">${o.kayitlar}</div><div class="l">${t('panel.overview_kayitlar')}</div></div>
       <div class="stat"><div class="n">${o.bekleyen_onaylar}</div><div class="l">${t('panel.overview_onaylar')}</div></div>
       <div class="stat"><div class="n">${o.bekleyen_gorevler}</div><div class="l">${t('panel.overview_gorevler')}</div></div>
@@ -212,7 +212,7 @@ async function loadOverview(){
   }catch(e){ $('tab-overview').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
-// ---------------------------------------------------------------- ameleler
+// ---------------------------------------------------------------- ameles
 function slugify(s){ return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,31); }
 let slugAuto = true;
 
@@ -226,10 +226,10 @@ function modelPill(a){
 function ameleRow(a, editing, confirming){
   const actions = editing ? `
       <button onclick="saveEditAmele(${a.id})">${t('panel.settings_save')}</button>
-      <button class="secondary" onclick="loadAmeleler()">✕</button>`
+      <button class="secondary" onclick="loadAmeles()">✕</button>`
     : confirming ? `
-      <button class="ghost red" onclick="doDelAmele(${a.id})">${t('panel.ameleler_delete_yes')||'Delete'}</button>
-      <button class="secondary" onclick="loadAmeleler()">${t('panel.ameleler_delete_no')||'Keep'}</button>`
+      <button class="ghost red" onclick="doDelAmele(${a.id})">${t('panel.ameles_delete_yes')||'Delete'}</button>
+      <button class="secondary" onclick="loadAmeles()">${t('panel.ameles_delete_no')||'Keep'}</button>`
     : `
       <button class="ghost" onclick="startEditAmele(${a.id})">${t('panel.amele_edit')}</button>
       <button class="ghost red" onclick="confirmDelAmele(${a.id})">${t('panel.amele_delete')}</button>`;
@@ -260,11 +260,11 @@ function ameleRow(a, editing, confirming){
     <div class="actions">${actions}</div>
   </div>`;
 }
-async function loadAmeleler(){
+async function loadAmeles(){
   try{
-    const {ameleler} = await api('/api/v2/ameleler');
-    AMELES = ameleler;
-    $('tab-ameleler').innerHTML = `
+    const {ameles} = await api('/api/v2/ameles');
+    AMELES = ameles;
+    $('tab-ameles').innerHTML = `
     <div class="card">
       <h2>${t('panel.amele_new')}</h2>
       <p class="hint">${t('panel.amele_new_hint')}</p>
@@ -286,10 +286,10 @@ async function loadAmeleler(){
       <button onclick="addAmele()">${t('panel.amele_new')}</button>
     </div>
     <div class="card">
-      <h2>${t('panel.tabs_ameleler')}</h2>
-      <div id="ameleler-list">${ameleler.length ? ameleler.map(a=>ameleRow(a,false,false)).join('') : `<div class="empty">${t('panel.amele_empty')}</div>`}</div>
+      <h2>${t('panel.tabs_ameles')}</h2>
+      <div id="ameles-list">${ameles.length ? ameles.map(a=>ameleRow(a,false,false)).join('') : `<div class="empty">${t('panel.amele_empty')}</div>`}</div>
     </div>`;
-  }catch(e){ $('tab-ameleler').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  }catch(e){ $('tab-ameles').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 function naSlug(){ if(slugAuto) $('na-slug').value = slugify($('na-name').value); }
 async function addAmele(){
@@ -302,12 +302,12 @@ async function addAmele(){
   const model_kind=$('na-kind').value;
   const model_cfg = model_kind==='api' && $('na-base').value.trim() ? {base_url:$('na-base').value.trim()} : null;
   try{
-    await api('/api/v2/ameleler',{method:'POST',body:JSON.stringify({
+    await api('/api/v2/ameles',{method:'POST',body:JSON.stringify({
       name,slug,description:desc,model_kind,
       model_name:$('na-model').value.trim()||null, model_cfg, schema_json:schema})});
     toast(t('panel.amele_created'));
     ['na-name','na-slug','na-desc','na-model','na-base','na-schema'].forEach(id=>$(id).value='');
-    slugAuto=true; loadAmeleler();
+    slugAuto=true; loadAmeles();
   }catch(e){ toast(e.message); }
 }
 function confirmDelAmele(id){ const row=$('amele-'+id); if(row && AMELES){
@@ -320,17 +320,17 @@ async function saveEditAmele(id){
   if($('ea-schema').value.trim()){ try{ schema=JSON.parse($('ea-schema').value); }catch(e){ toast(t('panel.amele_schema_bad')); return; } }
   const model_kind=$('ea-kind').value;
   try{
-    await api('/api/v2/ameleler/edit',{method:'POST',body:JSON.stringify({id,
+    await api('/api/v2/ameles/edit',{method:'POST',body:JSON.stringify({id,
       name:$('ea-name').value.trim(), description:$('ea-desc').value.trim(),
       model_kind, model_name:$('ea-model').value.trim()||null,
       model_cfg: model_kind==='api' && $('ea-base').value.trim() ? {base_url:$('ea-base').value.trim()} : null,
       schema_json: schema})});
-    toast(t('panel.amele_saved')); loadAmeleler();
+    toast(t('panel.amele_saved')); loadAmeles();
   }catch(e){ toast(e.message); }
 }
 async function doDelAmele(id){
-  try{ await api('/api/v2/ameleler/delete',{method:'POST',body:JSON.stringify({id})});
-    toast(t('panel.amele_deleted')); loadAmeleler(); }catch(e){ toast(e.message); }
+  try{ await api('/api/v2/ameles/delete',{method:'POST',body:JSON.stringify({id})});
+    toast(t('panel.amele_deleted')); loadAmeles(); }catch(e){ toast(e.message); }
 }
 
 // ---------------------------------------------------------------- kayitlar
@@ -342,10 +342,10 @@ function schemaFields(a){
 }
 async function loadKayitlar(){
   try{
-    const {ameleler} = await api('/api/v2/ameleler');
-    if(!ameleler.length){ $('tab-kayitlar').innerHTML = `<div class="card"><h2>${t('panel.kayit_title')}</h2><div class="empty">${t('panel.amele_empty')}</div></div>`; return; }
-    if(!KAYIT_AMELE || !ameleler.find(a=>a.id===KAYIT_AMELE)) KAYIT_AMELE = ameleler[0].id;
-    const sel = ameleler.find(a=>a.id===KAYIT_AMELE);
+    const {ameles} = await api('/api/v2/ameles');
+    if(!ameles.length){ $('tab-kayitlar').innerHTML = `<div class="card"><h2>${t('panel.kayit_title')}</h2><div class="empty">${t('panel.amele_empty')}</div></div>`; return; }
+    if(!KAYIT_AMELE || !ameles.find(a=>a.id===KAYIT_AMELE)) KAYIT_AMELE = ameles[0].id;
+    const sel = ameles.find(a=>a.id===KAYIT_AMELE);
     const q = (window.__KAYIT_Q||'');
     const {records} = await api('/api/v2/records?amele_id='+KAYIT_AMELE+(q?'&q='+encodeURIComponent(q):''));
     const fields = schemaFields(sel);
@@ -355,7 +355,7 @@ async function loadKayitlar(){
       <h2>${t('panel.kayit_title')}</h2>
       <div class="grid2">
         <select id="kr-amele" onchange="KAYIT_AMELE=Number(this.value);loadKayitlar()">
-          ${ameleler.map(a=>`<option value="${a.id}" ${a.id===KAYIT_AMELE?'selected':''}>${esc(a.name)} (${esc(a.slug)})</option>`).join('')}
+          ${ameles.map(a=>`<option value="${a.id}" ${a.id===KAYIT_AMELE?'selected':''}>${esc(a.name)} (${esc(a.slug)})</option>`).join('')}
         </select>
         <input id="kr-q" placeholder="${t('panel.kayit_ara')}" value="${esc(q)}"
                onkeydown="if(event.key==='Enter'){window.__KAYIT_Q=this.value;loadKayitlar();}" />
@@ -448,7 +448,7 @@ async function loadMcp(){
       api('/api/v2/mcp'), api('/api/settings')]);
     const {mcp_servers} = mcpData;
     const accepted = setData.settings.mcp_liability_accepted;
-    const {ameleler} = await api('/api/v2/ameleler');
+    const {ameles} = await api('/api/v2/ameles');
     $('tab-mcp').innerHTML = `
     ${accepted ? '' : `
     <div class="card" style="border-color:#e0a3a0;background:var(--warn-soft)">
@@ -496,7 +496,7 @@ async function loadMcp(){
     </div>
     <div class="card">
       <h2>${t('panel.mcp_list')}</h2>
-      <div id="mc-list">${mcp_servers.length ? mcp_servers.map(s=>mcpRow(s, ameleler)).join('')
+      <div id="mc-list">${mcp_servers.length ? mcp_servers.map(s=>mcpRow(s, ameles)).join('')
         : `<div class="empty">${t('panel.mcp_empty')}</div>`}</div>
     </div>`;
     const kindSel = $('ms-kind');
@@ -507,7 +507,7 @@ async function loadMcp(){
     };
   }catch(e){ $('tab-mcp').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
-function mcpRow(s, ameleler){
+function mcpRow(s, ameles){
   const oauth = !!(s.auth && s.auth.type==='oauth');
   const detail = s.kind==='http' ? esc(s.url||'') : esc(s.command||'');
   return `<div class="amele" id="mcp-${s.id}">
@@ -516,7 +516,7 @@ function mcpRow(s, ameleler){
         ${oauth?`<span class="pill">${t('panel.mcp_oauth')}</span>`:''}
         ${s.required?'' : '<span class="pill over">optional</span>'}</div>
       <div class="slug">${detail}</div>
-      <div class="model-pill">${t('panel.mcp_bound')} ${(s.ameleler||[]).map(a=>`<span class="pill">${esc(a)}</span>`).join(' ')||'—'}</div>
+      <div class="model-pill">${t('panel.mcp_bound')} ${(s.ameles||[]).map(a=>`<span class="pill">${esc(a)}</span>`).join(' ')||'—'}</div>
       ${oauth? `<div class="btn-row" style="margin-top:6px">
           <button class="secondary" onclick="mcpStatus(${s.id})">${t('panel.mcp_oauth_status')}</button>
           <button class="secondary" onclick="mcpLogin(${s.id})">${t('panel.mcp_oauth_login')}</button>
@@ -526,10 +526,10 @@ function mcpRow(s, ameleler){
     </div>
     <div class="actions">
       <select id="mb-${s.id}" style="width:auto;margin:0 0 0 auto">
-        ${ameleler.map(a=>`<option value="${a.id}">${esc(a.slug)}</option>`).join('')}
+        ${ameles.map(a=>`<option value="${a.id}">${esc(a.slug)}</option>`).join('')}
       </select>
       <button class="ghost" onclick="bindMcp(${s.id})">${t('panel.mcp_bind')}</button>
-      ${(s.ameleler||[]).length? `<button class="ghost red" onclick="unbindMcp(${s.id})">${t('panel.mcp_unbind')}</button>`:''}
+      ${(s.ameles||[]).length? `<button class="ghost red" onclick="unbindMcp(${s.id})">${t('panel.mcp_unbind')}</button>`:''}
       <button class="ghost" onclick="mcpExplain(${s.id})">${t('panel.mcp_explain')}</button>
       <button class="ghost red" onclick="delMcp(${s.id})">${t('panel.mcp_delete')}</button>
     </div>
@@ -591,7 +591,7 @@ async function bindMcp(server_id){
 }
 async function unbindMcp(server_id){
   const s = (await api('/api/v2/mcp')).mcp_servers.find(x=>x.id===server_id);
-  if(!s || !s.ameleler || !s.ameleler.length) return;
+  if(!s || !s.ameles || !s.ameles.length) return;
   const amele_id = $('mb-'+server_id).value;
   try{ await api('/api/v2/mcp/unbind',{method:'POST',body:JSON.stringify({server_id,amele_id})});
     toast(t('panel.mcp_unbound_ok')); loadMcp(); }catch(e){ toast(e.message); }

@@ -57,8 +57,8 @@ def main():
     try:
         yaml_path = amele_yaml(cfg, slug)
         if yaml_path is None:
-            # DB'de kayıtlı olmayan ama YAML'ı olan ameleler de çağrılabilir
-            alt = cfg.ameleler_dir / f"{slug}.yaml"
+            # DB'de kayıtlı olmayan ama YAML'ı olan ameles de çağrılabilir
+            alt = cfg.ameles_dir / f"{slug}.yaml"
             if alt.exists():
                 yaml_path = alt
             else:

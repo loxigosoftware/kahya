@@ -3,7 +3,7 @@
 
 - 60 mesajlık sohbet: bağlam hep ≤ 20, arşivde hepsi duruyor
 - FTS araması buluyor (LIKE fallback dahil)
-- scripts/backup.sh çalışıyor (DB + ameleler + geçmiş dump)
+- scripts/backup.sh çalışıyor (DB + ameles + geçmiş dump)
 """
 import json
 import os
@@ -69,7 +69,7 @@ dest = ROOT / f"kahya-yedek-{date}"
 check("backup çalıştı", r.returncode == 0 and dest.exists())
 if dest.exists():
     check("db kopyası var", (dest / "kahya.db").exists())
-    check("ameleler kopyası var", (dest / "ameleler").exists())
+    check("ameles kopyası var", (dest / "ameles").exists())
     check("geçmiş dump var", (dest / "gecmis.jsonl").exists())
     # test kalıntısını temizle
     subprocess.run(["rm", "-rf", str(dest)], check=True)

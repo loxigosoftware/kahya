@@ -34,7 +34,7 @@ AMELE_TEMPLATE = """# {slug} — {name}
 # diff it, share it ("organization as code").
 #
 # The scheduler hands it timed tasks:
-#   TASK olay=zaman record_id=<id> now=<YYYY-MM-DD HH:MM>
+#   TASK event=time record_id=<id> now=<YYYY-MM-DD HH:MM>
 
 model: ${{AMELE_MODEL}}
 
@@ -174,8 +174,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v2/overview":
             self._v2_overview()
             return
-        if path == "/api/v2/ameleler":
-            self._v2_ameleler_get()
+        if path == "/api/v2/ameles":
+            self._v2_ameles_get()
             return
         if path == "/api/v2/records":
             self._v2_records_get()
@@ -216,14 +216,14 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not self._require_auth():
             return
-        if path == "/api/v2/ameleler":
-            self._v2_ameleler_create()
+        if path == "/api/v2/ameles":
+            self._v2_ameles_create()
             return
-        if path == "/api/v2/ameleler/edit":
-            self._v2_ameleler_edit()
+        if path == "/api/v2/ameles/edit":
+            self._v2_ameles_edit()
             return
-        if path == "/api/v2/ameleler/delete":
-            self._v2_ameleler_delete()
+        if path == "/api/v2/ameles/delete":
+            self._v2_ameles_delete()
             return
         if path == "/api/v2/records":
             self._v2_records_create()
@@ -380,18 +380,18 @@ class Handler(BaseHTTPRequestHandler):
             if t["run_at"] <= soon:
                 tasks.append(row)
         self._json({
-            "ameleler": len(db.list_ameleler()),
+            "ameles": len(db.list_ameles()),
             "kayitlar": db.count_records(),
             "bekleyen_onaylar": len(db.list_pending_actions("waiting")),
             "bekleyen_gorevler": len(db.list_scheduled_tasks("pending")),
             "yaklasan_gorevler": tasks,
         })
 
-    # ------------------------------------------------------------- v2: ameleler
+    # ------------------------------------------------------------- v2: ameles
 
-    def _v2_ameleler_get(self):
+    def _v2_ameles_get(self):
         out = []
-        for a in self.server.db.list_ameleler():
+        for a in self.server.db.list_ameles():
             d = dict(a)
             for k in ("schema_json", "model_cfg"):
                 try:
@@ -399,9 +399,9 @@ class Handler(BaseHTTPRequestHandler):
                 except (TypeError, json.JSONDecodeError):
                     d[k] = None
             out.append(d)
-        self._json({"ameleler": out})
+        self._json({"ameles": out})
 
-    def _v2_ameleler_create(self):
+    def _v2_ameles_create(self):
         data = self._read_body()
         db = self.server.db
         slug = (data.get("slug") or "").strip().lower()
@@ -432,7 +432,7 @@ class Handler(BaseHTTPRequestHandler):
         elif not model_name:
             model_name = "qwen3:27b"
         schema = data.get("schema_json") if isinstance(data.get("schema_json"), dict) else None
-        yaml_path = self.server.ameleler_dir / f"{slug}.yaml"
+        yaml_path = self.server.ameles_dir / f"{slug}.yaml"
         yaml_path.write_text(self._amele_yaml_text(slug, name, role), encoding="utf-8")
         amele_id = db.create_amele(slug, name, role, str(yaml_path),
                                    model_kind=model_kind, model_name=model_name,
@@ -440,7 +440,7 @@ class Handler(BaseHTTPRequestHandler):
         db.log("web", {"event": "amele_created", "amele": slug})
         self._json({"ok": True, "id": amele_id, "slug": slug}, 201)
 
-    def _v2_ameleler_edit(self):
+    def _v2_ameles_edit(self):
         data = self._read_body()
         db = self.server.db
         amele = db.get_amele(int(data.get("id") or 0))
@@ -462,7 +462,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         db.update_amele(amele["id"], updates)
         if "name" in updates or "description" in updates:
-            yaml_path = self.server.ameleler_dir / f"{amele['slug']}.yaml"
+            yaml_path = self.server.ameles_dir / f"{amele['slug']}.yaml"
             yaml_path.write_text(self._amele_yaml_text(
                 amele["slug"],
                 updates.get("name", amele["name"]),
@@ -470,7 +470,7 @@ class Handler(BaseHTTPRequestHandler):
         db.log("web", {"event": "amele_edited", "amele": amele["slug"]})
         self._json({"ok": True})
 
-    def _v2_ameleler_delete(self):
+    def _v2_ameles_delete(self):
         data = self._read_body()
         db = self.server.db
         amele = db.get_amele(int(data.get("id") or 0))
@@ -478,7 +478,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "amele not found"}, 404)
             return
         db.delete_amele(amele["id"])
-        yaml_path = self.server.ameleler_dir / f"{amele['slug']}.yaml"
+        yaml_path = self.server.ameles_dir / f"{amele['slug']}.yaml"
         if yaml_path.exists():
             yaml_path.unlink()
         db.log("web", {"event": "amele_deleted", "amele": amele["slug"]})
@@ -495,7 +495,7 @@ class Handler(BaseHTTPRequestHandler):
         if q:
             rows = [r for r in rows
                     if q in json.dumps(r["data"], ensure_ascii=False).lower()]
-        names = {a["id"]: a for a in db.list_ameleler()}
+        names = {a["id"]: a for a in db.list_ameles()}
         for r in rows:
             a = names.get(r["amele_id"])
             r["amele_slug"] = a["slug"] if a else "?"
@@ -572,7 +572,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if karar == "approved":
             amele = db.get_amele(pa["amele_id"])
-            yaml_path = (self.server.ameleler_dir / f"{amele['slug']}.yaml"
+            yaml_path = (self.server.ameles_dir / f"{amele['slug']}.yaml"
                          if amele else None)
             if yaml_path and yaml_path.exists():
                 task = (f"Owner's approval reply: APPROVED.\n"
@@ -660,7 +660,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _mcp_sync_yaml(self, amele: dict) -> None:
         """Amele YAML'sındaki mcp bloğunu bağlı sunuculara göre yeniden yazar."""
-        path = self.server.ameleler_dir / f"{amele['slug']}.yaml"
+        path = self.server.ameles_dir / f"{amele['slug']}.yaml"
         if not path.exists():
             return
         text = path.read_text(encoding="utf-8")
@@ -807,8 +807,8 @@ class Handler(BaseHTTPRequestHandler):
         if not srv:
             self._json({"error": "sunucu bulunamadı"}, 404)
             return
-        # bağlı amelelerden YAML'ı temizle
-        for a in db.list_ameleler():
+        # bağlı amelesden YAML'ı temizle
+        for a in db.list_ameles():
             if any(b["id"] == srv["id"] for b in db.list_amele_mcp(a["id"])):
                 self._mcp_sync_yaml(a)
         db.delete_mcp_server(srv["id"])
@@ -860,7 +860,7 @@ class Handler(BaseHTTPRequestHandler):
         if srv["id"] not in bound:
             self._json({"error": "sunucu bu ameleye bağlı değil"}, 400)
             return
-        yaml_path = self.server.ameleler_dir / f"{amele['slug']}.yaml"
+        yaml_path = self.server.ameles_dir / f"{amele['slug']}.yaml"
         if not yaml_path.exists():
             self._json({"error": "YAML yok"}, 404)
             return
@@ -896,9 +896,9 @@ class Handler(BaseHTTPRequestHandler):
             if not auth:
                 continue
             # oauth sunucusu bağlı olan ilk amelenin YAML'ı ile status
-            for a in db.list_ameleler():
+            for a in db.list_ameles():
                 if any(b["id"] == s["id"] for b in db.list_amele_mcp(a["id"])):
-                    yaml_path = self.server.ameleler_dir / f"{a['slug']}.yaml"
+                    yaml_path = self.server.ameles_dir / f"{a['slug']}.yaml"
                     if yaml_path.exists():
                         env = {**os.environ, "KAHYA_LANGUAGE_NAME": "English"}
                         try:
@@ -934,9 +934,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         # oauth sunucusu bağlı olan ilk amelenin YAML'ı
         yaml_path = None
-        for a in db.list_ameleler():
+        for a in db.list_ameles():
             if any(b["id"] == srv["id"] for b in db.list_amele_mcp(a["id"])):
-                yaml_path = self.server.ameleler_dir / f"{a['slug']}.yaml"
+                yaml_path = self.server.ameles_dir / f"{a['slug']}.yaml"
                 break
         if not yaml_path or not yaml_path.exists():
             self._json({"error": "önce sunucuyu bir ameleye bağlayın"}, 400)
@@ -967,7 +967,7 @@ class Handler(BaseHTTPRequestHandler):
         binds = {}
         for row in db.con.execute(
                 "SELECT a.server_id, m.slug FROM amele_mcp a "
-                "JOIN ameleler m ON m.id = a.amele_id").fetchall():
+                "JOIN ameles m ON m.id = a.amele_id").fetchall():
             binds.setdefault(row["server_id"], []).append(row["slug"])
         out = []
         for s in db.list_mcp_servers():
@@ -976,7 +976,7 @@ class Handler(BaseHTTPRequestHandler):
                 d["headers"] = json.loads(d.get("headers") or "{}")
             except (TypeError, json.JSONDecodeError):
                 d["headers"] = {}
-            d["ameleler"] = binds.get(s["id"], [])
+            d["ameles"] = binds.get(s["id"], [])
             out.append(d)
         self._json({"mcp_servers": out})
 
@@ -1024,9 +1024,9 @@ class Handler(BaseHTTPRequestHandler):
         if not probe_cfg.model or not probe_cfg.base_url:
             self._json({"error": "model/endpoint eksik"}, 400)
             return
-        probe = self.server.ameleler_dir / "extract-amele.yaml"
+        probe = self.server.ameles_dir / "extract-amele.yaml"
         try:
-            res = run_amele(probe_cfg, probe, "test: 1 TL deneme faturası", timeout_s=60)
+            res = run_amele(probe_cfg, probe, "test: 1 TL trial invoice", timeout_s=60)
             self._json({"ok": True, "detail": str(res)[:200]})
         except AmeleError as e:
             self._json({"error": f"amele exit {e.exit_code}: {e}", "ok": False}, 502)
@@ -1043,7 +1043,7 @@ def serve(cfg: Config, db: KahyaDB):
     srv.db = db
     srv.cfg = cfg
     srv.web_dir = cfg.dir / "web"
-    srv.ameleler_dir = cfg.ameleler_dir
+    srv.ameles_dir = cfg.ameles_dir
     srv.telegram_send = _telegram_send_factory(cfg)
     print(f"[kahya web] panel on http://0.0.0.0:{cfg.web_port}/")
     try:

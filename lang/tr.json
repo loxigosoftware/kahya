@@ -1,8 +1,8 @@
 {
   "lang_name": "Türkçe",
   "bot": {
-    "start_welcome": "🧑💼 <b>Kâhya</b> — evinizin ve küçük işletmenizin kâhyası.\n\nBana doğal dille yazın:\n• <i>\"3000 TL su faturası geldi, son ödeme 19 ağustos\"</i>\n• <i>\"Kedi Pamuk'un kuduz aşısı 3 eylülde\"</i>\n• <i>\"Her ayın 20'sinde kira hatırlat\"</i>\n• <i>\"Kuduz aşısı ne zamandı?\"</i> (soru sorabilirsiniz)\n\nKomutlar: <b>/help</b> ile tümünü görün.",
-    "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille konuşun — Kâhya uygun ameleye iletir.\n\n<b>Komutlar:</b>\n/amele — ameleleri listeler\n/help — bu liste\n/iptal — akışı/oturumu iptal\n\n<b>Doğrudan amele:</b>\n/<slug> ... — mesajı o ameleye gönderir\n/<slug> — o ameleyle sohbet moduna girer",
+    "start_welcome": "🧑💼 <b>Kâhya</b> — evinizin ve küçük işletmenizin kâhyası.\n\nBana doğal dille yazın:\n• <i>\"3000 TL su invoice geldi, son ödeme 19 ağustos\"</i>\n• <i>\"Kedi Pamuk'un kuduz aşısı 3 eylülde\"</i>\n• <i>\"Her ayın 20'sinde kira hatırlat\"</i>\n• <i>\"Kuduz aşısı ne zamandı?\"</i> (soru sorabilirsiniz)\n\nKomutlar: <b>/help</b> ile tümünü görün.",
+    "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille konuşun — Kâhya uygun ameleye iletir.\n\n<b>Komutlar:</b>\n/amele — amelesi listeler\n/help — bu liste\n/iptal — akışı/oturumu iptal\n\n<b>Doğrudan amele:</b>\n/<slug> ... — mesajı o ameleye gönderir\n/<slug> — o ameleyle sohbet moduna girer",
     "unknown_user": "Bu kâhya başka bir evin kâhyası. 🏠",
     "understand_error": "Anlayamadım ({code}). Daha net yazın veya <b>/iptal</b>.",
     "extract_invalid": "Bunu çözemedim — biraz daha açık anlatır mısın?",
@@ -44,16 +44,16 @@
     "wizard_edit_new_role": "Yeni görev tanımı:",
     "wizard_edit_done": "✅ <b>{name}</b> güncellendi.",
     "job_flow_title": "📝 Görev ekleme (sihirbaz)",
-    "job_flow_ask": "Görevi doğal dille yazın:\n<i>\"3000 TL su faturası geldi, son ödeme 19 ağustos\"</i>",
+    "job_flow_ask": "Görevi doğal dille yazın:\n<i>\"3000 TL su invoice geldi, son ödeme 19 ağustos\"</i>",
     "job_flow_done": "Görev kaydedildi ✅",
     "session_started": "💬 <b>{name}</b> ile sohbet modu — sonraki mesajlar bu ameleye gider. Çıkmak için <b>/iptal</b>.",
     "amele_not_found": "Amele bulunamadı: <code>{slug}</code>. <b>/amele</b> ile listeye bakın.",
     "unknown_command": "Bilinmeyen komut. <b>/amele</b> ve <b>/help</b>'e bakın — amele yönetimi (ekleme, düzenleme, silme) web panelinde.",
     "approval_forwarded": "✅ Onayınız {name} amelesine iletildi.",
     "approval_cancelled": "İptal edildi — {name} amelesine bildirildi.",
-    "ameleler_header": "🤖 <b>Ameleler:</b>",
-    "ameleler_none": "Henüz amele yok. Web panelinden ilk amelenizi oluşturun.",
-    "ameleler_records": "{n} kayıt",
+    "ameles_header": "🤖 <b>Ameles:</b>",
+    "ameles_none": "Henüz amele yok. Web panelinden ilk amelenizi oluşturun.",
+    "ameles_records": "{n} kayıt",
     "approval_ask": "📋 <b>{amele}:</b> {soru}\n\nOnaylıyor musun? <b>evet</b> / <b>hayır</b> / <b>iptal</b>",
     "task_failed": "⚠️ Zamanlanmış görev çalışmadı: <b>{isim}</b> — {hata}\nGörev beklemeye alındı, tekrar denenir."
   },
@@ -125,8 +125,8 @@
     "items_done_btn": "tamamla",
     "items_empty": "Açık görev yok. 🌿",
     "items_completed": "Tamamlandı ✅",
-    "ameleler_delete": "sil",
-    "ameleler_delete_confirm": "Bu ameleyi silmek istediğinize emin misiniz? Görevleri genel alana taşınır.",
+    "ameles_delete": "sil",
+    "ameles_delete_confirm": "Bu ameleyi silmek istediğinize emin misiniz? Görevleri genel alana taşınır.",
     "logs_title": "Geçmiş",
     "logs_hint": "Her amele çalışması ve bot etkinliği burada izlenir.",
     "logs_time": "Zaman",
@@ -138,12 +138,12 @@
     "footer": "Loxigo Software — <a href=\"https://www.loxigo.com\" target=\"_blank\">www.loxigo.com</a>",
     "test_message": "🧪 Kâhya test mesajı — bağlantı çalışıyor ✅",
     "tabs_overview": "Genel Bakış",
-    "tabs_ameleler": "Ameleler",
+    "tabs_ameles": "Ameles",
     "tabs_kayitlar": "Kayıtlar",
     "tabs_onaylar": "Onaylar",
     "tabs_mcp": "MCP Sunucuları",
     "overview_title": "Genel Bakış",
-    "overview_ameleler": "Ameleler",
+    "overview_ameles": "Ameles",
     "overview_kayitlar": "Kayıtlar",
     "overview_onaylar": "Bekleyen onay",
     "overview_gorevler": "Bekleyen görev",
@@ -151,7 +151,7 @@
     "overview_yaklasan_empty": "Yaklaşan görev yok.",
     "overview_gecikti": "gecikti!",
     "amele_new": "Yeni amele",
-    "amele_new_hint": "Amele = görev tanımı + model + opsiyonel şema. Kaydedilince YAML dosyası ameleler/ altına yazılır.",
+    "amele_new_hint": "Amele = görev tanımı + model + opsiyonel şema. Kaydedilince YAML dosyası ameles/ altına yazılır.",
     "amele_name": "Amele adı",
     "amele_slug": "Slug (küçük harf, tire)",
     "amele_description": "Görev tanımı (role prompt)",
@@ -178,7 +178,7 @@
     "kayit_amele": "Amele",
     "kayit_ara": "Ara (tüm alanlarda)",
     "kayit_ekle": "Kayıt ekle",
-    "record_json_ph": "JSON — örn. {\"ad\": \"Su faturası\", \"tutar\": 300}",
+    "record_json_ph": "JSON — örn. {\"ad\": \"Su invoice\", \"tutar\": 300}",
     "kayit_duzenle": "düzenle",
     "kayit_sil": "sil",
     "kayit_empty": "Bu amelenin kaydı yok.",
@@ -187,7 +187,7 @@
     "kayit_tablo": "Şema görünümü",
     "record_json_view": "JSON görünümü",
     "onay_title": "Bekleyen onaylar",
-    "onay_hint": "Ameleler onay gerektiren bir aksiyon istediğinde buraya düşer. Karar verince ameleye iletilir.",
+    "onay_hint": "Ameles onay gerektiren bir aksiyon istediğinde buraya düşer. Karar verince ameleye iletilir.",
     "onay_evet": "✅ Onayla",
     "onay_hayir": "❌ İptal et",
     "onay_empty": "Bekleyen onay yok. 🌿",
@@ -197,16 +197,16 @@
     "mcp_step8": "MCP bağlama (katalog arama, sunucu ekleme, amele bağlama, sorumluluk beyanı) bir sonraki sürümde geliyor (Step 8).",
     "mcp_empty": "Henüz MCP sunucusu yok. Yukarıdan katalogda arayın veya elle ekleyin.",
     "mcp_tip": "Tip",
-    "mcp_ameleler": "Bağlı ameleler",
+    "mcp_ameles": "Bağlı ameles",
     "backup_db": "💾 DB yedeği indir",
     "backup_history": "🗂️ Geçmiş (konuşma arşivi) indir",
     "backup_hint": "Veriler Pi içindeki proje klasöründe tutulur. Dilediğiniz an yedek indirebilirsiniz.",
-    "settings_llm_hint": "Sistem modeli — yalnızca Kahya (orkestratör) kullanır. Ameleler kendi modelini Ayarları'ndan alır (Ameleler sekmesi).",
+    "settings_llm_hint": "Sistem modeli — yalnızca Kahya (orkestratör) kullanır. Ameles kendi modelini Ayarları'ndan alır (Ameles sekmesi).",
     "settings_smithery": "Smithery API anahtarı",
     "settings_smithery_hint": "MCP kataloğu için (bir sonraki sürümde kullanılır).",
     "settings_smithery_set": "Kayıtlı",
-    "ameleler_delete_yes": "Evet, sil",
-    "ameleler_delete_no": "Vazgeç",
+    "ameles_delete_yes": "Evet, sil",
+    "ameles_delete_no": "Vazgeç",
     "mcp_liability_title": "⚠️ Sorumluluk beyanı",
     "mcp_liability_body": "Smithery'den veya elle bağlanan MCP sunucuları **üçüncü taraf kodudur**; güvenilirliği seçilen sunucuya bağlıdır. Kâhya yalnızca bağlama altyapısını sunar, sunucunun doğruluğunu garanti etmez. Tüm veriler **kendi cihazında** saklanır; bağlanan bir sunucuya yalnız o ameleye verdiğin görevler çerçevesinde veri gider. Hosted (bulutta çalışan) sunucularda veri üçüncü taraf sunucudan geçer — gizlilik istiyorsan self-hosted/stdio kurulum seç. Kabul etmeden hiçbir sunucu eklenemez veya bağlanamaz.",
     "mcp_liability_accept": "Anlıyorum, kabul ediyorum",
@@ -253,23 +253,23 @@
     },
     {
       "title": "💬 Telegram ile günlük kullanım",
-      "body": "Kâhya'ya doğal dille yazarsınız; kayıt mı soru mu olduğunu kendisi anlar.\n\n📝 Kayıt örnekleri:\n• \"3000 TL su faturası geldi, son ödeme 19 ağustos\"\n• \"Kedi Pamuk'un kuduz aşısı 3 eylülde\"\n• \"Her ayın 20'sinde kira hatırlat\"\n• \"Doğum günü: Ayşe, 5 mart\"\n• \"Cuma 14:00 müşteri toplantısı\"\nEksik bilgi varsa (örn. tarih) Kâhya sorar; sonra bir özet kartı gösterir ve onayınızı ister — hiçbir şey onaysız kaydedilmez.\n\n❓ Soru örnekleri:\n• \"Kuduz aşısı ne zamandı?\"\n• \"Bu ay hangi faturalar var?\"\n• \"Pamuk'un son aşısı ne zaman yapıldı?\"\n• \"Kira ne zaman ödenecek?\"\n\n✅ Görev tamamlama: hatırlatma aldıktan sonra \"ödedim\" ya da \"tamam\" yazın. Tekrarlı kayıtlar (aylık fatura gibi) otomatik olarak bir sonraki döneme taşınır."
+      "body": "Kâhya'ya doğal dille yazarsınız; kayıt mı soru mu olduğunu kendisi anlar.\n\n📝 Kayıt örnekleri:\n• \"3000 TL su invoice geldi, son ödeme 19 ağustos\"\n• \"Kedi Pamuk'un kuduz aşısı 3 eylülde\"\n• \"Her ayın 20'sinde kira hatırlat\"\n• \"Doğum günü: Ayşe, 5 mart\"\n• \"Cuma 14:00 müşteri toplantısı\"\nEksik bilgi varsa (örn. tarih) Kâhya sorar; sonra bir özet kartı gösterir ve onayınızı ister — hiçbir şey onaysız kaydedilmez.\n\n❓ Soru örnekleri:\n• \"Kuduz aşısı ne zamandı?\"\n• \"Bu ay hangi faturalar var?\"\n• \"Pamuk'un son aşısı ne zaman yapıldı?\"\n• \"Kira ne zaman ödenecek?\"\n\n✅ Görev tamamlama: hatırlatma aldıktan sonra \"ödedim\" ya da \"tamam\" yazın. Tekrarlı kayıtlar (aylık fatura gibi) otomatik olarak bir sonraki döneme taşınır."
     },
     {
       "title": "🎛️ Telegram komutları",
-      "body": "/ameleler — ameleleri listeler\n/add-amele — yeni amele ekler (sihirbaz: ad → slug → görev tanımı → onay)\n/edit-amele — ameleyin adını veya görev tanımını değiştirir\n/delete-amele — ameleyi siler (onay ister, görevleri genel alana taşınır)\n/jobs — açık görevleri listeler\n/add-job — görev ekler (sihirbaz)\n/done — hatırlatma penceresindeki görevi tamamlar\n/settings — kurulum özeti\n/help — komut listesi\n/iptal — başlayan akışı iptal eder\n\nBirden fazla görev penceredeyse \"/done\" hangisini tamamlayacağınızı sorar."
+      "body": "/ameles — amelesi listeler\n/add-amele — yeni amele ekler (sihirbaz: ad → slug → görev tanımı → onay)\n/edit-amele — ameleyin adını veya görev tanımını değiştirir\n/delete-amele — ameleyi siler (onay ister, görevleri genel alana taşınır)\n/jobs — açık görevleri listeler\n/add-job — görev ekler (sihirbaz)\n/done — hatırlatma penceresindeki görevi tamamlar\n/settings — kurulum özeti\n/help — komut listesi\n/iptal — başlayan akışı iptal eder\n\nBirden fazla görev penceredeyse \"/done\" hangisini tamamlayacağınızı sorar."
     },
     {
       "title": "🤖 Amele kavramı",
-      "body": "Amele = bir rol + o role ait görevler. Kâhya'da her amele gerçek bir amele YAML dosyasıdır (ameleler/<slug>.yaml) — \"organization as code\": amele eklemek dosya eklemektir; versiyonlanır, paylaşılır, diff'lenir.\n\nPanelden veya Telegram'dan yeni amele yaratırken sadece adını ve görev tanımını yazarsınız:\n\"Fatura Takipçisi — faturaları ve son ödeme tarihlerini takip et, 2 gün önceden hatırlat.\"\n\nSistem görev tanımınızı amelenın sistem promptuna çevirir. Ameleın \"işi\" yokken hiçbir şey çalışmaz: vadesi gelince spawn olur, hatırlatmayı gönderir, çıkar.\n\nÖrnek amele fikirleri: Fatura Takipçisi, Evcil Hayvan Ameleı (aşılar, veteriner), Doğum Günü Ameleı, Abonelik Takipçisi (Netflix, bulut, domain yenileme), Araç Bakım Ameleı (muayene, yağ değişimi), İlaç Ameleı, Müşteri Takip Ameleı (teklif süreleri, sözleşme yenileme), Garanti Takipçisi, Ödeme Planı Ameleı (taksitler)."
+      "body": "Amele = bir rol + o role ait görevler. Kâhya'da her amele gerçek bir amele YAML dosyasıdır (ameles/<slug>.yaml) — \"organization as code\": amele eklemek dosya eklemektir; versiyonlanır, paylaşılır, diff'lenir.\n\nPanelden veya Telegram'dan yeni amele yaratırken sadece adını ve görev tanımını yazarsınız:\n\"Fatura Takipçisi — faturaları ve son ödeme tarihlerini takip et, 2 gün önceden hatırlat.\"\n\nSistem görev tanımınızı amelenın sistem promptuna çevirir. Ameleın \"işi\" yokken hiçbir şey çalışmaz: vadesi gelince spawn olur, hatırlatmayı gönderir, çıkar.\n\nÖrnek amele fikirleri: Fatura Takipçisi, Evcil Hayvan Ameleı (aşılar, veteriner), Doğum Günü Ameleı, Abonelik Takipçisi (Netflix, bulut, domain yenileme), Araç Bakım Ameleı (muayene, yağ değişimi), İlaç Ameleı, Müşteri Takip Ameleı (teklif süreleri, sözleşme yenileme), Garanti Takipçisi, Ödeme Planı Ameleı (taksitler)."
     },
     {
       "title": "📋 Senaryo kitaplığı",
-      "body": "• Faturalar: \"Her ayın 20'sinde gelen su faturası\" → aylık tekrar, detay 20, hatırlatma 2 gün önce. Ödedikçe \"ödedim\" → bir sonraki ay otomatik açılır.\n• Evcil hayvan: aşı kayıtları yıllık tekrarlı; not alanına ırk/renk/yaş yazılabilir. \"Kuduz aşısı ne zamandı?\" diye sorabilirsiniz.\n• Doğum günleri: yıllık tekrar, detay 03-05; hatırlatma 3 gün önce.\n• Toplantılar: tek seferlik görevler; vade günü \"BUGÜN\" uyarısı alırsınız.\n• Abonelikler: aylık/yıllık; yenileme tarihinden önce hatırlatır.\n• Araç muayenesi: yıllık tekrar — muayene tarihini asla kaçırmazsınız.\n• Taksitli ödemeler: her ay aynı gün tekrarlı kayıt; tutarı yazın, ödeme planınızı takip edin.\n• Garantiler: satın alma tarihi + garanti süresi; süre dolmadan hatırlatın.\n\nÖnemli: Kâhya bir muhasebe programı değildir — ödemeleri kaydeder ve hatırlatır, yasal defter tutmaz."
+      "body": "• Faturalar: \"Her ayın 20'sinde gelen su invoice\" → aylık tekrar, detay 20, hatırlatma 2 gün önce. Ödedikçe \"ödedim\" → bir sonraki ay otomatik açılır.\n• Evcil hayvan: aşı kayıtları yıllık tekrarlı; not alanına ırk/renk/yaş yazılabilir. \"Kuduz aşısı ne zamandı?\" diye sorabilirsiniz.\n• Doğum günleri: yıllık tekrar, detay 03-05; hatırlatma 3 gün önce.\n• Toplantılar: tek seferlik görevler; vade günü \"BUGÜN\" uyarısı alırsınız.\n• Abonelikler: aylık/yıllık; yenileme tarihinden önce hatırlatır.\n• Araç muayenesi: yıllık tekrar — muayene tarihini asla kaçırmazsınız.\n• Taksitli ödemeler: her ay aynı gün tekrarlı kayıt; tutarı yazın, ödeme planınızı takip edin.\n• Garantiler: satın alma tarihi + garanti süresi; süre dolmadan hatırlatın.\n\nÖnemli: Kâhya bir muhasebe programı değildir — ödemeleri kaydeder ve hatırlatır, yasal defter tutmaz."
     },
     {
       "title": "🛠️ LLM ayarları",
-      "body": "Kâhya her OpenAI-uyumlu uç ile çalışır; doğrudan model çağırmaz, her adım ameleler üzerinden geçer.\n\nYerel (Ollama): Ayarlar → LLM → Endpoint: http://<makine-ip>:11434/v1, anahtar boş. Aynı ağdaki herhangi bir makinedeki Ollama olabilir — veriler evinizde kalır.\n\nBulut: OpenAI (https://api.openai.com/v1 + anahtar), OpenRouter (https://openrouter.ai/api/v1 + anahtar) veya başka bir OpenAI-uyumlu servis. Model adı sağlayıcıya göre yazılır (gpt-4.1-mini, openai/gpt-4.1-mini...).\n\nAyarlar anında etkilidir — yeniden başlatma gerekmez. \"Test bağlantısı\" butonu ile doğrulayın."
+      "body": "Kâhya her OpenAI-uyumlu uç ile çalışır; doğrudan model çağırmaz, her adım ameles üzerinden geçer.\n\nYerel (Ollama): Ayarlar → LLM → Endpoint: http://<makine-ip>:11434/v1, anahtar boş. Aynı ağdaki herhangi bir makinedeki Ollama olabilir — veriler evinizde kalır.\n\nBulut: OpenAI (https://api.openai.com/v1 + anahtar), OpenRouter (https://openrouter.ai/api/v1 + anahtar) veya başka bir OpenAI-uyumlu servis. Model adı sağlayıcıya göre yazılır (gpt-4.1-mini, openai/gpt-4.1-mini...).\n\nAyarlar anında etkilidir — yeniden başlatma gerekmez. \"Test bağlantısı\" butonu ile doğrulayın."
     },
     {
       "title": "🔐 Gizlilik ve veri",

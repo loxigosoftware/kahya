@@ -2,7 +2,7 @@
 # Kahya günlük yedek (REDESIGN §5: yedekler proje klasöründe — kullanıcı
 # dışarı taşımakta özgür).
 #
-# Alınanlar: data/kahya.db (SQLite online backup) + ameleler/ + tools/ +
+# Alınanlar: data/kahya.db (SQLite online backup) + ameles/ + tools/ +
 # .env (varsa) → kahya-yedek-<YYYYMMDD>/
 #
 # Kullanım:
@@ -36,10 +36,10 @@ finally:
 print(f"  db → {dst}")
 EOF
 
-# ameleler (YAML config'leri) — proje içindeki her yedekte yer alır
-if [ -d ameleler ]; then
-  cp -r ameleler "$DEST/ameleler"
-  echo "  ameleler/ → $DEST/ameleler"
+# ameles (YAML config'leri) — proje içindeki her yedekte yer alır
+if [ -d ameles ]; then
+  cp -r ameles "$DEST/ameles"
+  echo "  ameles/ → $DEST/ameles"
 fi
 
 # geçmiş dump: konuşma arşivi okunabilir formatta (JSONL)

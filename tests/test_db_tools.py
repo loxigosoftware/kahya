@@ -28,23 +28,23 @@ def check(name, cond, extra=""):
         fails.append(name)
 
 
-# --- ameleler (v1 uyumluluk) ---
-db.create_amele("fatura", "Fatura Takipçisi", "track bills", "ameleler/fatura.yaml")
-db.create_amele("pets", "Evcil Hayvan Amele", "pet care", "ameleler/pets.yaml")
-check("2 ameleler created", len(db.list_ameleler()) == 2)
+# --- ameles (v1 uyumluluk) ---
+db.create_amele("fatura", "Fatura Takipçisi", "track bills", "ameles/fatura.yaml")
+db.create_amele("pets", "Evcil Hayvan Amele", "pet care", "ameles/pets.yaml")
+check("2 ameles created", len(db.list_ameles()) == 2)
 check("get_amele_by_slug", db.get_amele_by_slug("fatura")["name"] == "Fatura Takipçisi")
 
 # --- items ---
 today = date.today()
 due = (today + timedelta(days=2)).isoformat()
 bill_id = db.insert_item({
-    "title": "Su faturası", "kind": "bill", "amount": 3000, "currency": "TRY",
+    "title": "Su invoice", "kind": "bill", "amount": 3000, "currency": "TRY",
     "due_date": due, "repeat_rule": "monthly", "repeat_detail": "20",
     "remind_before_days": 2,
 }, amele_id=1)
 check("bill inserted", bill_id > 0)
 got = db.get_item(bill_id)
-check("bill fields", got["title"] == "Su faturası" and got["amount"] == 3000.0)
+check("bill fields", got["title"] == "Su invoice" and got["amount"] == 3000.0)
 
 # --- reminder window ---
 # due in 2 days, remind 2 before → today is exactly the window start

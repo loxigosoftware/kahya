@@ -95,7 +95,7 @@ class Bot:
         self.tg = TG(cfg.telegram_token)
         self.offset = 0
         self.i18n = I18n(cfg.dir / "lang", cfg.language)
-        self.kahya_yaml = cfg.ameleler_dir / "kahya.yaml"
+        self.kahya_yaml = cfg.ameles_dir / "kahya.yaml"
         self._amele_index_cache: Optional[list[dict]] = None
         self._registered_amele_count = -1
 
@@ -145,9 +145,9 @@ class Bot:
             self._amele_index_cache = self.db.amele_index()
         return self._amele_index_cache
 
-    def _ameleler(self) -> list[dict]:
-        """Etkin ameleler (komut eşleştirme için)."""
-        return [a for a in self.db.list_ameleler() if a.get("enabled", 1)]
+    def _ameles(self) -> list[dict]:
+        """Etkin ameles (komut eşleştirme için)."""
+        return [a for a in self.db.list_ameles() if a.get("enabled", 1)]
 
     def _slug_by_command(self, low: str) -> Optional[str]:
         """'/<komut>' → amele slug. Tire/alt çizgi farkını yok sayar
@@ -157,7 +157,7 @@ class Bot:
         if not cmd:
             return None
         norm = cmd.replace("_", "-")
-        for a in self._ameleler():
+        for a in self._ameles():
             if a["slug"] == norm or a["slug"].replace("-", "_") == cmd:
                 return a["slug"]
         return None
@@ -165,8 +165,8 @@ class Bot:
     def _register_commands(self) -> None:
         """Publish the /-menu: /amele, /help, /iptal + every enabled
         amele's own /<slug> (underscored — Telegram allows only a-z0-9_)."""
-        ameleler = self._ameleler()
-        n = len(ameleler)
+        ameles = self._ameles()
+        n = len(ameles)
         if n == self._registered_amele_count:
             return
         cmds: list[tuple[str, str]] = [
@@ -174,7 +174,7 @@ class Bot:
             ("help", "Komut listesi"),
             ("iptal", "Akışı/oturumu iptal"),
         ]
-        for a in ameleler:
+        for a in ameles:
             cmds.append((a["slug"].replace("-", "_"), a["name"]))
         try:
             ok = self.tg.set_commands(cmds)
@@ -202,7 +202,7 @@ class Bot:
         return self._run(self.kahya_yaml, self._with_context(task, context))
 
     def _ask_amele(self, slug: str, message: str, context: str = "") -> str:
-        yaml_path = self.cfg.ameleler_dir / f"{slug}.yaml"
+        yaml_path = self.cfg.ameles_dir / f"{slug}.yaml"
         if not yaml_path.exists():
             raise AmeleError(1, f"amele YAML'ı yok: {slug}")
         task = f"Owner message:\n{message}"
@@ -213,16 +213,16 @@ class Bot:
     def _cmd_help(self, chat_id: int) -> None:
         self._send(chat_id, self._t("bot.help"))
 
-    def _cmd_ameleler(self, chat_id: int) -> None:
-        ameleler = self._ameleler()
-        if not ameleler:
-            self._send(chat_id, self._t("bot.ameleler_none"))
+    def _cmd_ameles(self, chat_id: int) -> None:
+        ameles = self._ameles()
+        if not ameles:
+            self._send(chat_id, self._t("bot.ameles_none"))
             return
-        lines = [self._t("bot.ameleler_header"), ""]
-        for a in ameleler:
+        lines = [self._t("bot.ameles_header"), ""]
+        for a in ameles:
             n = self.db.count_records(a["id"])
             lines.append(f"• <b>{a['name']}</b> (<code>/{a['slug']}</code>) — "
-                         f"{self._t('bot.ameleler_records', n=n)}")
+                         f"{self._t('bot.ameles_records', n=n)}")
         self._send(chat_id, "\n".join(lines))
 
     def _cmd_session(self, chat_id: int, slug: str) -> None:
@@ -251,7 +251,7 @@ class Bot:
         akışı Step 6'da pending_actions yönetimiyle derinleşir)."""
         amele = self.db.get_amele(pa["amele_id"])
         name = amele["name"] if amele else pa["amele_id"]
-        yaml_path = self.cfg.ameleler_dir / f"{amele['slug']}.yaml" if amele else None
+        yaml_path = self.cfg.ameles_dir / f"{amele['slug']}.yaml" if amele else None
         if yaml_path and yaml_path.exists():
             try:
                 task = (f"Owner's approval reply: {verdict.upper()}.\n"
@@ -287,7 +287,7 @@ class Bot:
             parts = low.split()
             if len(parts) >= 2 and parts[-1] in words:
                 name = " ".join(parts[:-1]).replace("-", " ").strip()
-                for a in self.db.list_ameleler():
+                for a in self.db.list_ameles():
                     slug = a.get("slug", "").replace("-", " ")
                     if name in (slug, a.get("name", "").lower()):
                         pa = next(
@@ -313,7 +313,7 @@ class Bot:
                 self._forward_approval(chat_id, pa, "cancelled")
                 return True
             if in_session:
-                return False  # oturum amelesine gitsin — onay cevabı olabilir
+                return False  # let the session amele handle it — may be an approval reply
             self.db.set_chat_state(chat_id, {})
             self._send(chat_id, self._t("bot.cancel_ok"))
             return True
@@ -365,8 +365,8 @@ class Bot:
         if low in ("/help", "help", "yardım", "yardim"):
             self._cmd_help(chat_id)
             return
-        if low in ("/amele", "/ameleler", "amele", "ameleler", "amelist"):
-            self._cmd_ameleler(chat_id)
+        if low in ("/amele", "/ameles", "amele", "ameles", "amelist"):
+            self._cmd_ameles(chat_id)
             return
         if low in ("/iptal", "/cancel", "iptal", "cancel"):
             self._cmd_cancel(chat_id)

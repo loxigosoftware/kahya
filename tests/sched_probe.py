@@ -14,7 +14,7 @@ cfg = Config()
 db = KahyaDB(cfg.db_path)
 today = date.today()
 iid = db.insert_item({
-    "title": "Yaklaşan fatura", "amount": 150, "currency": "TRY",
+    "title": "Upcoming bill", "amount": 150, "currency": "TRY",
     "due_date": (today + timedelta(days=2)).isoformat(),
     "remind_before_days": 2,
 })

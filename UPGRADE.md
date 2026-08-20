@@ -50,13 +50,13 @@ the owner decision by decision. This `UPGRADE.md` is your execution plan.
 ## ✅ Adım listesi (ana tikler)
 
 - [x] **Step 0** — Hazırlık: yedek, git branch, mevcut testlerin doğrulanması
-- [x] **Step 1** — DB migration: schema v2 (records, ameleler+model, amele_mcp, pending_actions, scheduled_tasks, conversation_messages+FTS) + veri dönüşümü
+- [x] **Step 1** — DB migration: schema v2 (records, ameles+model, amele_mcp, pending_actions, scheduled_tasks, conversation_messages+FTS) + veri dönüşümü
 - [x] **Step 2** — Amele altyapısı: db_get/db_put yeniden yazımı + JSON doğrulama + amele index + model atama + ajan→amele adlandırma
-- [x] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameleler / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
+- [x] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameles / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
 - [x] **Step 4** — Bot (Telegram): yeni komut seti (`/amele`, otomatik `/<slug>`), yönlendirme, oturum modu, eski komutların kaldırılması, i18n (amele çevrilmez)
 - [x] **Step 5** — Konuşma belleği: conversation_messages kaydı, 40 mesajda bir arşivleme, FTS arama, "geçmişten bak" akışı, gece yedekleme
 - [ ] **Step 6** — Onay akışı + zamanlanmış görev: pending_actions yönetimi (başlıkta amele adı, en güncel eşleşme), scheduled_tasks tarayıcı (success/fallback)
-- [ ] **Step 7** — Panel (web): Ameleler (CRUD + şema editor + model seçimi), Kayıtlar, Onaylar, Ayarlar, Tasks kaldırma, DB/Geçmiş indir butonları
+- [ ] **Step 7** — Panel (web): Ameles (CRUD + şema editor + model seçimi), Kayıtlar, Onaylar, Ayarlar, Tasks kaldırma, DB/Geçmiş indir butonları
 - [ ] **Step 8** — MCP / Smithery: katalog arama, sunucu ekleme, amele bağlama, `amele mcp login`, sorumluluk beyanı ekranı
 - [ ] **Step 9** — Test & yayın: uçtan uca senaryolar, Pi'de canlı kurulum, README güncelleme, v1 kapanış
 
@@ -86,7 +86,7 @@ Alt görevler:
 Alt görevler:
 
 - [x] `scripts/migrate_v2.py` yaz: mevcut DB'yi oku, yeni şemayı kur, veriyi taşı
-- [x] `agents` tablosu → `ameleler` (rename) + yeni alanlar: `model_kind` (local|api, default local), `model_name`, `model_cfg`
+- [x] `agents` tablosu → `ameles` (rename) + yeni alanlar: `model_kind` (local|api, default local), `model_name`, `model_cfg`
 - [x] `items` → `records`: title→`ad`, amount/currency→`tutar`, due_date→`due_date`, note→`not`, kind→`tür` (REDESIGN §9)
 - [x] `reminders` tablosunu kaldır (geçmiş logs'ta zaten var; veri kaybı yok)
 - [x] Yeni tablolar: `mcp_servers`, `amele_mcp`, `pending_actions` (lang alanı dahil), `scheduled_tasks` (status: pending|success|failed), `conversation_messages` (+ index'ler), `conversation_fts` (FTS5; FTS5 yoksa LIKE fallback notu)
@@ -102,17 +102,17 @@ Alt görevler:
 
 ## Step 2 — Amele altyapısı
 
-**Amaç:** Amelelerin veri sözleşmesi ve model esnekliği (REDESIGN §2.3, §2.4).
+**Amaç:** Amelesin veri sözleşmesi ve model esnekliği (REDESIGN §2.3, §2.4).
 
 Alt görevler:
 
 - [x] `tools/db_get.py` / `tools/db_put.py`'yi records sözleşmesine göre yeniden yaz (op: get/put/list/search; serbest JSON; şema sütunlarına dokunmaz)
 - [x] **JSON doğrulama:** db_put tarafında (a) geçerli JSON, (b) şema varsa şemaya uygunluk kontrolü; hatalıysa hata çıktısı (amele yeniden üretir, max 2 deneme; yine olmazsa kullanıcıya rapor — bozuk JSON DB'ye asla yazılmaz)
-- [x] **Amele index üretimi:** `kahya/db.py`'ye fonksiyon — `ameleler` tablosundan `id, slug, tek satır açıklama` listesi üret (amele CRUD'unda ve bot başlangıcında çağrılır)
+- [x] **Amele index üretimi:** `kahya/db.py`'ye fonksiyon — `ameles` tablosundan `id, slug, tek satır açıklama` listesi üret (amele CRUD'unda ve bot başlangıcında çağrılır)
 - [x] **Model atama:** amele YAML'sine `model:` bloğu desteği; `amele_runner` her ameleyi kendi modeliyle çalıştırır (local: Ollama/yerel endpoint; api: dış sağlayıcı; anahtarlar ${VAR} referansı, asla düz metin)
-- [x] Sistem ayarlarındaki LLM ayarının **yalnız Kahya** için kullanıldığını doğrula (başka ameleler onu kullanmaz)
+- [x] Sistem ayarlarındaki LLM ayarının **yalnız Kahya** için kullanıldığını doğrula (başka ameles onu kullanmaz)
 - [x] **Ajan → amele adlandırma:** `agents/*.yaml` dosyalarını `-amele` sonekli adlarla yeniden adlandır (`pets-amele`, `fatura-amele`, `reminder-amele`...); içlerindeki "agent/ajan" kelimelerini temizle; amele prompt'larını jenerik görev/olay formatına çevir (REDESIGN §9.3)
-- [x] Örnek amele ekle: `mail-amele.yaml` ve `hatirlatıcı-amele.yaml` şablonları (kullanıcının verdiği örnekler)
+- [x] Örnek amele ekle: `mail-amele.yaml` ve `reminder-amele.yaml` şablonları (kullanıcının verdiği örnekler)
 
 **Kabul kriterleri:** Bir amele Telegram mesajından kayıt yazabiliyor (doğru JSON + doğrulama); bozuk JSON reddediliyor; her amele farklı modelde çalışıyor; index üretimi çalışıyor.
 
@@ -127,7 +127,7 @@ Alt görevler:
 Alt görevler:
 
 - [x] `tools/get_amele_profile.py` — amele_id → tam tanım (açıklama, şema, tool listesi, bağlı MCP sunucuları)
-- [x] `tools/find_ameleler.py` — anahtar kelime araması (index'te eşleşme yoksa güvence)
+- [x] `tools/find_ameles.py` — anahtar kelime araması (index'te eşleşme yoksa güvence)
 - [x] `tools/call_amele.py` — subprocess ile amele_runner'ı çağırır (REDESIGN §11 notu)
 - [x] `tools/search_history.py` — arşivde tam metin arama (Step 5 ile birlikte bağlanır)
 - [x] `agents/kahya.yaml` (Kahya config) yeniden yaz: kimlik + **kompakt amele index** (DB'den, ~600 token) + tool'lar + konuşma kalıpları ("amele bakıyorum", "x amelesine gönderilsin mi? evet / hayır")
@@ -137,7 +137,7 @@ Alt görevler:
 
 **Kabul kriterleri:** Kahya bir mesajı doğru ameleye yönlendiriyor; index promptta görünüyor; 3 paslama sonrası zincir duruyor ve raporlanıyor.
 
-**İlgili dosyalar:** `agents/kahya.yaml`, `tools/call_amele.py`, `tools/get_amele_profile.py`, `tools/find_ameleler.py`, `kahya/amele_runner.py`
+**İlgili dosyalar:** `agents/kahya.yaml`, `tools/call_amele.py`, `tools/get_amele_profile.py`, `tools/find_ameles.py`, `kahya/amele_runner.py`
 
 ---
 
@@ -192,7 +192,7 @@ Alt görevler:
 - [x] Onay sorusu **başlığında amele adı**: "📋 **mail-amele:** şunu yapmak istiyor — <özet>. Onaylıyor musun? evet / hayır / iptal" (seçili dilde)
 - [x] **Eşleştirme:** cevap en güncel bekleyenle (asked_at DESC) eşleşir; "mail-amele evet" formatıyla eski onaya da cevap verilebilir
 - [x] Onaylanınca amele `onay_id` ile çağrılır; red/iptal → döngü sonlanır
-- [x] `scheduler.py`'yi yeniden yaz: `scheduled_tasks` tarayıcı (vadesi gelen → `{"olay": "zaman", "record_id": N}` ile ameleyi tetikle)
+- [x] `scheduler.py`'yi yeniden yaz: `scheduled_tasks` tarayıcı (vadesi gelen → `{"event": "time", "record_id": N}` ile ameleyi tetikle)
 - [x] **Durum/fallback:** başarılı → `status='success'` + logs; hata → 3 deneme (1 dk ara) → olmazsa `pending` + kullanıcıya bildirim; görev sessizce kaybolmaz
 - [x] Şemadaki `virtual` zaman alanlarından görev üretimi (REDESIGN §2.2)
 - [ ] Panelde Onaylar sekmesinden de karar verilebilmesi (Step 7'de bağlanır)
@@ -209,7 +209,7 @@ Alt görevler:
 
 Alt görevler:
 
-- [x] **Ameleler** sekmesi: CRUD (ad, slug, açıklama, durum) + **model seçimi** (local/api + model adı + ayarlar) + opsiyonel şema editor + MCP bağlama
+- [x] **Ameles** sekmesi: CRUD (ad, slug, açıklama, durum) + **model seçimi** (local/api + model adı + ayarlar) + opsiyonel şema editor + MCP bağlama
 - [x] **Kayıtlar** sekmesi: amele seç → şemalıysa tablo (display alanları) + arama; şemasızsa ham JSON liste/editor; ekle/düzenle/sil
 - [x] **Onaylar** sekmesi: bekleyen onaylar + karar (evet/hayır/iptal)
 - [x] **MCP Sunucuları** sekmesi (Step 8'de işlevsellik; sekme burada)
@@ -254,7 +254,7 @@ Alt görevler:
 Alt görevler:
 
 - [ ] Test senaryoları (tests/ veya canlı): mail→hatırlatma paslaması, arama→mail cevabı, `/mail-amele mailleri oku`, `/pets-amele` kayıt, oturum modu
-- [ ] Farklı amelelerde farklı modeller (lokal + api) çalışıyor
+- [ ] Farklı amelesde farklı modeller (lokal + api) çalışıyor
 - [ ] Paslama limiti (3) + onay eşleştirme (en güncel) + başlıkta amele adı
 - [ ] Uzun sohbet: bağlam penceresi + "geçmişten bak"
 - [ ] Smithery'den sunucu bağlama + beyan akışı

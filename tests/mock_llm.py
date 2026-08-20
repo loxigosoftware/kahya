@@ -11,9 +11,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 DEFAULT = {
     "intent": "record",
-    "title": "Su faturasi",
+    "title": "Water bill",
     "kind": "bill",
-    "amele_slug": "fatura",
+    "amele_slug": "invoice-amele",
     "amount": 3000,
     "currency": "TRY",
     "due_date": "2026-08-19",

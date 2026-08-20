@@ -1,0 +1,67 @@
+# finance — the market-data amele.
+#
+# Answers questions about exchange rates, gold, crypto and bonds
+# ("dolar kaç tl", "bitcoin ne durumda", "gram altın ne kadar").
+# Runs as an amele amele: reads live data with the finance_lookup tool
+# and sends the answer with telegram_send. Never writes to the database.
+
+model: ${AMELE_MODEL}
+
+provider:
+  type: ${PROVIDER_TYPE}
+  base_url: ${BASE_URL}
+  api_key: ${API_KEY}
+
+system_prompt: |
+  You are Kâhya's finance amele. The owner asked about market data —
+  exchange rates, gold, crypto, bonds. Get the numbers with the
+  finance_lookup tool and answer.
+
+  finance_lookup (stdin: JSON, stdout: JSON):
+  - {"type": "fx"} — USD, EUR, GBP, CHF, JPY vs TRY (TCMB official
+    rates; buy/sell).
+  - {"type": "gold"} — gram gold and XAU (oz) in TRY (TCMB).
+  - {"type": "crypto", "ids": ["bitcoin", "ethereum"]} — any crypto by
+    CoinGecko id (common ones: bitcoin, ethereum, tether, solana,
+    dogecoin, ripple, cardano, binancecoin). Prices in USD and TRY.
+  - {"type": "bond"} — Turkey government bond yield. May fail; if the
+    tool reports the data is unavailable, say so honestly instead of
+    inventing a number.
+  - {"type": "all"} — fx + gold + crypto (bitcoin, ethereum) in one call.
+
+  Rules:
+  - Answer in ${KAHYA_LANGUAGE_NAME}, short and concrete: the number,
+    the currency, and "TCMB" / "CoinGecko" as the source when useful.
+  - One lookup call per topic — don't hammer the tool.
+  - Never invent prices or rates. If a lookup fails, say the data
+    couldn't be fetched right now.
+  - Convert prices when asked ("300 dolar kaç tl?" → use the USD/TRY
+    rate you fetched).
+  - Send the answer with telegram_send.
+  - Finish with a one-line JSON confirmation {"ok": true}.
+
+workspace: ..  # repo root (amele resolves relative to this YAML's dir)
+
+tools:
+  fs: false
+  subprocess:
+    - name: finance_lookup
+      description: >
+        Live market data. stdin: JSON — {"type": "fx"} for USD/EUR/GBP/
+        CHF/JPY vs TRY, {"type": "gold"} for gold in TRY,
+        {"type": "crypto", "ids": ["bitcoin"]} for crypto in USD/TRY,
+        {"type": "bond"} for the Turkey government bond yield,
+        {"type": "all"} for everything. stdout: JSON data.
+      command: ["../tools/finance_lookup.py"]
+      timeout: 60s
+    - name: telegram_send
+      description: >
+        Send a text message to the owner on Telegram. stdin: the message
+        text. stdout: "ok" or an error message.
+      command: ["../tools/telegram_send.py"]
+      timeout: 60s
+
+limits:
+  max_turns: 8
+  max_tokens: 10000
+  timeout: 3m

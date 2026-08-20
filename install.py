@@ -696,9 +696,9 @@ def confirm_items(items: list[dict], yes: bool = False,
         if ans in ("q", "quit"):
             say("  · cancelled by user.", "yellow")
             sys.exit(1)
-        if ans in ("", "y", "yes") and it["kritik"]:
+        if ans in ("", "y", "yes") and it["critical"]:
             chosen.append(it)
-        elif ans in ("y", "yes") or (ans == "" and not it["kritik"]):
+        elif ans in ("y", "yes") or (ans == "" and not it["critical"]):
             # empty Enter on recommendations = default NO
             if ans in ("y", "yes"):
                 chosen.append(it)
@@ -713,14 +713,14 @@ def apply_items(items: list[dict], chosen: list[dict], os_name: str,
     user's approval list; nothing runs without approval."""
     step = 0
 
-    def step(it):
+    def mark_step(it):
         nonlocal step
         step += 1
-        say(f"\n  [{step}] {it['baslik']} …")
+        say(f"\n  [{step}] {it['title']} …")
 
     for it in chosen:
         if it["id"] == "amele":
-            step(it)
+            mark_step(it)
             install_amele(os_name, arch, force)
             try:
                 out = subprocess.run(
@@ -732,21 +732,21 @@ def apply_items(items: list[dict], chosen: list[dict], os_name: str,
                 say("  · could not verify the version, but the binary is in "
                     "place", "yellow")
         elif it["id"] == "env":
-            step(it)
+            mark_step(it)
             ensure_env()
             say("  · .env ready", "green")
-        elif it["komut"]:
-            step(it)
-            say(f"  · running: {it['komut']}", "dim")
-            proc = subprocess.run(it["komut"], shell=True)
+        elif it["command"]:
+            mark_step(it)
+            say(f"  · running: {it['command']}", "dim")
+            proc = subprocess.run(it["command"], shell=True)
             if proc.returncode == 0:
                 say("  · done ✓", "green")
             else:
                 say(f"  · failed (exit {proc.returncode}) — continue anyway, "
                     f"you can install it later", "yellow")
-        elif it.get("uygula"):
-            step(it)
-            it["uygula"]()
+        elif it.get("action"):
+            mark_step(it)
+            it["action"]()
             say("  · done ✓", "green")
 
 

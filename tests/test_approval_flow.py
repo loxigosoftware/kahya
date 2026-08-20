@@ -26,11 +26,11 @@ sys.path.insert(0, ROOT)
 TEST_ROOT = "/tmp/kahya_approval_root"
 shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
-ameleler_dir = Path(TEST_ROOT) / "ameleler"
-ameleler_dir.mkdir()
-for name in ("kahya.yaml", "hatirlatıcı-amele.yaml", "mail-amele.yaml",
-             "fatura-amele.yaml"):
-    (ameleler_dir / name).symlink_to(Path(ROOT) / "ameleler" / name)
+ameles_dir = Path(TEST_ROOT) / "ameles"
+ameles_dir.mkdir()
+for name in ("kahya.yaml", "reminder-amele.yaml", "mail-amele.yaml",
+             "invoice-amele.yaml"):
+    (ameles_dir / name).symlink_to(Path(ROOT) / "ameles" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")
 
 # ---------------- mock LLM (fixed JSON on 9445) ----------------
@@ -85,9 +85,9 @@ from kahya.db import KahyaDB  # noqa: E402
 
 db = KahyaDB(Path(TEST_DB))
 mail_id = db.create_amele("mail-amele", "Mail", "mailleri okur",
-                          "ameleler/mail-amele.yaml")
-fatura_id = db.create_amele("fatura-amele", "Fatura", "faturaları takip eder",
-                            "ameleler/fatura-amele.yaml")
+                          "ameles/mail-amele.yaml")
+invoice_id = db.create_amele("invoice-amele", "Invoice", "tracks bills",
+                            "ameles/invoice-amele.yaml")
 fails = []
 
 
@@ -132,6 +132,8 @@ check("1g askıda onay kalmadı", leftover == 0)
 
 # --- 2. scheduler: due task → success --------------------------------
 from kahya.scheduler import tick  # noqa: E402
+os.environ["QUIET_START"] = "00:00"  # scheduler tests: never quiet
+os.environ["QUIET_END"] = "00:01"
 
 run_at = (datetime.now() - timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M:%S")
 tid = db.add_scheduled_task(mail_id, run_at, record_id=None)
@@ -141,40 +143,40 @@ os.environ["TELEGRAM_API_BASE"] = "http://127.0.0.1:9443"
 cfg = Config(db)
 res = tick(cfg, db, now=datetime.now())
 hit = next((x for x in res if x.get("task_id") == tid), None)
-check("2a due task işlendi", hit is not None and hit.get("sent"), hit)
-check("2b success işaretlendi",
+check("2a due task processed", hit is not None and hit.get("sent"), hit)
+check("2b success marked",
       db.con.execute("SELECT status FROM scheduled_tasks WHERE id = ?",
                      (tid,)).fetchone()["status"] == "success")
 ev = db.con.execute("SELECT payload FROM logs WHERE source = 'scheduler' "
                     "AND payload LIKE '%task_success%' ORDER BY id DESC LIMIT 1"
                     ).fetchone()
-check("2c log düştü", ev is not None and f'"task_id": {tid}' in ev["payload"])
+check("2c log written", ev is not None and f'"task_id": {tid}' in ev["payload"])
 
 # --- 3. scheduler: hata → 3 deneme → failed + bildirim ------------------
-tid2 = db.add_scheduled_task(fatura_id, run_at, record_id=None)
-bad = Path(TEST_ROOT) / "ameleler" / "fatura-amele.yaml"
+tid2 = db.add_scheduled_task(invoice_id, run_at, record_id=None)
+bad = Path(TEST_ROOT) / "ameles" / "invoice-amele.yaml"
 good_yaml = bad.read_text(encoding="utf-8")
-bad.write_text("role_prompt: bozuk", encoding="utf-8")
+bad.write_text("role_prompt: broken", encoding="utf-8")
 try:
     # her tick bir deneme yapar (1 dk arayla) — 3 tick = 3 deneme
     for _ in range(3):
         res2 = tick(cfg, db, now=datetime.now())
     row = db.con.execute("SELECT * FROM scheduled_tasks WHERE id = ?",
                          (tid2,)).fetchone()
-    check("3a 3 deneme sonrası failed",
+    check("3a failed after 3 attempts",
           row["status"] == "failed" and row["attempts"] >= 3, dict(row))
     notif = next((m for m in SENT if "Zamanlanmış görev" in m.get("text", "")
                   or "Scheduled task" in m.get("text", "")), None)
-    check("3b kullanıcıya bildirim gitti", notif is not None)
+    check("3b user notified", notif is not None)
 finally:
     bad.write_text(good_yaml, encoding="utf-8")
 
 # --- 4. sync_virtual_task: şema virtual alanı → scheduled_tasks ---------
-randevu_yaml = Path(TEST_ROOT) / "ameleler" / "randevu-amele.yaml"
+randevu_yaml = Path(TEST_ROOT) / "ameles" / "randevu-amele.yaml"
 randevu_yaml.write_text(
     "name: Randevu\nrole_prompt: randevuları takip eder\n", encoding="utf-8")
 randevu_id = db.create_amele("randevu-amele", "Randevu", "randevuları takip eder",
-                             "ameleler/randevu-amele.yaml", schema_json={"fields": [
+                             "ameles/randevu-amele.yaml", schema_json={"fields": [
                                  {"name": "due_date", "type": "date", "virtual": True,
                                   "display": True}]})
 rid = db.add_record(randevu_id, {"ad": "deneme"})

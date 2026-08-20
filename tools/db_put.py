@@ -11,7 +11,7 @@ Kurallar:
 - KAHYA_AMELE_ID env'i yazma için zorunludur — her kayıt bir ameleye aittir.
 - Amele yalnız KENDİ kayıtlarına yazabilir (id'li işlemlerde amele_id kontrolü).
 - Doğrulama: data geçerli bir JSON nesnesi olmalı; amelenin şeması
-  (ameleler.schema_json) varsa alan tipleri şemaya uymalı. Bozuk veri
+  (ameles.schema_json) varsa alan tipleri şemaya uymalı. Bozuk veri
   hiçbir koşulda DB'ye yazılmaz (REDESIGN §2.3).
 
 Env:    KAHYA_DB, KAHYA_AMELE_ID

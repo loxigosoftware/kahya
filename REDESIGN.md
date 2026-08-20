@@ -10,21 +10,21 @@
 
 | Konu | Karar |
 |---|---|
-| **Temel ilke** | Sistemde sabit "iş" kavramı **yoktur**: ne fatura, ne görev, ne reminder. Yalnız ameleler + kayıtlar + iletişim |
+| **Temel ilke** | Sistemde sabit "iş" kavramı **yoktur**: ne fatura, ne görev, ne reminder. Yalnız ameles + kayıtlar + iletişim |
 | **Veri modeli** | `records` — serbest JSON kayıt + **opsiyonel** amele şeması (şema varsa panelde düzenli tablo/arama; yoksa ham JSON görünümü) |
-| **Orkestrasyon** | **Kahya tam yetkili orkestratör** — tüm amelelerin tanımlarını ve yeteneklerini bilir, görev dağıtımını yapar; anlamadığı mesajda kullanıcıya sorar |
-| **Ameleler arası iletişim** | Görev paslama **sadece Kahya üzerinden** — ameleler birbirini doğrudan çağıramaz; her adım kullanıcıya raporlanır |
+| **Orkestrasyon** | **Kahya tam yetkili orkestratör** — tüm amelesin tanımlarını ve yeteneklerini bilir, görev dağıtımını yapar; anlamadığı mesajda kullanıcıya sorar |
+| **Ameles arası iletişim** | Görev paslama **sadece Kahya üzerinden** — ameles birbirini doğrudan çağıramaz; her adım kullanıcıya raporlanır |
 | **Zamanlanmış görev** | **Genel yetenek** ("alarm"): amele kendi şemasında zaman alanı tanımlarsa sistem o kayıtları izler ve ameleyi tetikler. Kullanmayan amele hiç etkilenmez |
 | **Onay mekanizması** | Komut **yok** (`/onayla` kullanılmaz). Amele onay gerektiren aksiyonda **seçili yazışma dilinde** "evet / hayır / iptal" sorar; kullanıcı düz metin cevap verir |
 | **MCP / Smithery** | **Açık uçlu**: kullanıcı Smithery (smithery.ai) kataloğuna kendi hesabıyla girer, **ne isterse** onu dilediği ameleye bağlar. Kahya yalnızca bağlama altyapısını sunar (katalog arama, sunucu ekleme, filtreleme, onay); hangi tool'un bağlanacağına **karar vermez** |
 | **Telegram** | `/<slug> ...` → doğrudan o ameleye (örn. `/mail-amele mailleri oku`). `/` yazılmazsa Kahya karşılar, uygun ameleye iletir, anlamazsa sorar. Amele ekleme/düzenleme/silme **paneldedir**, Telegram'da yalnız liste + konuşma |
 | **Amele bilgisi (Kahya'nın bağlamı)** | Sistem promptuna tüm amele promptları **gömülmez**. Kahya DB'den üretilen **kompakt amele index'i** (id + slug + tek satır açıklama, ~600 token) taşır; hedef ameleye gideceği anda `get_amele_profile` ile tam tanımı çeker. Token ~%95 azalır, ekstra LLM turu eklenmez |
 | **Konuşma belleği** | Eski mesajlar **40 mesajda bir arşive taşınır** (LLM özeti üretilmez — sıfır maliyet); Kahya bağlamı **son 20 ham mesaj**dır. "Bunu konuşmuştuk / geçmişten bak" → `search_history` arşivde tam metin arar, bulduklarını bağlama ekler. Arşiv asla silinmez (gece yedek + DB dump) |
-| **Model stratejisi** | **Her amele kendi modelini seçer**: lokal (Ollama/yerel endpoint) veya API. Sistem ayarlarındaki LLM ayarı **yalnız Kahya içindir**; diğer ameleler panelden ayrı atanır (örn. görüntü analizi amelesi → lokal qwen3-vl:8b, mail amelesi → API model) |
+| **Model stratejisi** | **Her amele kendi modelini seçer**: lokal (Ollama/yerel endpoint) veya API. Sistem ayarlarındaki LLM ayarı **yalnız Kahya içindir**; diğer ameles panelden ayrı atanır (örn. görüntü analizi amelesi → lokal qwen3-vl:8b, mail amelesi → API model) |
 | **Görev paslama limiti** | Maks **3 paslama** derinliği; aşılırsa Kahya zinciri durdurur, kullanıcıya rapor eder — kullanıcı sorunu anlayıp düzeltir |
 | **JSON doğrulama** | `db_put` tarafında JSON + (varsa) şema doğrulaması; hatalı çıktıda amele yeniden üretir (max 2 deneme), olmazsa kullanıcıya rapor. Bozuk JSON DB'ye yazılmaz |
 | **Yedekleme** | Veri Pi içinde proje klasöründe; panelde **DB indir** (mevcut) + **Geçmiş indir** (yeni) butonları — manuel yedek veya kullanıcının kendi cron'u |
-| **Panel** | "Tasks" formu kaldırılır → **Kayıtlar** sekmesi (amele seç, tablo + arama + JSON) + Ameleler (CRUD + opsiyonel şema + MCP bağlama) + MCP Sunucuları (Smithery katalog) |
+| **Panel** | "Tasks" formu kaldırılır → **Kayıtlar** sekmesi (amele seç, tablo + arama + JSON) + Ameles (CRUD + opsiyonel şema + MCP bağlama) + MCP Sunucuları (Smithery katalog) |
 
 ---
 
@@ -36,8 +36,8 @@
 2. **Amele = kendi config'i.** Her amele kendi YAML'ine, kendi tool'larına
    (subprocess + MCP), kendi kayıt şekline sahiptir. Amelenin "ne yaptığı"
    yalnız kendi açıklamasında yaşar — sistem bunu yorumlamaz, Kahya yorumlar.
-3. **Kahya = orkestratör.** Tüm amelelerin manifestini (ad, açıklama, şema,
-   bağlı araçlar) bilir; görev dağıtımı ve ameleler arası her iletişim onun
+3. **Kahya = orkestratör.** Tüm amelesin manifestini (ad, açıklama, şema,
+   bağlı araçlar) bilir; görev dağıtımı ve ameles arası her iletişim onun
    üzerinden geçer.
 4. **Her şey isteğe bağlı.** Şema opsiyonel, zamanlama opsiyonel, MCP
    opsiyonel, onay yalnız amelenin kendisinin "onay isterim" dediği aksiyonlarda.
@@ -60,14 +60,14 @@
 ### 2.1 Tablolar
 
 ```sql
--- ameleler
-CREATE TABLE ameleler (
+-- ameles
+CREATE TABLE ameles (
   id          INTEGER PRIMARY KEY,
   slug        TEXT UNIQUE NOT NULL,      -- ^[a-z0-9_-]{1,32}$
   name        TEXT NOT NULL,             -- görünen ad
   description TEXT NOT NULL,             -- amelenin ne yaptığı (Kahya bunu okur)
   schema_json TEXT,                      -- OPSİYONEL şema (alan tanımları)
-  yaml_path   TEXT NOT NULL,             -- ameleler/<slug>.yaml (amele config)
+  yaml_path   TEXT NOT NULL,             -- ameles/<slug>.yaml (amele config)
   model_kind  TEXT NOT NULL DEFAULT 'local', -- local | api  (her amele kendi modelini seçer)
   model_name  TEXT NOT NULL,             -- model adı (örn. qwen3:27b, qwen3-vl:8b, gpt-4o-mini)
   model_cfg   TEXT,                      -- model ayarları JSON (endpoint, api_key_ref, sıcaklık...)
@@ -78,7 +78,7 @@ CREATE TABLE ameleler (
 -- kayıtlar (eski "items"ın yerine — her amele kendi şeklinde saklar)
 CREATE TABLE records (
   id          INTEGER PRIMARY KEY,
-  amele_id    INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
+  amele_id    INTEGER NOT NULL REFERENCES ameles(id) ON DELETE CASCADE,
   data_json   TEXT NOT NULL,             -- kaydın kendisi, serbest JSON
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE mcp_servers (
 
 -- amele ↔ MCP sunucu (çoktan çoğa — panelden bağlanır)
 CREATE TABLE amele_mcp (
-  amele_id  INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
+  amele_id  INTEGER NOT NULL REFERENCES ameles(id) ON DELETE CASCADE,
   server_id INTEGER NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
   PRIMARY KEY (amele_id, server_id)
 );
@@ -114,7 +114,7 @@ CREATE TABLE amele_mcp (
 -- onay kuyruğu (dile göre evet/hayır/iptal akışı)
 CREATE TABLE pending_actions (
   id          INTEGER PRIMARY KEY,
-  amele_id    INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
+  amele_id    INTEGER NOT NULL REFERENCES ameles(id) ON DELETE CASCADE,
   action_json TEXT NOT NULL,             -- amelenin yapmak istediği aksiyon
   status      TEXT NOT NULL DEFAULT 'waiting', -- waiting | approved | cancelled | done
   lang        TEXT NOT NULL,             -- sorunun sorulduğu dil
@@ -125,7 +125,7 @@ CREATE TABLE pending_actions (
 -- zamanlanmış görev ("alarm" yeteneği — isteyen amele kullanır)
 CREATE TABLE scheduled_tasks (
   id          INTEGER PRIMARY KEY,
-  amele_id    INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
+  amele_id    INTEGER NOT NULL REFERENCES ameles(id) ON DELETE CASCADE,
   record_id   INTEGER REFERENCES records(id) ON DELETE CASCADE, -- null = sabit tarife
   run_at      TEXT NOT NULL,             -- tetikleme zamanı
   status      TEXT NOT NULL DEFAULT 'pending', -- pending | success | failed | cancelled
@@ -177,7 +177,7 @@ CREATE VIRTUAL TABLE conversation_fts USING fts5(content, thread_id UNINDEXED);
 
 - **Telegram:** `/<slug> <doğal dil>` → amele mesajı anlar, kaydı JSON yazar.
 - **Panel:** amele seç → şemalıysa form/tablo, değilse JSON editor → arama.
-- **Ameleler (amele tool'ları):** `db_get` / `db_put` sözleşmesi
+- **Ameles (amele tool'ları):** `db_get` / `db_put` sözleşmesi
   `records`'a göre yeniden yazılır (op: get/put/list/search, serbest JSON
   veri; şema sütunlarına dokunulmaz).
 - **JSON doğrulama:** `db_put` tarafında çıktı doğrulanır — (a) geçerli JSON
@@ -192,7 +192,7 @@ CREATE VIRTUAL TABLE conversation_fts USING fts5(content, thread_id UNINDEXED);
   OpenAI-uyumlu yerel endpoint) ya da `api` (dış sağlayıcı). `model_cfg`
   JSON'da endpoint, anahtar referansı (${VAR}, asla düz metin), sıcaklık vb.
 - **Sistem ayarlarındaki LLM ayarı YALNIZ Kahya içindir** — orkestratörün
-  modeli. Diğer amelelerin modeli paneldeki Ameleler sekmesinden ayrı atanır.
+  modeli. Diğer amelesin modeli paneldeki Ameles sekmesinden ayrı atanır.
 - Esneklik örnekleri:
   - Kahya (orkestratör) → lokal güçlü model
   - Görüntü analizi amelesi → lokal `qwen3-vl:8b` (görsel model)
@@ -215,16 +215,16 @@ KAHYA (orkestratör amele config)
    │  sistem promptu: kimlik + KOMPAKT AJAN INDEX'i
    │  (DB'den üretilir: id, slug, tek satır açıklama — 20 amele ≈ 600 token)
    │  tool'ları: db_get/db_put, telegram_send, call_amele,
-   │             get_amele_profile, find_ameleler, search_history,
+   │             get_amele_profile, find_ameles, search_history,
    │             schedule, ask_confirm
    ├── kendisi yanıtlar (kayıt soruları, genel sorular)
    ├── amele index'inden hedefi seçer → get_amele_profile ile tam tanımı
    │   çeker → call_amele ile görevi iletir
-   ├── index'te eşleşme yoksa → find_ameleler ile arar → bulamazsa sorar
+   ├── index'te eşleşme yoksa → find_ameles ile arar → bulamazsa sorar
    └── "bunu konuşmuştuk" tarzı soruda → search_history ile arşivi tarar
    │
    ▼
-Hedef amele (ameleler/<slug>.yaml, ayrı amele config)
+Hedef amele (ameles/<slug>.yaml, ayrı amele config)
    ├── kendi kayıtları (records)
    ├── kendi MCP araçları (Smithery'den bağlananlar)
    └── başka ameleye iş düşerse → KAHYA'ya döner ("şunu şu ameleye ilet")
@@ -232,14 +232,14 @@ Hedef amele (ameleler/<slug>.yaml, ayrı amele config)
 
 ### 3.2 Amele bulma (amele discovery) — bağlamı şişirmeyen orkestrasyon
 
-- **Amelelerın promptları/tool'ları Kahya'nın sistem promptuna gömülmez.**
+- **Amelesın promptları/tool'ları Kahya'nın sistem promptuna gömülmez.**
   Yerine DB'den otomatik üretilen **kompakt index** konur: her amele için
   `id, slug, tek satır açıklama`. Index bot başlangıcında ve amele
   eklenip/silinip güncellendiğinde yeniden üretilir (el ile bakım yok).
 - Kahya mesajı alınca index'ten hedefi seçer; **yalnız o anda**,
   `get_amele_profile(id)` ile tam tanımı çeker (uzun açıklama, şema, tool
   listesi, bağlı MCP sunucuları) ve `call_amele` ile görevi iletir.
-- `find_ameleler(sorgu)`: index'te eşleşme bulamayan Kahya için anahtar
+- `find_ameles(sorgu)`: index'te eşleşme bulamayan Kahya için anahtar
   kelime araması (güvence); sonuç yoksa kullanıcıya sorar.
 - Kazanım: 20 amelelı bir kurulumda ~30K token sabit yük → ~600 token.
   Cevap süresi her mesajda belirgin düşer; ekstra LLM turu eklenmez
@@ -247,7 +247,7 @@ Hedef amele (ameleler/<slug>.yaml, ayrı amele config)
 
 ### 3.3 Görev paslama (handoff)
 
-- **Ameleler birbirini doğrudan çağıramaz** — her şey Kahya üzerinden.
+- **Ameles birbirini doğrudan çağıramaz** — her şey Kahya üzerinden.
 - Sözleşme (JSON):
   ```json
   {"görev": "bilet rezervasyonunu hatırlatma kaydı olarak işle",
@@ -302,7 +302,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
 |---|---|
 | `/mail-amele ...` | Doğrudan o ameleye mesaj (örn. `/mail-amele mailleri oku`) |
 | `/<slug>` (argümansız) | O ameleyle oturum modu — sonraki mesajlar o ameleye gider, `/iptal` çıkar |
-| `/amele` | Ameleleri listeler (açıklama + kayıt sayısı) — ekleme **yok** |
+| `/amele` | Amelesi listeler (açıklama + kayıt sayısı) — ekleme **yok** |
 | `/help` | Komut listesi |
 | `/iptal` | Akışı/oturumu iptal |
 
@@ -329,7 +329,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
 | Sekme | İçerik |
 |---|---|
 | **Genel Bakış** | Amele/kayıt sayıları, bekleyen onaylar, yaklaşan zamanlanmış görevler |
-| **Ameleler** | Amele CRUD: ad, slug, açıklama (prompt), **opsiyonel şema düzenleyici**, MCP bağlama (hangi sunucular), durum |
+| **Ameles** | Amele CRUD: ad, slug, açıklama (prompt), **opsiyonel şema düzenleyici**, MCP bağlama (hangi sunucular), durum |
 | **Kayıtlar** | Amele seç → şemalıysa tablo (display alanları) + arama; şemasızsa ham JSON liste/editor; ekle/düzenle/sil |
 | **MCP Sunucuları** | **Smithery katalog arama** (hesap login) + elle sunucu ekleme (stdio/http, auth, filtreler) + bağlantı testi (`amele explain`) |
 | **Onaylar** | Bekleyen onayların listesi (kullanıcı buradan da karar verebilir) |
@@ -356,7 +356,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
   otomatik yazılır (amele 415f781 MCP client — altyapı hazır, Kahya yalnız
   config üretir).
 - Amele → sunucu bağlantısı `amele_mcp` tablosunda; bir sunucu birden çok
-  ameleye bağlanabilir (örn. gmail → "Kişisel" ve "Fatura" ameleleri).
+  ameleye bağlanabilir (örn. gmail → "Kişisel" ve "Fatura" amelesi).
 
 ### 6.2 Akış
 
@@ -412,7 +412,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
 - `scheduled_tasks` + amele şemasındaki `virtual` zaman alanları.
 - Tarayıcı (Pi'de cron benzeri): vadesi gelen görevleri toplar → hedef ameleyi
   jenerik tetikleme mesajıyla çağırır:
-  `{"olay": "zaman", "record_id": 12}` — amele kendi kaydını okur, ne
+  `{"event": "time", "record_id": 12}` — amele kendi kaydını okur, ne
   yapacağına kendisi karar verir (bilgi, uyarı, MCP aksiyonu, onay iste...).
 - **Durum ve fallback:** görev başarıyla tamamlanırsa DB'de
   `status='success'` olarak işaretlenir (ne zaman yapıldığı logs'a yazılır).
@@ -421,7 +421,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
   Görevler asla sessizce kaybolmaz — her sonuç (success/failed) kayıt
   altındadır.
 - Bu **sistemin özelliği değil, bir yeteneğidir**: şemasında zaman alanı
-  olmayan ameleler hiç etkilenmez; "hatırlatma" isteyen kullanıcı kendi
+  olmayan ameles hiç etkilenmez; "hatırlatma" isteyen kullanıcı kendi
   amelesinde bu alanı tanımlar.
 - Eski `reminders` tablosu kalkar; veri kaybı olmaz (kayıtlar records'ta).
 
@@ -450,7 +450,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
    doğrulama dahil); **amele index üretimi** (id, slug, tek satır açıklama —
    amele CRUD'unda ve bot başlangıcında otomatik); **model atama** (local/api
    model_kind + model_name + model_cfg → amele YAML'sine `model:` bloğu).
-3. **Orkestratör** — Kahya config'i: get_amele_profile/find_ameleler/
+3. **Orkestratör** — Kahya config'i: get_amele_profile/find_ameles/
    call_amele/schedule/ask_confirm tool'ları (python tool'ları olarak) +
    Kahya promptu (kimlik + amele index).
 4. **Bot** — yeni komut seti, `/slug` dinamik komutları, oturum modu, onay
@@ -458,7 +458,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
 5. **Konuşma belleği** — conversation_messages kaydı, 40 mesajda bir
    arşivleme (bağlam = son 20), FTS araması, `search_history` tool'u,
    gece yedekleme.
-6. **Panel** — Ameleler (şema editor) + Kayıtlar (tablo/JSON/arama); Tasks
+6. **Panel** — Ameles (şema editor) + Kayıtlar (tablo/JSON/arama); Tasks
    formunun kaldırılması.
 7. **MCP** — Smithery katalog arama + sunucu yönetimi + amele bağlama +
    amele config üretimi + `amele mcp login` akışı.
@@ -467,7 +467,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
 9. **Test** — kullanıcı kendi sunucusunda test eder: Pi'de canlı kurulum,
    uçtan uca senaryolar (mail→hatırlatma, arama→mail, /personal kayıt,
    Smithery'den sunucu bağlama, "geçmişten bak" sorgusu, uzun sohbette
-   bağlam penceresi, farklı amelelerde farklı modeller, paslama limiti,
+   bağlam penceresi, farklı amelesde farklı modeller, paslama limiti,
    onay eşleştirmesi).
 
 ---
@@ -475,7 +475,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
 ## 11. Açık/ertelenen notlar
 
 - `call_amele` tool'unun gerçekleştirimi: `tools/call_amele.py` subprocess
-  tool (amele_runner'ı çağırır) — Kahya python'u zaten ameleleri çalıştırıyor.
+  tool (amele_runner'ı çağırır) — Kahya python'u zaten amelesi çalıştırıyor.
 - Smithery API anahtarı panel ayarlarına eklenir (katalog araması için);
   sunucu login'leri `amele mcp login` ile.
 - Harici katalog (mcp.so, glama) ileride eklenebilir — mimari aynıdır.
@@ -483,7 +483,7 @@ görür; geçmiş arşivde kalır ve istenince aranır.
   Thread'ler çok büyürse (binlerce mesaj) ileride opsiyonel özet katmanı
   eklenebilir — `conversation_messages` şeması buna izin verir (role=summary).
 - **Önerilen model:** geliştirici testlerinde **Qwen3 27B** (lokal, Ollama)
-  kullanılmaktadır — Kahya için güçlü bir yerel seçenektir. Uzman ameleler
+  kullanılmaktadır — Kahya için güçlü bir yerel seçenektir. Uzman ameles
   kendi işine uygun modeli seçer (örn. görüntü analizi için `qwen3-vl:8b`,
   hızlı/ucuz işler için küçük API modelleri). Model seçimi kullanıcının
   tercihine açıktır; bu yalnız bir başlangıç önerisidir.

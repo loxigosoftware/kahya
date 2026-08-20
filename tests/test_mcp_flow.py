@@ -25,9 +25,9 @@ sys.path.insert(0, ROOT)
 TEST_ROOT = "/tmp/kahya_mcp_root"
 shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
-Path(TEST_ROOT, "ameleler").mkdir()
-for name in ("extract-amele.yaml", "kahya.yaml", "hatirlatıcı-amele.yaml"):
-    (Path(TEST_ROOT) / "ameleler" / name).symlink_to(Path(ROOT) / "ameleler" / name)
+Path(TEST_ROOT, "ameles").mkdir()
+for name in ("extract-amele.yaml", "kahya.yaml", "reminder-amele.yaml"):
+    (Path(TEST_ROOT) / "ameles" / name).symlink_to(Path(ROOT) / "ameles" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")
 (Path(TEST_ROOT) / "web").symlink_to(Path(ROOT) / "web")
 (Path(TEST_ROOT) / "tools").symlink_to(Path(ROOT) / "tools")
@@ -125,13 +125,13 @@ st, out = call("POST", "/api/v2/mcp/servers", {
 check("2d geçersiz isim 400", st == 400)
 
 # --- amele + bağlama ---
-st, out = call("POST", "/api/v2/ameleler", {
+st, out = call("POST", "/api/v2/ameles", {
     "name": "Deneme", "slug": "deneme", "description": "notları yönetir"})
 check("3a amele oluşturuldu", st == 201)
 amele_id = out["id"]
 st, out = call("POST", "/api/v2/mcp/bind", {"server_id": srv_id, "amele_id": amele_id})
 check("3b bağlandı", st == 200, out)
-yaml_path = Path(TEST_ROOT) / "ameleler" / "deneme.yaml"
+yaml_path = Path(TEST_ROOT) / "ameles" / "deneme.yaml"
 yaml_text = yaml_path.read_text(encoding="utf-8")
 check("3c YAML'a mcp bloğu yazıldı", "mcp:" in yaml_text
       and "name: deneme" in yaml_text and "type: http" in yaml_text
@@ -172,7 +172,7 @@ yaml_text2 = yaml_path.read_text(encoding="utf-8")
 check("6b YAML'dan mcp bloğu kalktı", "mcp:" not in yaml_text2)
 st, out = call("GET", "/api/v2/mcp")
 srv = next((s for s in out["mcp_servers"] if s["id"] == srv_id), None)
-check("6c sunucu listesinde amele yok", srv and srv["ameleler"] == [])
+check("6c sunucu listesinde amele yok", srv and srv["ameles"] == [])
 
 # --- silme ---
 st, out = call("POST", "/api/v2/mcp/servers/delete", {"id": srv_id})

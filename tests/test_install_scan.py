@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Step 9 — install.py sistem tarama + otomatik seçim + onay listesi testleri.
+"""Step 9 — install.py system scan + automatic selection + approval list tests.
 
-Kural: hiçbir şey onaysız yapılmaz. Testler:
-- scan_system: mevcut yazılımları tarar, doğru önerileri üretir
-  (amele MCP kuralı, .env, node/ffmpeg, kalıntı); port onay maddesi YOK
-  (otomatik), ollama maddesi YOK, systemd onay maddesi YOK (tek soru)
-- MCP'siz binary → kural-reddi (SystemExit, onay sorusu yok)
-- confirm_items: kritikler varsayılan EVET, öneriler HAYIR; kısayollar
-  (a / q); --yes; --dry-run hiçbir şeyi değiştirmez
-- apply_items: yalnız onaylananlar uygulanır (env, temizlik)
-- port_test/write_port: port otomatik seçimi ve .env'e yazımı
+Rule: nothing is done without approval. Tests:
+- scan_system: scans installed software, produces the right proposals
+  (amele MCP rule, .env, node/ffmpeg, leftovers); port is NOT an approval
+  item (automatic), no ollama item, no systemd approval item (single
+  question at the end)
+- MCP-less binary → rule rejection (SystemExit, no approval question)
+- confirm_items: critical items default YES, recommendations NO; shortcuts
+  (a / q); --yes; --dry-run changes nothing
+- apply_items: only approved items are applied (env, cleanup)
+- port_test/write_port: automatic port pick and .env write
 """
 import importlib.util
 import os
@@ -35,7 +36,7 @@ def check(name, cond, extra=""):
         fails.append(name)
 
 
-# --- geçici ROOT: amele yok, .env yok ---
+# --- temporary ROOT: no amele, no .env ---
 TMP = Path(tempfile.mkdtemp(prefix="kahya_scan_"))
 (TMP / "bin").mkdir()
 orig_root = m.ROOT
@@ -44,78 +45,78 @@ m.ROOT = TMP
 try:
     items = m.scan_system("linux", "amd64", force=False)
     by_id = {i["id"]: i for i in items}
-    check("1a tarama amele önerisi üretir (yok → kritik)",
-          by_id["amele"]["durum"] == "✗" and by_id["amele"]["kritik"])
-    check("1b .env yok → oluşturma önerisi (kritik)",
-          by_id["env"]["durum"] == "○" and by_id["env"]["uygula"] is not None)
-    check("1c port onay maddesi YOK (otomatik seçilir)",
+    check("1a scan proposes amele install (missing → critical)",
+          by_id["amele"]["status"] == "✗" and by_id["amele"]["critical"])
+    check("1b .env missing → creation proposal (critical)",
+          by_id["env"]["status"] == "○" and by_id["env"]["action"] is not None)
+    check("1c no port approval item (picked automatically)",
           "port" not in by_id, list(by_id))
-    check("1d node maddesi var (sandbox'a göre ✓ veya ○)",
-          by_id["node"]["durum"] in ("✓", "○"))
-    check("1e ollama maddesi YOK, ffmpeg önerisi var",
-          "ollama" not in by_id and by_id["ffmpeg"]["durum"] in ("✓", "○"))
-    check("1f systemd onay maddesi YOK (kurulum sonunda tek soru)",
+    check("1d node item present (✓ or ○ depending on sandbox)",
+          by_id["node"]["status"] in ("✓", "○"))
+    check("1e no ollama item, ffmpeg proposal present",
+          "ollama" not in by_id and by_id["ffmpeg"]["status"] in ("✓", "○"))
+    check("1f no systemd approval item (single question at the end)",
           "systemd" not in by_id, list(by_id))
-    # hazır maddeler onay istemez (uygula yok)
-    hazir = [i for i in items if i["durum"] == "✓"]
-    check("1g hazır maddeler onay gerektirmez",
-          all(i["uygula"] is None and i["komut"] is None for i in hazir))
+    # ready items need no approval (no action)
+    ready = [i for i in items if i["status"] == "✓"]
+    check("1g ready items need no approval",
+          all(i["action"] is None and i["command"] is None for i in ready))
 
-    # --- confirm: kritikler Enter=Y, öneriler Enter=n ---
+    # --- confirm: critical Enter=Y, recommendations Enter=n ---
     with mock.patch("builtins.input", return_value=""):
         chosen = m.confirm_items(items, yes=False)
     chosen_ids = {i["id"] for i in chosen}
-    check("2a kritikler onaylandı (amele/env)",
+    check("2a critical items approved (amele/env)",
           {"amele", "env"} <= chosen_ids, chosen_ids)
-    check("2b öneriler onaylanmadı (node/ffmpeg)",
+    check("2b recommendations not approved (node/ffmpeg)",
           not {"node", "ffmpeg"} & chosen_ids)
 
-    # --- kısayol 'q' → çıkış ---
+    # --- shortcut 'q' → exit ---
     with mock.patch("builtins.input", return_value="q"):
         try:
             m.confirm_items(items)
-            check("2c 'q' çıkış verir", False)
+            check("2c 'q' exits", False)
         except SystemExit:
-            check("2c 'q' çıkış verir", True)
+            check("2c 'q' exits", True)
 
-    # --- --yes: hepsi onaylanır ---
+    # --- --yes: everything approved ---
     chosen_all = m.confirm_items(items, yes=True)
     all_ids = [c["id"] for c in chosen_all]
-    ffmpeg_beklenen = by_id["ffmpeg"]["durum"] == "○" and "ffmpeg" in all_ids
-    check("2d --yes tüm actionable'ları onaylar (hazır maddeler hariç)",
+    ffmpeg_expected = by_id["ffmpeg"]["status"] == "○" and "ffmpeg" in all_ids
+    check("2d --yes approves all actionable items (ready ones excluded)",
           {"amele", "env", "node"} <= set(all_ids)
           and "port" not in all_ids and "ollama" not in all_ids
-          and (by_id["ffmpeg"]["durum"] != "○" or ffmpeg_beklenen),
+          and (by_id["ffmpeg"]["status"] != "○" or ffmpeg_expected),
           all_ids)
 
-    # --- --dry-run: hiçbir şey değişmez ---
+    # --- --dry-run: nothing changes ---
     before = sorted(p.name for p in TMP.iterdir())
     m.confirm_items(items, dry_run=True)
     after = sorted(p.name for p in TMP.iterdir())
-    check("2e dry-run dosya değiştirmez", before == after, before)
+    check("2e dry-run does not touch files", before == after, before)
 
-    # --- apply: yalnız onaylananlar ---
+    # --- apply: only approved items ---
     chosen = [by_id["env"]]
     m.apply_items(items, chosen, "linux", "amd64", force=False)
-    check("3a .env oluşturuldu (onaylandı)",
+    check("3a .env created (approved)",
           (TMP / ".env").exists())
-    check("3b amele kurulmadı (onaylanmadı)",
+    check("3b amele not installed (not approved)",
           not (TMP / "bin" / "amele").exists())
-    check("3c .install-tmp oluşmadı (onaylanmadı)",
+    check("3c .install-tmp not created (not approved)",
           not (TMP / ".install-tmp").exists())
 
-    # --- MCP'siz binary → kural-reddi (SystemExit, soru yok) ---
-    sahte = TMP / "bin" / "amele"
-    sahte.write_text("#!/bin/sh\necho amele legacy 0.1.1\n")
-    sahte.chmod(0o755)
+    # --- MCP-less binary → rule rejection (SystemExit, no question) ---
+    fake = TMP / "bin" / "amele"
+    fake.write_text("#!/bin/sh\necho amele legacy 0.1.1\n")
+    fake.chmod(0o755)
     try:
         m.scan_system("linux", "amd64", force=False)
-        check("4a MCP'siz binary reddedilir (kural-reddi)", False)
+        check("4a MCP-less binary rejected (rule rejection)", False)
     except SystemExit:
-        check("4a MCP'siz binary reddedilir (kural-reddi)", True)
-    sahte.unlink()
+        check("4a MCP-less binary rejected (rule rejection)", True)
+    fake.unlink()
 
-    # --- hazır MCP'li binary → ✓ ---
+    # --- ready MCP binary → ✓ ---
     mcp_src = None
     scratch = os.environ.get("LOXI_SCRATCH")
     if scratch:
@@ -126,41 +127,41 @@ try:
         shutil.copy(mcp_src, TMP / "bin" / "amele")
         items3 = m.scan_system("linux", "amd64", force=False)
         a3 = next(i for i in items3 if i["id"] == "amele")
-        check("4b MCP'li binary hazır (✓, onay istemez)",
-              a3["durum"] == "✓" and a3["uygula"] is None)
+        check("4b MCP binary ready (✓, no approval needed)",
+              a3["status"] == "✓" and a3["action"] is None)
         (TMP / "bin" / "amele").unlink()
     else:
-        print("  [skip] 4b (MCP'li test binary yok)")
+        print("  [skip] 4b (no MCP test binary)")
 
-    # --- port: otomatik seçim (onay listesi yok ama port_test çalışır) ---
+    # --- port: automatic pick (not in the approval list but port_test runs) ---
     s = socket.socket()
     s.bind(("0.0.0.0", 0))
-    dolu = s.getsockname()[1]
+    busy = s.getsockname()[1]
     s.close()
     srv = socket.socket()
-    srv.bind(("0.0.0.0", dolu))
+    srv.bind(("0.0.0.0", busy))
     srv.listen(1)
     try:
-        p = m.port_test(dolu)
-        check("4c dolu port için otomatik boş port bulunur",
-              p != dolu and 8080 <= p <= 8099, p)
+        p = m.port_test(busy)
+        check("4c busy port → next free port found",
+              p != busy and 8080 <= p <= 8099, p)
     finally:
         srv.close()
 
-    # --- write_port: .env'e yazım ---
+    # --- write_port: .env write ---
     m.write_port(8081)
     env_text = (TMP / ".env").read_text(encoding="utf-8")
-    check("4d write_port .env'e KAHYA_WEB_PORT yazar",
+    check("4d write_port writes KAHYA_WEB_PORT to .env",
           "KAHYA_WEB_PORT=8081" in env_text, env_text)
 
-    # --- kalıntı önerisi + onaylanınca temizlik ---
+    # --- leftover proposal + cleanup on approval ---
     (TMP / ".install-tmp").mkdir()
     items5 = m.scan_system("linux", "amd64", force=False)
-    t5 = next((i for i in items5 if i["id"] == "temizlik"), None)
-    check("4e .install-tmp kalıntısı önerilir", t5 is not None)
+    t5 = next((i for i in items5 if i["id"] == "cleanup"), None)
+    check("4e .install-tmp leftovers proposed", t5 is not None)
     if t5:
         m.apply_items(items5, [t5], "linux", "amd64", force=False)
-        check("4f onaylanan temizlik .install-tmp'i siler",
+        check("4f approved cleanup removes .install-tmp",
               not (TMP / ".install-tmp").exists())
 
 finally:

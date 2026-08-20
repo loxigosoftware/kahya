@@ -2,7 +2,7 @@
 
 One file, zero setup: `data/kahya.db`. Backup = copy the file.
 
-v2: ameleler / records / mcp_servers / amele_mcp / pending_actions /
+v2: ameles / records / mcp_servers / amele_mcp / pending_actions /
     scheduled_tasks / conversation_messages + FTS.
 v1 API (items / reminders) alttaki DEPRECATED bölümünde records
 üzerinden uyumluluk katmanı olarak çalışır — Step 4/6/7'de kaldırılacak.
@@ -17,14 +17,14 @@ from pathlib import Path
 from typing import Any, Optional
 
 SCHEMA = """
--- ameleler (v2; v1 tablosunun yerine)
-CREATE TABLE IF NOT EXISTS ameleler (
+-- ameles (v2; v1 tablosunun yerine)
+CREATE TABLE IF NOT EXISTS ameles (
   id          INTEGER PRIMARY KEY,
   slug        TEXT UNIQUE NOT NULL,      -- ^[a-z0-9_-]{1,32}$
   name        TEXT NOT NULL,             -- görünen ad
   description TEXT NOT NULL DEFAULT '',  -- amelenin ne yaptığı (Kahya bunu okur)
   schema_json TEXT,                      -- OPSİYONEL şema (alan tanımları)
-  yaml_path   TEXT NOT NULL DEFAULT '',  -- ameleler/<slug>.yaml (amele config)
+  yaml_path   TEXT NOT NULL DEFAULT '',  -- ameles/<slug>.yaml (amele config)
   model_kind  TEXT NOT NULL DEFAULT 'local', -- local | api  (her amele kendi modelini seçer)
   model_name  TEXT NOT NULL DEFAULT 'qwen3:27b', -- model adı (önerilen default)
   model_cfg   TEXT,                      -- model ayarları JSON (endpoint, api_key_ref, sıcaklık...)
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS ameleler (
 -- kayıtlar (eski "items"ın yerine — her amele kendi şeklinde saklar)
 CREATE TABLE IF NOT EXISTS records (
   id          INTEGER PRIMARY KEY,
-  amele_id    INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
+  amele_id    INTEGER NOT NULL REFERENCES ameles(id) ON DELETE CASCADE,
   data_json   TEXT NOT NULL,             -- kaydın kendisi, serbest JSON
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
 
 -- amele ↔ MCP sunucu (çoktan çoğa — panelden bağlanır)
 CREATE TABLE IF NOT EXISTS amele_mcp (
-  amele_id  INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
+  amele_id  INTEGER NOT NULL REFERENCES ameles(id) ON DELETE CASCADE,
   server_id INTEGER NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
   PRIMARY KEY (amele_id, server_id)
 );
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS amele_mcp (
 -- onay kuyruğu (dile göre evet/hayır/iptal akışı)
 CREATE TABLE IF NOT EXISTS pending_actions (
   id          INTEGER PRIMARY KEY,
-  amele_id    INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
+  amele_id    INTEGER NOT NULL REFERENCES ameles(id) ON DELETE CASCADE,
   action_json TEXT NOT NULL,             -- amelenin yapmak istediği aksiyon
   status      TEXT NOT NULL DEFAULT 'waiting', -- waiting | approved | cancelled | done
   lang        TEXT NOT NULL DEFAULT 'tr', -- sorunun sorulduğu dil
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS pending_actions (
 -- zamanlanmış görev ("alarm" yeteneği — isteyen amele kullanır)
 CREATE TABLE IF NOT EXISTS scheduled_tasks (
   id          INTEGER PRIMARY KEY,
-  amele_id    INTEGER NOT NULL REFERENCES ameleler(id) ON DELETE CASCADE,
+  amele_id    INTEGER NOT NULL REFERENCES ameles(id) ON DELETE CASCADE,
   record_id   INTEGER REFERENCES records(id) ON DELETE CASCADE, -- null = sabit tarife
   run_at      TEXT NOT NULL,             -- tetikleme zamanı
   status      TEXT NOT NULL DEFAULT 'pending', -- pending | success | failed | cancelled
@@ -173,19 +173,19 @@ class KahyaDB:
         self.con.close()
 
     # =====================================================================
-    # v2 — ameleler
+    # v2 — ameles
     # =====================================================================
 
-    def list_ameleler(self) -> list[dict]:
-        rows = self.con.execute("SELECT * FROM ameleler ORDER BY name").fetchall()
+    def list_ameles(self) -> list[dict]:
+        rows = self.con.execute("SELECT * FROM ameles ORDER BY name").fetchall()
         return [dict(r) for r in rows]
 
     def get_amele(self, amele_id: int) -> Optional[dict]:
-        row = self.con.execute("SELECT * FROM ameleler WHERE id = ?", (amele_id,)).fetchone()
+        row = self.con.execute("SELECT * FROM ameles WHERE id = ?", (amele_id,)).fetchone()
         return dict(row) if row else None
 
     def get_amele_by_slug(self, slug: str) -> Optional[dict]:
-        row = self.con.execute("SELECT * FROM ameleler WHERE slug = ?", (slug,)).fetchone()
+        row = self.con.execute("SELECT * FROM ameles WHERE slug = ?", (slug,)).fetchone()
         return dict(row) if row else None
 
     def create_amele(self, slug: str, name: str, description: str = "",
@@ -193,7 +193,7 @@ class KahyaDB:
                      model_name: str = "qwen3:27b", model_cfg: Optional[dict] = None,
                      schema_json: Optional[dict] = None, enabled: int = 1) -> int:
         cur = self.con.execute(
-            "INSERT INTO ameleler (slug, name, description, yaml_path, model_kind,"
+            "INSERT INTO ameles (slug, name, description, yaml_path, model_kind,"
             " model_name, model_cfg, schema_json, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (slug, name, description, yaml_path, model_kind, model_name,
              json.dumps(model_cfg, ensure_ascii=False) if model_cfg else None,
@@ -222,17 +222,17 @@ class KahyaDB:
                 sets.append(f"{c} = ?")
                 args.append(data[c])
         args.append(amele_id)
-        self.con.execute(f"UPDATE ameleler SET {', '.join(sets)} WHERE id = ?", args)
+        self.con.execute(f"UPDATE ameles SET {', '.join(sets)} WHERE id = ?", args)
         self.con.commit()
 
     def delete_amele(self, amele_id: int) -> None:
-        self.con.execute("DELETE FROM ameleler WHERE id = ?", (amele_id,))
+        self.con.execute("DELETE FROM ameles WHERE id = ?", (amele_id,))
         self.con.commit()
 
     def amele_index(self) -> list[dict]:
         """Kompakt index — Kahya'nın sistem promptu için (REDESIGN §3.2)."""
         rows = self.con.execute(
-            "SELECT id, slug, description FROM ameleler WHERE enabled = 1 "
+            "SELECT id, slug, description FROM ameles WHERE enabled = 1 "
             "ORDER BY name").fetchall()
         return [dict(r) for r in rows]
 
@@ -703,12 +703,12 @@ class KahyaDB:
         return out
 
     def _fallback_amele_id(self) -> int:
-        """amele_id'siz v1 kayıtları için 'v1' amelesini bul/oluştur."""
-        row = self.con.execute("SELECT id FROM ameleler WHERE slug = 'v1'").fetchone()
+        """Find/create the 'v1' amele for v1 records without an amele_id."""
+        row = self.con.execute("SELECT id FROM ameles WHERE slug = 'v1'").fetchone()
         if row:
             return row["id"]
         return self.create_amele("v1", "v1 (taşınan kayıtlar)",
-                                 description="v1'den amelesiz taşınan kayıtlar",
+                                 description="records carried over from v1 without an amele",
                                  yaml_path="", enabled=1)
 
     def insert_item(self, data: dict, amele_id: Optional[int] = None) -> int:
@@ -727,7 +727,7 @@ class KahyaDB:
     def get_item(self, item_id: int) -> Optional[dict]:
         rec = self.con.execute(
             "SELECT r.*, a.slug AS amele_slug, a.name AS amele_name "
-            "FROM records r LEFT JOIN ameleler a ON a.id = r.amele_id "
+            "FROM records r LEFT JOIN ameles a ON a.id = r.amele_id "
             "WHERE r.id = ?", (item_id,)).fetchone()
         if not rec:
             return None
@@ -756,7 +756,7 @@ class KahyaDB:
     def list_items(self, amele_slug: Optional[str] = None,
                    status: Optional[str] = None) -> list[dict]:
         q = ("SELECT r.*, a.slug AS amele_slug, a.name AS amele_name "
-             "FROM records r LEFT JOIN ameleler a ON a.id = r.amele_id WHERE 1=1")
+             "FROM records r LEFT JOIN ameles a ON a.id = r.amele_id WHERE 1=1")
         args: list[Any] = []
         if amele_slug:
             q += " AND a.slug = ?"
@@ -795,7 +795,7 @@ class KahyaDB:
     def due_for_reminder(self, today: date) -> list[dict]:
         rows = self.con.execute(
             """SELECT r.*, a.slug AS amele_slug, a.yaml_path
-               FROM records r LEFT JOIN ameleler a ON a.id = r.amele_id
+               FROM records r LEFT JOIN ameles a ON a.id = r.amele_id
                WHERE json_extract(r.data_json, '$.status') = 'open'
                  AND json_extract(r.data_json, '$.due_date') IS NOT NULL
                  AND ( (date(json_extract(r.data_json, '$.due_date')) >= date(?)

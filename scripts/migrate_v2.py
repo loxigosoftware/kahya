@@ -4,14 +4,14 @@
 Usage:
     python3 scripts/migrate_v2.py <db_path> [--force]
 
-- Creates the v2 tables, moves data (agents→ameleler, items→records),
+- Creates the v2 tables, moves data (agents→ameles, items→records),
   drops the removed v1 tables (items, reminders).
 - Runs inside a transaction: on error the DB is left untouched.
 - Idempotent: if the DB is already v2 it prints the current state and exits.
 - NEVER runs against the live DB blindly — test on a backup copy first.
 
 Data mapping (REDESIGN §9):
-    agents   → ameleler   (role_prompt → description; model defaults)
+    agents   → ameles   (role_prompt → description; model defaults)
     items    → records    (title→ad, amount/currency→tutar, due_date,
                            note→not, kind→tür; v1 alanları data_json'da korunur)
     reminders→ dropped    (geçmiş logs'ta zaten var)
@@ -40,14 +40,14 @@ def _v1_count(con: sqlite3.Connection, table: str) -> int:
 
 
 def _fallback_amele(con: sqlite3.Connection) -> int:
-    """agentsız v1 item'ları için 'v1' amelesini bul/oluştur."""
-    row = con.execute("SELECT id FROM ameleler WHERE slug = 'v1'").fetchone()
+    """agentless v1 item'ları için 'v1' amelesini bul/oluştur."""
+    row = con.execute("SELECT id FROM ameles WHERE slug = 'v1'").fetchone()
     if row:
         return row[0]
     cur = con.execute(
-        "INSERT INTO ameleler (slug, name, description, yaml_path) "
+        "INSERT INTO ameles (slug, name, description, yaml_path) "
         "VALUES ('v1', 'v1 (taşınan kayıtlar)', "
-        "'v1''den agentsız taşınan kayıtlar', '')")
+        "'v1''den agentless taşınan kayıtlar', '')")
     return cur.lastrowid
 
 
@@ -60,10 +60,10 @@ def migrate(db_path: str, force: bool = False) -> int:
     con = sqlite3.connect(str(path), timeout=10)
     try:
         tables = _table_names(con)
-        already_v2 = "ameleler" in tables and "items" not in tables
+        already_v2 = "ameles" in tables and "items" not in tables
         if already_v2 and not force:
             print(f"[{path.name}] zaten v2 — mevcut durum:")
-            for t in ("ameleler", "records", "mcp_servers", "amele_mcp",
+            for t in ("ameles", "records", "mcp_servers", "amele_mcp",
                       "pending_actions", "scheduled_tasks", "conversation_messages"):
                 print(f"  {t}: {_v1_count(con, t)}")
             return 0
@@ -86,10 +86,10 @@ def migrate(db_path: str, force: bool = False) -> int:
         except sqlite3.OperationalError as e:
             print(f"  NOT: FTS5 kurulamadı ({e}) — LIKE fallback kullanılacak")
 
-        # 2) agents → ameleler
+        # 2) agents → ameles
         if "agents" in tables:
             con.execute(
-                """INSERT INTO ameleler (id, slug, name, description, yaml_path,
+                """INSERT INTO ameles (id, slug, name, description, yaml_path,
                                          model_kind, model_name, model_cfg,
                                          enabled, created_at)
                    SELECT id, slug, name, role_prompt, yaml_path,
@@ -102,7 +102,7 @@ def migrate(db_path: str, force: bool = False) -> int:
                 "SELECT COUNT(*) FROM items WHERE agent_id IS NULL").fetchone()[0]
             fallback_id = _fallback_amele(con) if orphan else None
             if orphan:
-                print(f"  NOT: {orphan} item agentsız → 'v1' amelesine bağlanıyor")
+                print(f"  NOT: {orphan} item agentless → 'v1' amelesine bağlanıyor")
             cur = con.execute("SELECT * FROM items")
             cols = [c[0] for c in cur.description]
             rows = cur.fetchall()
@@ -144,7 +144,7 @@ def migrate(db_path: str, force: bool = False) -> int:
         # 5) doğrulama raporu
         final = _table_names(con)
         print(f"[{path.name}] v2 tamamlandı:")
-        for t in ("ameleler", "records", "mcp_servers", "amele_mcp",
+        for t in ("ameles", "records", "mcp_servers", "amele_mcp",
                   "pending_actions", "scheduled_tasks", "conversation_messages",
                   "conversation_fts"):
             print(f"  {t}: {_v1_count(con, t)}")

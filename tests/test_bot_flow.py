@@ -27,11 +27,11 @@ sys.path.insert(0, ROOT)
 TEST_ROOT = "/tmp/kahya_bot_root"
 shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
-ameleler_dir = Path(TEST_ROOT) / "ameleler"
-ameleler_dir.mkdir()
-for name in ("extract-amele.yaml", "kahya.yaml", "hatirlatıcı-amele.yaml",
-             "fatura-amele.yaml", "pets-amele.yaml", "mail-amele.yaml"):
-    (ameleler_dir / name).symlink_to(Path(ROOT) / "ameleler" / name)
+ameles_dir = Path(TEST_ROOT) / "ameles"
+ameles_dir.mkdir()
+for name in ("extract-amele.yaml", "kahya.yaml", "reminder-amele.yaml",
+             "invoice-amele.yaml", "pets-amele.yaml", "mail-amele.yaml"):
+    (ameles_dir / name).symlink_to(Path(ROOT) / "ameles" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")
 
 # ---------------- mock LLM (fixed JSON on 9431) ----------------
@@ -89,12 +89,12 @@ from kahya.config import Config  # noqa: E402
 from kahya.db import KahyaDB  # noqa: E402
 
 db = KahyaDB(Path(TEST_DB))
-db.create_amele("fatura-amele", "Fatura", "faturaları takip eder",
-                "ameleler/fatura-amele.yaml")
+db.create_amele("invoice-amele", "Invoice", "tracks bills",
+                "ameles/invoice-amele.yaml")
 mail_id = db.create_amele("mail-amele", "Mail", "mailleri okur, taslak hazırlar",
-                          "ameleler/mail-amele.yaml")
+                          "ameles/mail-amele.yaml")
 db.create_amele("pets-amele", "Pets", "evcil hayvan takibi",
-                "ameleler/pets-amele.yaml")
+                "ameles/pets-amele.yaml")
 bot = Bot(Config(db), db)
 fails = []
 
@@ -117,7 +117,7 @@ def send(text, clear=True):
 
 # --- 1. /amele list
 send("/amele")
-check("1 amele list", "Ameleler" in last_msg() and "mail-amele" in last_msg()
+check("1 amele list", "Ameles" in last_msg() and "mail-amele" in last_msg()
       and "kayıt" in last_msg())
 
 # --- 2. direct amele: /mail-amele selam
@@ -135,7 +135,7 @@ check("3c session exits", "iptal edildi" in last_msg().lower() or "İptal" in la
 check("3d state cleared", db.get_chat_state(42) == {})
 
 # --- 4. plain message → Kahya (orchestrator, with index)
-send("Bu ay hangi faturalar var?")
+send("Which bills are due this month?")
 check("4 kahya answered", "intent" in last_msg(), last_msg()[:80])
 
 # --- 5. approval matching: pending action + "evet"
@@ -147,7 +147,7 @@ check("5a approval forwarded", "iletildi" in last_msg(), last_msg()[:80])
 check("5b action resolved approved", pa and pa["status"] == "approved")
 
 # --- 5c. two pending actions → plain "evet" hits the NEWEST one
-fatura_id = db.get_amele_by_slug("fatura-amele")["id"]
+fatura_id = db.get_amele_by_slug("invoice-amele")["id"]
 pa_old = db.add_pending_action(fatura_id, {"olay": "eski_is"}, lang="tr")
 pa_new = db.add_pending_action(mail_id, {"olay": "yeni_is"}, lang="tr")
 send("evet")

@@ -16,7 +16,7 @@ you when it matters. Runs on a Raspberry Pi (or any box), entirely self-hosted.
 "August 19" → confirmation card → "yes"
         │
         ▼
-   SQLite · reminders armed → amele (hatirlatıcı) spawns on the 17th/18th/19th
+   SQLite · reminders armed → amele (reminder) spawns on the 17th/18th/19th
 ```
 
 > **50 configured ameles, 0 running.** Kâhya is idle until there is work:
@@ -30,16 +30,16 @@ you when it matters. Runs on a Raspberry Pi (or any box), entirely self-hosted.
 
 Kâhya is deliberately thin: its core (scheduler, bot, web panel, SQLite) is a
 small always-on layer, and **every AI step is an amele** — a single YAML
-file in [`ameleler/`](ameleler/). That buys three things:
+file in [`ameles/`](ameles/). That buys three things:
 
 - **Any LLM, local or cloud.** Point `BASE_URL` at a local Ollama
   (`http://host:11434/v1`) or at OpenAI/OpenRouter — the ameles don't care.
   Your data stays on your hardware.
 - **Organization as code.** Creating an amele from the web panel or from
-  Telegram writes `ameleler/<slug>.yaml`. Version it, diff it, review it in a
+  Telegram writes `ameles/<slug>.yaml`. Version it, diff it, review it in a
   PR, share it. A PR is literally "what changed in my company".
 - **A well-mannered runtime.** Schema-guaranteed JSON output (`output.schema`
-  in [`ameleler/extract-amele.yaml`](ameleler/extract-amele.yaml)), meaningful
+  in [`ameles/extract-amele.yaml`](ameles/extract-amele.yaml)), meaningful
   exit codes, one JSONL log per run — all amele contracts.
 
 ## Requirements
@@ -151,7 +151,7 @@ Natural language in, both ways:
   Missing facts are asked one at a time; nothing is saved without your
   explicit confirmation (human in the loop).
 - **Ask** — "When was the rabies shot?", "Which bills are due this month?"
-  The orchestrator amele ([`ameleler/kahya.yaml`](ameleler/kahya.yaml))
+  The orchestrator amele ([`ameles/kahya.yaml`](ameles/kahya.yaml))
   reads the store and answers from real data.
 - **Complete** — reply "paid" to a reminder; repeating records roll to
   the next period automatically.
@@ -168,17 +168,17 @@ Natural language in, both ways:
 
 Any message without a `/` command is answered by Kahya, who either answers
 itself, asks a question, or forwards the job to the right amele
-("… x amelesine gönderilsin mi? evet / hayır").
+("… send to amele x? yes / no").
 
 ## How it works
 
 | Piece | What it does | Lives |
 |---|---|---|
-| `ameleler/extract-amele.yaml` | natural language → intent (record/question) + validated JSON | amele |
-| `ameleler/kahya.yaml` | the orchestrator — answers questions from the store | amele |
-| `ameleler/hatirlatıcı-amele.yaml` | general reminder delivery | amele |
-| `ameleler/fatura-amele.yaml`, `ameleler/pets-amele.yaml`, … | example owner-defined ameles — the shape every panel-created amele gets | ameles |
-| `tools/db_get.py`, `tools/db_put.py` | read / write the SQLite store (ameles can never touch `ameleler`/`settings` tables) | amele tools |
+| `ameles/extract-amele.yaml` | natural language → intent (record/question) + validated JSON | amele |
+| `ameles/kahya.yaml` | the orchestrator — answers questions from the store | amele |
+| `ameles/reminder-amele.yaml` | general reminder delivery | amele |
+| `ameles/invoice-amele.yaml`, `ameles/pets-amele.yaml`, … | example owner-defined ameles — the shape every panel-created amele gets | ameles |
+| `tools/db_get.py`, `tools/db_put.py` | read / write the SQLite store (ameles can never touch `ameles`/`settings` tables) | amele tools |
 | `tools/telegram_send.py` | deliver a message to the owner | amele tool |
 | `kahya/scheduler.py` | every 60 s: records inside their reminder window → spawn owning amele → one reminder per record per day | core |
 | `kahya/bot.py` | Telegram long-polling: records, questions, approvals, chat sessions | core |
@@ -211,7 +211,7 @@ action.
 - Telegram bot only serves the configured chat id — strangers get a polite
   "wrong household".
 - Ameles read the store through a whitelist; `db_put` allows inserts/updates
-  on records only, never on ameleler, reminders or settings.
+  on records only, never on ameles, reminders or settings.
 
 ## Data & backups
 
