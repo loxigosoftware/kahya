@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 import secrets
+import time
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -166,24 +167,32 @@ class Handler(BaseHTTPRequestHandler):
                         "using_default_password": self.server.cfg.admin_password_hash == ""
                                                    and self.server.cfg.env_admin_password() is None})
             return
-        if path == "/api/agents":
-            self._json({"agents": self.server.db.list_agents()})
+        if path == "/api/v2/overview":
+            self._v2_overview()
             return
-        if path == "/api/items":
-            q = self.server.db.list_items(
-                agent_slug=self._query("agent"), status=self._query("status"))
-            self._json({"items": q})
+        if path == "/api/v2/ameleler":
+            self._v2_ameleler_get()
             return
-        if path == "/api/logs":
-            rows = self.server.db.con.execute(
-                "SELECT * FROM logs ORDER BY id DESC LIMIT 100").fetchall()
-            self._json({"logs": [dict(r) for r in rows]})
+        if path == "/api/v2/records":
+            self._v2_records_get()
+            return
+        if path == "/api/v2/approvals":
+            self._v2_approvals_get()
+            return
+        if path == "/api/v2/tasks":
+            self._v2_tasks_get()
+            return
+        if path == "/api/v2/mcp":
+            self._v2_mcp_get()
             return
         if path == "/api/settings":
             self._json({"settings": self.server.cfg.all_editable()})
             return
         if path == "/api/backup":
             self._send_backup()
+            return
+        if path == "/api/backup/history":
+            self._send_history_backup()
             return
         self._json({"error": "not found"}, 404)
 
@@ -197,20 +206,26 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not self._require_auth():
             return
-        if path == "/api/agents":
-            self._create_agent()
+        if path == "/api/v2/ameleler":
+            self._v2_ameleler_create()
             return
-        if path == "/api/agents/delete":
-            self._delete_agent()
+        if path == "/api/v2/ameleler/edit":
+            self._v2_ameleler_edit()
             return
-        if path == "/api/agents/edit":
-            self._edit_agent()
+        if path == "/api/v2/ameleler/delete":
+            self._v2_ameleler_delete()
             return
-        if path == "/api/items":
-            self._create_item()
+        if path == "/api/v2/records":
+            self._v2_records_create()
             return
-        if path.endswith("/complete"):
-            self._complete_item(path)
+        if path == "/api/v2/records/edit":
+            self._v2_records_edit()
+            return
+        if path == "/api/v2/records/delete":
+            self._v2_records_delete()
+            return
+        if path == "/api/v2/approvals/resolve":
+            self._v2_approvals_resolve()
             return
         if path == "/api/settings":
             self._save_settings()
@@ -297,87 +312,292 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    # ------------------------------------------------------------- agents
+    def _send_history_backup(self):
+        db = self.server.db
+        rows = db.con.execute(
+            "SELECT thread_id, role, content, ts, archived "
+            "FROM conversation_messages ORDER BY id").fetchall()
+        from datetime import datetime
+        payload = {
+            "exported_at": datetime.now().isoformat(timespec="seconds"),
+            "kayit_sayisi": len(rows),
+            "mesajlar": [dict(r) for r in rows],
+        }
+        body = json.dumps(payload, ensure_ascii=False, indent=1).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Disposition",
+                         f'attachment; filename="kahya-gecmis-{int(time.time())}.json"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    # ------------------------------------------------------------- v2: overview
 
     def _agent_yaml_text(self, slug: str, name: str, role_prompt: str) -> str:
         role_indented = "\n".join("  " + ln for ln in role_prompt.splitlines())
         return AGENT_TEMPLATE.format(slug=slug, name=name, role_prompt=role_indented)
 
-    def _create_agent(self):
+    def _v2_overview(self):
+        db = self.server.db
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        soon = (now + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+        tasks = []
+        for t in db.list_scheduled_tasks("pending"):
+            amele = db.get_amele(t["amele_id"])
+            row = dict(t)
+            row["amele_slug"] = amele["slug"] if amele else "?"
+            row["gecikti"] = t["run_at"] < now.strftime("%Y-%m-%d %H:%M:%S")
+            if t["run_at"] <= soon:
+                tasks.append(row)
+        self._json({
+            "ameleler": len(db.list_ameleler()),
+            "kayitlar": db.count_records(),
+            "bekleyen_onaylar": len(db.list_pending_actions("waiting")),
+            "bekleyen_gorevler": len(db.list_scheduled_tasks("pending")),
+            "yaklasan_gorevler": tasks,
+        })
+
+    # ------------------------------------------------------------- v2: ameleler
+
+    def _v2_ameleler_get(self):
+        out = []
+        for a in self.server.db.list_ameleler():
+            d = dict(a)
+            for k in ("schema_json", "model_cfg"):
+                try:
+                    d[k] = json.loads(d[k]) if d.get(k) else None
+                except (TypeError, json.JSONDecodeError):
+                    d[k] = None
+            out.append(d)
+        self._json({"ameleler": out})
+
+    def _v2_ameleler_create(self):
         data = self._read_body()
+        db = self.server.db
         slug = (data.get("slug") or "").strip().lower()
         name = (data.get("name") or "").strip()
-        role = (data.get("role_prompt") or "").strip()
+        role = (data.get("description") or "").strip()
         if not SLUG_RE.match(slug):
             self._json({"error": "slug: 2-32 chars, a-z0-9 and dashes only"}, 400)
             return
         if not name or not role:
-            self._json({"error": "name and role_prompt are required"}, 400)
+            self._json({"error": "name and description are required"}, 400)
             return
-        if self.server.db.get_agent_by_slug(slug):
-            self._json({"error": f"agent '{slug}' already exists"}, 409)
+        if db.get_amele_by_slug(slug):
+            self._json({"error": f"amele '{slug}' already exists"}, 409)
             return
+        model_kind = data.get("model_kind") or "local"
+        if model_kind not in ("local", "api"):
+            self._json({"error": "model_kind: local|api"}, 400)
+            return
+        model_name = (data.get("model_name") or "").strip()
+        model_cfg = data.get("model_cfg") if isinstance(data.get("model_cfg"), dict) else None
+        if model_kind == "api":
+            if not model_name:
+                self._json({"error": "model_name gerekli (api modeli)"}, 400)
+                return
+            if not (model_cfg and model_cfg.get("base_url")):
+                self._json({"error": "model_cfg.base_url gerekli (api modeli)"}, 400)
+                return
+        elif not model_name:
+            model_name = "qwen3:27b"
+        schema = data.get("schema_json") if isinstance(data.get("schema_json"), dict) else None
         yaml_path = self.server.ameleler_dir / f"{slug}.yaml"
         yaml_path.write_text(self._agent_yaml_text(slug, name, role), encoding="utf-8")
-        agent_id = self.server.db.create_agent(slug, name, role, str(yaml_path))
-        self.server.db.log("web", {"event": "agent_created", "agent": slug})
-        self._json({"ok": True, "id": agent_id, "slug": slug,
-                    "yaml": str(yaml_path)}, 201)
+        amele_id = db.create_amele(slug, name, role, str(yaml_path),
+                                   model_kind=model_kind, model_name=model_name,
+                                   model_cfg=model_cfg, schema_json=schema)
+        db.log("web", {"event": "amele_created", "amele": slug})
+        self._json({"ok": True, "id": amele_id, "slug": slug}, 201)
 
-    def _delete_agent(self):
+    def _v2_ameleler_edit(self):
         data = self._read_body()
-        slug = (data.get("slug") or "").strip().lower()
-        agent = self.server.db.get_agent_by_slug(slug)
-        if not agent:
-            self._json({"error": f"agent '{slug}' not found"}, 404)
+        db = self.server.db
+        amele = db.get_amele(int(data.get("id") or 0))
+        if not amele:
+            self._json({"error": "amele not found"}, 404)
             return
-        # v2: amele silinince kayıtları ON DELETE CASCADE ile silinir
-        self.server.db.delete_amele(agent["id"])
-        yaml_path = self.server.ameleler_dir / f"{slug}.yaml"
-        if yaml_path.exists():
-            yaml_path.unlink()
-        self.server.db.log("web", {"event": "agent_deleted", "agent": slug})
+        updates = {}
+        for k in ("name", "description", "model_kind", "model_name", "enabled"):
+            if k in data and data[k] is not None:
+                updates[k] = data[k].strip() if isinstance(data[k], str) else data[k]
+        if "model_cfg" in data:
+            updates["model_cfg"] = (data["model_cfg"]
+                                    if isinstance(data["model_cfg"], dict) else None)
+        if "schema_json" in data:
+            updates["schema_json"] = (data["schema_json"]
+                                      if isinstance(data["schema_json"], dict) else None)
+        if updates.get("model_kind") not in (None, "local", "api"):
+            self._json({"error": "model_kind: local|api"}, 400)
+            return
+        db.update_amele(amele["id"], updates)
+        if "name" in updates or "description" in updates:
+            yaml_path = self.server.ameleler_dir / f"{amele['slug']}.yaml"
+            yaml_path.write_text(self._agent_yaml_text(
+                amele["slug"],
+                updates.get("name", amele["name"]),
+                updates.get("description", amele["description"])), encoding="utf-8")
+        db.log("web", {"event": "amele_edited", "amele": amele["slug"]})
         self._json({"ok": True})
 
-    def _edit_agent(self):
+    def _v2_ameleler_delete(self):
         data = self._read_body()
-        slug = (data.get("slug") or "").strip().lower()
-        agent = self.server.db.get_agent_by_slug(slug)
-        if not agent:
-            self._json({"error": f"agent '{slug}' not found"}, 404)
+        db = self.server.db
+        amele = db.get_amele(int(data.get("id") or 0))
+        if not amele:
+            self._json({"error": "amele not found"}, 404)
             return
-        name = (data.get("name") or agent["name"]).strip()
-        role = (data.get("role_prompt") or agent["role_prompt"]).strip()
-        self.server.db.update_amele(agent["id"], {"name": name, "description": role})
-        yaml_path = self.server.ameleler_dir / f"{slug}.yaml"
-        yaml_path.write_text(self._agent_yaml_text(slug, name, role), encoding="utf-8")
-        self.server.db.log("web", {"event": "agent_edited", "agent": slug})
-        self._json({"ok": True, "name": name})
+        db.delete_amele(amele["id"])
+        yaml_path = self.server.ameleler_dir / f"{amele['slug']}.yaml"
+        if yaml_path.exists():
+            yaml_path.unlink()
+        db.log("web", {"event": "amele_deleted", "amele": amele["slug"]})
+        self._json({"ok": True})
 
-    # -------------------------------------------------------------- items
+    # ------------------------------------------------------------- v2: records
 
-    def _create_item(self):
-        data = self._read_body().get("data") or {}
-        if not data.get("title"):
-            self._json({"error": "title is required"}, 400)
+    def _v2_records_get(self):
+        db = self.server.db
+        amele_id = self._query("amele_id")
+        amele_id = int(amele_id) if amele_id else None
+        q = (self._query("q") or "").strip().lower()
+        rows = db.list_records(amele_id)
+        if q:
+            rows = [r for r in rows
+                    if q in json.dumps(r["data"], ensure_ascii=False).lower()]
+        names = {a["id"]: a for a in db.list_ameleler()}
+        for r in rows:
+            a = names.get(r["amele_id"])
+            r["amele_slug"] = a["slug"] if a else "?"
+            r["amele_name"] = a["name"] if a else "?"
+        self._json({"records": rows})
+
+    def _v2_records_create(self):
+        data = self._read_body()
+        db = self.server.db
+        amele_id = int(data.get("amele_id") or 0)
+        record_data = data.get("data")
+        if not db.get_amele(amele_id):
+            self._json({"error": "amele not found"}, 404)
             return
-        agent = None
-        if data.get("agent"):
-            agent = self.server.db.get_agent_by_slug(data["agent"])
-            if not agent:
-                self._json({"error": f"unknown agent: {data['agent']}"}, 400)
-                return
-        item_id = self.server.db.insert_item(data, agent_id=agent["id"] if agent else None)
-        self._json({"ok": True, "id": item_id}, 201)
-
-    def _complete_item(self, path: str):
-        item_id = int(path.split("/")[-2])
-        result = self.server.db.complete_item(item_id)
-        if not result:
-            self._json({"error": "item not found"}, 404)
+        if not isinstance(record_data, dict):
+            self._json({"error": "data: JSON object required"}, 400)
             return
-        self.server.db.log("web", {"event": "item_completed", "item_id": item_id})
-        self._json({"ok": True, "item": result})
+        rid = db.add_record(amele_id, record_data)
+        db.log("web", {"event": "record_created", "record_id": rid})
+        self._json({"ok": True, "id": rid}, 201)
+
+    def _v2_records_edit(self):
+        data = self._read_body()
+        db = self.server.db
+        rid = int(data.get("id") or 0)
+        record_data = data.get("data")
+        if not db.get_record(rid):
+            self._json({"error": "record not found"}, 404)
+            return
+        if not isinstance(record_data, dict):
+            self._json({"error": "data: JSON object required"}, 400)
+            return
+        db.update_record(rid, record_data)
+        db.log("web", {"event": "record_edited", "record_id": rid})
+        self._json({"ok": True})
+
+    def _v2_records_delete(self):
+        data = self._read_body()
+        db = self.server.db
+        rid = int(data.get("id") or 0)
+        if not db.get_record(rid):
+            self._json({"error": "record not found"}, 404)
+            return
+        db.delete_record(rid)
+        db.log("web", {"event": "record_deleted", "record_id": rid})
+        self._json({"ok": True})
+
+    # ------------------------------------------------------------ v2: approvals
+
+    def _v2_approvals_get(self):
+        db = self.server.db
+        out = []
+        for pa in db.list_pending_actions("waiting"):
+            amele = db.get_amele(pa["amele_id"])
+            out.append({**pa,
+                        "amele_slug": amele["slug"] if amele else "?",
+                        "amele_name": amele["name"] if amele else "?"})
+        self._json({"approvals": out})
+
+    def _v2_approvals_resolve(self):
+        data = self._read_body()
+        db = self.server.db
+        action_id = int(data.get("id") or 0)
+        karar = str(data.get("karar") or "").strip().lower()
+        pa = db.get_pending_action(action_id)
+        if not pa:
+            self._json({"error": "onay bulunamadı"}, 404)
+            return
+        if pa["status"] != "waiting":
+            self._json({"error": "bu onay zaten karara bağlanmış"}, 400)
+            return
+        if karar not in ("approved", "cancelled"):
+            self._json({"error": "karar: approved|cancelled"}, 400)
+            return
+        if karar == "approved":
+            amele = db.get_amele(pa["amele_id"])
+            yaml_path = (self.server.ameleler_dir / f"{amele['slug']}.yaml"
+                         if amele else None)
+            if yaml_path and yaml_path.exists():
+                task = (f"Owner's approval reply: APPROVED.\n"
+                        f"Your pending action was:\n"
+                        f"{json.dumps(pa['action'], ensure_ascii=False)}\n\n"
+                        f"Continue accordingly (e.g. save the record, send "
+                        f"the message, or drop it). Reply with a short "
+                        f"confirmation.")
+                try:
+                    run_agent(self.server.cfg, yaml_path, task, timeout_s=120)
+                except AmeleError as e:
+                    db.log("web", {"event": "approval_forward_failed",
+                                   "action_id": action_id, "error": str(e)})
+                    self._json({"error": f"amele: {e}"}, 502)
+                    return
+        db.resolve_pending_action(action_id, karar)
+        db.log("web", {"event": "approval_resolved",
+                       "action_id": action_id, "status": karar})
+        self._json({"ok": True})
+
+    # -------------------------------------------------------------- v2: tasks
+
+    def _v2_tasks_get(self):
+        db = self.server.db
+        status = self._query("status") or None
+        rows = []
+        for t in db.list_scheduled_tasks(status):
+            amele = db.get_amele(t["amele_id"])
+            r = dict(t)
+            r["amele_slug"] = amele["slug"] if amele else "?"
+            rows.append(r)
+        self._json({"tasks": rows})
+
+    # --------------------------------------------------------------- v2: mcp
+
+    def _v2_mcp_get(self):
+        db = self.server.db
+        # sunucu → amele slug haritası (amele_mcp)
+        binds = {}
+        for row in db.con.execute(
+                "SELECT a.server_id, m.slug FROM amele_mcp a "
+                "JOIN ameleler m ON m.id = a.amele_id").fetchall():
+            binds.setdefault(row["server_id"], []).append(row["slug"])
+        out = []
+        for s in db.list_mcp_servers():
+            d = dict(s)
+            try:
+                d["headers"] = json.loads(d.get("headers") or "{}")
+            except (TypeError, json.JSONDecodeError):
+                d["headers"] = {}
+            d["ameleler"] = binds.get(s["id"], [])
+            out.append(d)
+        self._json({"mcp_servers": out})
 
     # ----------------------------------------------------------- settings
 

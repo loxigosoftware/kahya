@@ -29,30 +29,34 @@
   .card .hint{color:var(--muted);font-size:13px;margin:0 0 14px}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:8px 10px}
-  td{padding:9px 10px;border-bottom:1px solid var(--line)}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
   tr:last-child td{border-bottom:none}
   .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;
     padding:2px 10px;font-size:12px;background:var(--soft);color:#4a4742}
-  .pill.due{background:var(--accent-soft);color:var(--accent);border-color:#f3c9bf}
   .pill.over{background:#fdeaea;color:#b3261e;border-color:#f3c2c2}
   .pill.done{background:var(--ok-soft);color:var(--ok);border-color:#bfe3d0}
+  .pill.api{background:var(--accent-soft);color:var(--accent);border-color:#f3c9bf}
   button{background:var(--text);color:#fff;border:none;border-radius:9px;padding:8px 16px;
     font-size:13px;cursor:pointer}
   button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:5px 12px}
   button.ghost.red{color:#b3261e;border-color:#e0a3a0}
   button.secondary{background:var(--soft);color:var(--text);border:1px solid var(--line)}
+  button.ok{background:var(--ok);color:#fff}
   input,textarea,select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;
     font:inherit;background:#fff;margin-bottom:10px}
-  textarea{min-height:90px;resize:vertical}
+  textarea{min-height:90px;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:13px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
   @media(max-width:760px){.grid2,.grid3{grid-template-columns:1fr}}
-  .agent{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  .agent{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
     padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:#fff}
   .agent .name{font-weight:600}
   .agent .slug{color:var(--muted);font-size:12px;font-family:ui-monospace,Menlo,monospace}
-  .agent .yaml{color:var(--muted);font-size:12px}
   .agent .actions{display:flex;gap:8px;flex-shrink:0}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px}
+  .stat{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .stat .n{font-size:28px;font-weight:700;letter-spacing:-.03em}
+  .stat .l{color:var(--muted);font-size:13px}
   .empty{color:var(--muted);font-size:14px;padding:14px 0}
   .toast{position:fixed;bottom:22px;right:22px;background:var(--text);color:#fff;
     padding:12px 18px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
@@ -69,6 +73,7 @@
   .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .btn-row .res{font-size:13px;color:var(--muted)}
   code{background:var(--soft);border-radius:5px;padding:1px 6px;font-size:12.5px}
+  .model-pill{font-size:12px;color:var(--muted);margin-top:2px}
 </style>
 </head>
 <body>
@@ -79,11 +84,13 @@
 const $ = id => document.getElementById(id);
 let T = {};            // translations (from /api/lang)
 let SESSION = {authed:false, usingDefault:false};
+let AMELES = [];       // amele list cache
 
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2600); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 const t = k => { const v = k.split('.').reduce((o,p)=>o&&o[p], T); return (v!==undefined&&typeof v==='string') ? v : k; };
+function tf(key, vars){ let s = t(key); Object.entries(vars||{}).forEach(([k,v])=> s=s.replace('{'+k+'}', v)); return s; }
 
 async function api(path, opts={}){
   const res = await fetch(path, {headers:{'Content-Type':'application/json'}, ...opts});
@@ -147,22 +154,18 @@ async function render(){
   await loadLang();
   if(!SESSION.authed){ renderLogin(); return; }
   const warn = SESSION.usingDefault ? `<div class="warn-banner">⚠️ ${t('panel.login_default_warn')}</div>` : '';
+  const tabs = [
+    ['overview', t('panel.tabs_overview')], ['ameleler', t('panel.tabs_ameleler')],
+    ['kayitlar', t('panel.tabs_kayitlar')], ['onaylar', t('panel.tabs_onaylar')],
+    ['mcp', t('panel.tabs_mcp')], ['settings', t('panel.tabs_settings')],
+    ['guide', t('panel.tabs_guide')], ['license', t('panel.tabs_license')],
+  ];
   $('app').innerHTML = warn + renderHeader() + `
   <main>
     <div class="tabs">
-      <button class="tab active" data-tab="items">${t('panel.tabs_items')}</button>
-      <button class="tab" data-tab="agents">${t('panel.tabs_agents')}</button>
-      <button class="tab" data-tab="settings">${t('panel.tabs_settings')}</button>
-      <button class="tab" data-tab="guide">${t('panel.tabs_guide')}</button>
-      <button class="tab" data-tab="logs">${t('panel.tabs_logs')}</button>
-      <button class="tab" data-tab="license">${t('panel.tabs_license')}</button>
+      ${tabs.map(([id,label],i)=>`<button class="tab ${i===0?'active':''}" data-tab="${id}">${label}</button>`).join('')}
     </div>
-    <section id="tab-items"></section>
-    <section id="tab-agents" style="display:none"></section>
-    <section id="tab-settings" style="display:none"></section>
-    <section id="tab-guide" style="display:none"></section>
-    <section id="tab-logs" style="display:none"></section>
-    <section id="tab-license" style="display:none"></section>
+    ${tabs.map(([id])=>`<section id="tab-${id}" style="display:${id==='overview'?'':'none'}"></section>`).join('')}
     <footer style="color:var(--muted);font-size:13px;margin-top:40px;text-align:center">
       ${t('panel.footer')}
     </footer>
@@ -170,203 +173,290 @@ async function render(){
   document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
     tab.classList.add('active');
-    ['items','agents','settings','guide','logs','license'].forEach(id=>
-      $('tab-'+id).style.display = id===tab.dataset.tab?'':'none');
-    if(tab.dataset.tab==='items') loadItems();
-    if(tab.dataset.tab==='agents') loadAgents();
-    if(tab.dataset.tab==='settings') loadSettings();
-    if(tab.dataset.tab==='guide') renderGuide();
-    if(tab.dataset.tab==='logs') loadLogs();
-    if(tab.dataset.tab==='license') renderLicense();
+    tabs.forEach(([id])=> $('tab-'+id).style.display = id===tab.dataset.tab?'':'none');
+    loadTab(tab.dataset.tab);
   });
-  loadItems(); loadAgentOptions();
+  loadTab('overview');
+}
+function loadTab(id){
+  if(id==='overview') loadOverview();
+  if(id==='ameleler') loadAmeleler();
+  if(id==='kayitlar') loadKayitlar();
+  if(id==='onaylar') loadOnaylar();
+  if(id==='mcp') loadMcp();
+  if(id==='settings') loadSettings();
+  if(id==='guide') renderGuide();
+  if(id==='license') renderLicense();
 }
 
-// ---------------------------------------------------------------- items
-function todayStr(){
-  const d = new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
-function plusDaysStr(days){
-  const d = new Date(); d.setDate(d.getDate()+days);
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
-function dueClass(it){
-  if(it.status==='done') return 'done';
-  const today = todayStr();
-  if(it.due_date && it.due_date < today) return 'over';
-  if(it.due_date && it.due_date <= plusDaysStr(3)) return 'due';
-  return '';
-}
-function dueLabel(it){
-  if(it.status==='done') return t('panel.items_done_btn')==='tamamla'?'tamamlandı':'done';
-  const today = todayStr();
-  if(it.due_date && it.due_date < today) return t('panel.tabs_items')==='Görevler'?'geçti!':'overdue!';
-  return it.due_date || '—';
-}
-function money(it){
-  if(it.amount==null) return '—';
-  const a = Number.isInteger(it.amount) ? it.amount : it.amount.toFixed(2);
-  return a + (it.currency? ' '+it.currency : '');
-}
-const REPEATS = {none:'items_repeat_none',daily:'items_repeat_daily',weekly:'items_repeat_weekly',
-                 monthly:'items_repeat_monthly',yearly:'items_repeat_yearly'};
-
-async function loadItems(){
+// ---------------------------------------------------------------- overview
+async function loadOverview(){
   try{
-    const {items} = await api('/api/items?status=open');
-    $('tab-items').innerHTML = `
-    <div class="card">
-      <h2>${t('panel.items_new')}</h2>
-      <p class="hint">${t('panel.items_new_hint')}</p>
-      <div class="grid2">
-        <div>
-          <input id="ni-title" placeholder="${t('panel.items_title')}" />
-          <div class="grid2">
-            <input id="ni-amount" type="number" placeholder="${t('panel.items_amount')}" />
-            <input id="ni-currency" placeholder="${t('panel.items_currency')}" />
-          </div>
-          <input id="ni-due" type="date" />
-        </div>
-        <div>
-          <select id="ni-agent"></select>
-          <select id="ni-repeat">
-            <option value="none">${t('panel.items_repeat_none')}</option>
-            <option value="daily">${t('panel.items_repeat_daily')}</option>
-            <option value="weekly">${t('panel.items_repeat_weekly')}</option>
-            <option value="monthly">${t('panel.items_repeat_monthly')}</option>
-            <option value="yearly">${t('panel.items_repeat_yearly')}</option>
-          </select>
-          <input id="ni-detail" placeholder="${t('panel.items_detail')}" />
-          <input id="ni-remind" type="number" value="2" />
-        </div>
-      </div>
-      <textarea id="ni-note" placeholder="${t('panel.items_note')}"></textarea>
-      <button onclick="addItem()">${t('panel.items_add')}</button>
+    const o = await api('/api/v2/overview');
+    $('tab-overview').innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="n">${o.ameleler}</div><div class="l">${t('panel.overview_ameleler')}</div></div>
+      <div class="stat"><div class="n">${o.kayitlar}</div><div class="l">${t('panel.overview_kayitlar')}</div></div>
+      <div class="stat"><div class="n">${o.bekleyen_onaylar}</div><div class="l">${t('panel.overview_onaylar')}</div></div>
+      <div class="stat"><div class="n">${o.bekleyen_gorevler}</div><div class="l">${t('panel.overview_gorevler')}</div></div>
     </div>
     <div class="card">
-      <h2>${t('panel.items_open')}</h2>
-      <div id="items-list">${items.length ? `
-        <table><thead><tr><th>${t('panel.items_title')}</th><th>${t('panel.items_agent')}</th>
-          <th>${t('panel.items_amount')}</th><th>${t('panel.items_due')}</th><th>${t('panel.items_repeat')}</th><th></th></tr></thead>
-        <tbody>${items.map(it=>`
-          <tr>
-            <td><b>${esc(it.title)}</b>${it.note? `<br><span style="color:var(--muted);font-size:12px">${esc(it.note)}</span>`:''}</td>
-            <td>${esc(it.agent_name||'—')}</td>
-            <td>${money(it)}</td>
-            <td><span class="pill ${dueClass(it)}">${dueLabel(it)}</span></td>
-            <td>${it.repeat_rule!=='none'? `<span class="pill">${t(REPEATS[it.repeat_rule]||'items_repeat_none')}${it.repeat_detail? ' '+esc(it.repeat_detail):''}</span>`:'—'}</td>
-            <td><button class="ghost" onclick="complete(${it.id})">${t('panel.items_done_btn')}</button></td>
-          </tr>`).join('')}
-        </tbody></table>` : `<div class="empty">${t('panel.items_empty')}</div>`}</div>
+      <h2>${t('panel.overview_yaklasan')}</h2>
+      ${o.yaklasan_gorevler.length ? `<table><thead><tr><th>${t('panel.kayit_amele')}</th><th>${t('panel.items_due')}</th><th></th></tr></thead>
+        <tbody>${o.yaklasan_gorevler.map(g=>`
+          <tr><td><b>${esc(g.amele_slug)}</b>${g.record_id? ` <span class="pill">#${g.record_id}</span>`:''}</td>
+          <td><span class="pill ${g.gecikti?'over':'done'}">${esc(g.run_at)}${g.gecikti? ' — '+t('panel.overview_gecikti'):''}</span></td>
+          <td><span class="pill">${g.attempts? g.attempts+'×':'✓'}</span></td></tr>`).join('')}
+        </tbody></table>` : `<div class="empty">${t('panel.overview_yaklasan_empty')}</div>`}
     </div>`;
-  }catch(e){ $('tab-items').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
-}
-async function complete(id){
-  try{ await api('/api/items/'+id+'/complete', {method:'POST', body:'{}'}); toast(t('panel.items_completed')); loadItems(); }
-  catch(e){ toast(e.message); }
-}
-async function addItem(){
-  const data = {
-    title:$('ni-title').value.trim(), amount:$('ni-amount').value? Number($('ni-amount').value):null,
-    currency:$('ni-currency').value.trim()||null, due_date:$('ni-due').value||null,
-    agent:$('ni-agent').value||null, repeat_rule:$('ni-repeat').value,
-    repeat_detail:$('ni-detail').value.trim()||null,
-    remind_before_days:Number($('ni-remind').value)||2, note:$('ni-note').value.trim()||null };
-  if(!data.title){ toast(t('panel.items_title')+'!'); return; }
-  try{ await api('/api/items', {method:'POST', body:JSON.stringify({data})}); toast(t('panel.items_completed')==='Completed ✅'?'Added ✅':'Eklendi ✅');
-    ['ni-title','ni-amount','ni-currency','ni-due','ni-detail','ni-note'].forEach(id=>$(id).value='');
-    loadItems(); }catch(e){ toast(e.message); }
-}
-async function loadAgentOptions(){
-  try{
-    const {agents} = await api('/api/agents');
-    const sel = $('ni-agent'); if(!sel) return;
-    sel.innerHTML = `<option value="">—</option>` +
-      agents.map(a=>`<option value="${a.slug}">${esc(a.name)}</option>`).join('');
-  }catch(_){}
+  }catch(e){ $('tab-overview').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
-// ---------------------------------------------------------------- agents
-let slugAuto = true;            // auto-derive slug from name until the user edits it
+// ---------------------------------------------------------------- ameleler
 function slugify(s){ return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,31); }
-function agentRow(a, editing, confirming){
+let slugAuto = true;
+
+function modelPill(a){
+  if(!a) return '';
+  const kind = a.model_kind==='api' ? 'API' : 'local';
+  return `<div class="model-pill"><span class="pill ${a.model_kind==='api'?'api':''}">${tf('panel.amele_model_pill',{kind,model:a.model_name||'—'})}</span>` +
+    (a.schema_json? ` <span class="pill">⛃ şema</span>`:'') +
+    (a.enabled? '' : ` <span class="pill over">off</span>`) + `</div>`;
+}
+function ameleRow(a, editing, confirming){
   const actions = editing ? `
-      <button onclick="saveEdit('${a.slug}')">${t('panel.agents_save')||'Save'}</button>
-      <button class="secondary" onclick="loadAgents()">${t('panel.agents_cancel')||'Cancel'}</button>`
+      <button onclick="saveEditAmele(${a.id})">${t('panel.settings_save')}</button>
+      <button class="secondary" onclick="loadAmeleler()">✕</button>`
     : confirming ? `
-      <button class="ghost red" onclick="doDelAgent('${a.slug}')">${t('panel.agents_delete_yes')||'Delete'}</button>
-      <button class="secondary" onclick="loadAgents()">${t('panel.agents_delete_no')||'Keep'}</button>`
+      <button class="ghost red" onclick="doDelAmele(${a.id})">${t('panel.agents_delete_yes')||'Delete'}</button>
+      <button class="secondary" onclick="loadAmeleler()">${t('panel.agents_delete_no')||'Keep'}</button>`
     : `
-      <button class="ghost" onclick="startEdit('${a.slug}')">${t('panel.agents_edit')}</button>
-      <button class="ghost red" onclick="confirmDel('${a.slug}')">${t('panel.agents_delete')}</button>`;
+      <button class="ghost" onclick="startEditAmele(${a.id})">${t('panel.amele_edit')}</button>
+      <button class="ghost red" onclick="confirmDelAmele(${a.id})">${t('panel.amele_delete')}</button>`;
   const body = editing ? `
-      <input id="ea-name" value="${esc(a.name)}" style="margin-bottom:6px" />
-      <textarea id="ea-role" style="min-height:70px;margin-bottom:6px">${esc(a.role_prompt)}</textarea>
-      <div style="color:var(--muted);font-size:12px;margin-bottom:4px">${t('panel.agents_slug')}: ${esc(a.slug)}</div>`
+      <div class="grid2">
+        <input id="ea-name" value="${esc(a.name)}" placeholder="${t('panel.amele_name')}" />
+        <input value="${esc(a.slug)}" disabled style="background:var(--soft)" />
+      </div>
+      <textarea id="ea-desc" placeholder="${t('panel.amele_description')}" style="min-height:60px">${esc(a.description)}</textarea>
+      <div class="grid3">
+        <select id="ea-kind">
+          <option value="local" ${a.model_kind!=='api'?'selected':''}>${t('panel.amele_model_kind_local')}</option>
+          <option value="api" ${a.model_kind==='api'?'selected':''}>${t('panel.amele_model_kind_api')}</option>
+        </select>
+        <input id="ea-model" value="${esc(a.model_name||'')}" placeholder="${t('panel.amele_model_name')}" />
+        <input id="ea-base" value="${esc((a.model_cfg&&a.model_cfg.base_url)||'')}" placeholder="${t('panel.amele_model_base')}" />
+      </div>
+      <textarea id="ea-schema" placeholder="${t('panel.amele_schema')}" style="min-height:70px">${esc(JSON.stringify(a.schema_json||{fields:[]},null,1))}</textarea>`
     : confirming ? `
-      <div style="color:#b3261e;margin-bottom:8px">${t('panel.agents_delete_confirm')}</div>`
+      <div style="color:#b3261e;margin-bottom:8px">${t('panel.amele_delete_confirm')}</div>`
     : `
       <div class="name">${esc(a.name)}</div>
-      <div class="slug">${esc(a.slug)} · ${a.enabled? t('panel.agents_active'):'—'}</div>
-      <div class="yaml">${esc(a.yaml_path||'')}</div>`;
-  return `<div class="agent">
+      <div class="slug">${esc(a.slug)}</div>
+      ${modelPill(a)}
+      <div class="yaml" style="color:var(--muted);font-size:12px;margin-top:6px">${esc(a.description||'').slice(0,160)}</div>`;
+  return `<div class="agent" id="amele-${a.id}">
     <div style="flex:1">${body}</div>
     <div class="actions">${actions}</div>
   </div>`;
 }
-async function loadAgents(){
+async function loadAmeleler(){
   try{
-    const {agents} = await api('/api/agents');
-    window.__AGENTS = agents;
-    $('tab-agents').innerHTML = `
+    const {ameleler} = await api('/api/v2/ameleler');
+    AMELES = ameleler;
+    $('tab-ameleler').innerHTML = `
     <div class="card">
-      <h2>${t('panel.agents_new')}</h2>
-      <p class="hint">${t('panel.agents_new_hint')}</p>
-      <div class="grid3">
-        <input id="na-name" placeholder="${t('panel.agents_name')}" oninput="autoSlug()" />
-        <input id="na-slug" placeholder="${t('panel.agents_slug')}" oninput="slugAuto=false" />
+      <h2>${t('panel.amele_new')}</h2>
+      <p class="hint">${t('panel.amele_new_hint')}</p>
+      <div class="grid2">
+        <input id="na-name" placeholder="${t('panel.amele_name')}" oninput="naSlug()" />
+        <input id="na-slug" placeholder="${t('panel.amele_slug')}" oninput="slugAuto=false" />
       </div>
-      <textarea id="na-prompt" placeholder="${t('panel.agents_role')}"></textarea>
-      <button onclick="addAgent()">${t('panel.agents_create')}</button>
+      <textarea id="na-desc" placeholder="${t('panel.amele_description')}"></textarea>
+      <div class="grid3">
+        <select id="na-kind">
+          <option value="local">${t('panel.amele_model_kind_local')}</option>
+          <option value="api">${t('panel.amele_model_kind_api')}</option>
+        </select>
+        <input id="na-model" placeholder="${t('panel.amele_model_name')}" value="qwen3:27b" />
+        <input id="na-base" placeholder="${t('panel.amele_model_base')}" />
+      </div>
+      <textarea id="na-schema" placeholder='${t('panel.amele_schema')}' style="min-height:80px"></textarea>
+      <p class="hint" style="margin-bottom:8px">${t('panel.amele_schema_hint')}</p>
+      <button onclick="addAmele()">${t('panel.amele_new')}</button>
     </div>
     <div class="card">
-      <h2>${t('panel.agents_list')}</h2>
-      <div id="agents-list">${agents.length ? agents.map(a=>agentRow(a,false,false)).join('') : `<div class="empty">${t('panel.agents_empty')}</div>`}</div>
+      <h2>${t('panel.tabs_ameleler')}</h2>
+      <div id="ameleler-list">${ameleler.length ? ameleler.map(a=>ameleRow(a,false,false)).join('') : `<div class="empty">${t('panel.amele_empty')}</div>`}</div>
     </div>`;
-  }catch(e){ $('tab-agents').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  }catch(e){ $('tab-ameleler').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
-function autoSlug(){ if(slugAuto) $('na-slug').value = slugify($('na-name').value); }
-async function addAgent(){
-  const name=$('na-name').value.trim(), role=$('na-prompt').value.trim();
+function naSlug(){ if(slugAuto) $('na-slug').value = slugify($('na-name').value); }
+async function addAmele(){
+  const name=$('na-name').value.trim(), desc=$('na-desc').value.trim();
   let slug=$('na-slug').value.trim().toLowerCase();
   if(!slug || slugAuto) slug = slugify(name);
-  if(!name||!slug||!role){ toast('!'); return; }
-  try{ await api('/api/agents',{method:'POST',body:JSON.stringify({name,slug,role_prompt:role})});
-    toast('✅'); ['na-name','na-slug','na-prompt'].forEach(id=>$(id).value='');
-    slugAuto = true; loadAgents(); loadAgentOptions(); }catch(e){ toast(e.message); }
+  if(!name||!slug||!desc){ toast('!'); return; }
+  let schema=null;
+  if($('na-schema').value.trim()){ try{ schema=JSON.parse($('na-schema').value); }catch(e){ toast(t('panel.amele_schema_bad')); return; } }
+  const model_kind=$('na-kind').value;
+  const model_cfg = model_kind==='api' && $('na-base').value.trim() ? {base_url:$('na-base').value.trim()} : null;
+  try{
+    await api('/api/v2/ameleler',{method:'POST',body:JSON.stringify({
+      name,slug,description:desc,model_kind,
+      model_name:$('na-model').value.trim()||null, model_cfg, schema_json:schema})});
+    toast(t('panel.amele_created'));
+    ['na-name','na-slug','na-desc','na-model','na-base','na-schema'].forEach(id=>$(id).value='');
+    slugAuto=true; loadAmeleler();
+  }catch(e){ toast(e.message); }
 }
-function confirmDel(slug){ loadAgents().then(()=>{
-  const row = [...document.querySelectorAll('.agent')].find(r=>r.textContent.includes(slug));
-  if(row && window.__AGENTS) {
-    const a = window.__AGENTS.find(x=>x.slug===slug);
-    if(a) row.outerHTML = agentRow(a,false,true);
+function confirmDelAmele(id){ const row=$('amele-'+id); if(row && AMELES){
+  const a=AMELES.find(x=>x.id===id); if(a) row.outerHTML=ameleRow(a,false,true); } }
+function startEditAmele(id){ const row=$('amele-'+id); const a=AMELES.find(x=>x.id===id);
+  if(row&&a) row.outerHTML=ameleRow(a,true,false); }
+async function saveEditAmele(id){
+  const a=AMELES.find(x=>x.id===id);
+  let schema=null;
+  if($('ea-schema').value.trim()){ try{ schema=JSON.parse($('ea-schema').value); }catch(e){ toast(t('panel.amele_schema_bad')); return; } }
+  const model_kind=$('ea-kind').value;
+  try{
+    await api('/api/v2/ameleler/edit',{method:'POST',body:JSON.stringify({id,
+      name:$('ea-name').value.trim(), description:$('ea-desc').value.trim(),
+      model_kind, model_name:$('ea-model').value.trim()||null,
+      model_cfg: model_kind==='api' && $('ea-base').value.trim() ? {base_url:$('ea-base').value.trim()} : null,
+      schema_json: schema})});
+    toast(t('panel.amele_saved')); loadAmeleler();
+  }catch(e){ toast(e.message); }
+}
+async function doDelAmele(id){
+  try{ await api('/api/v2/ameleler/delete',{method:'POST',body:JSON.stringify({id})});
+    toast(t('panel.amele_deleted')); loadAmeleler(); }catch(e){ toast(e.message); }
+}
+
+// ---------------------------------------------------------------- kayitlar
+let KAYIT_AMELE = null;
+function schemaFields(a){
+  if(!a || !a.schema_json || !a.schema_json.fields) return null;
+  const disp = a.schema_json.fields.filter(f=>f.display);
+  return disp.length ? disp : a.schema_json.fields.slice(0,5);
+}
+async function loadKayitlar(){
+  try{
+    const {ameleler} = await api('/api/v2/ameleler');
+    if(!ameleler.length){ $('tab-kayitlar').innerHTML = `<div class="card"><h2>${t('panel.kayit_title')}</h2><div class="empty">${t('panel.amele_empty')}</div></div>`; return; }
+    if(!KAYIT_AMELE || !ameleler.find(a=>a.id===KAYIT_AMELE)) KAYIT_AMELE = ameleler[0].id;
+    const sel = ameleler.find(a=>a.id===KAYIT_AMELE);
+    const q = (window.__KAYIT_Q||'');
+    const {records} = await api('/api/v2/records?amele_id='+KAYIT_AMELE+(q?'&q='+encodeURIComponent(q):''));
+    const fields = schemaFields(sel);
+    const view = (window.__KAYIT_VIEW==='json' || !fields) ? 'json' : 'tablo';
+    $('tab-kayitlar').innerHTML = `
+    <div class="card">
+      <h2>${t('panel.kayit_title')}</h2>
+      <div class="grid2">
+        <select id="kr-amele" onchange="KAYIT_AMELE=Number(this.value);loadKayitlar()">
+          ${ameleler.map(a=>`<option value="${a.id}" ${a.id===KAYIT_AMELE?'selected':''}>${esc(a.name)} (${esc(a.slug)})</option>`).join('')}
+        </select>
+        <input id="kr-q" placeholder="${t('panel.kayit_ara')}" value="${esc(q)}"
+               onkeydown="if(event.key==='Enter'){window.__KAYIT_Q=this.value;loadKayitlar();}" />
+      </div>
+      ${fields? `<div class="btn-row" style="margin-bottom:6px">
+        <button class="secondary ${view==='tablo'?'active':''}" style="${view==='tablo'?'background:var(--text);color:#fff':''}" onclick="window.__KAYIT_VIEW='tablo';loadKayitlar()">${t('panel.kayit_tablo')}</button>
+        <button class="secondary ${view==='json'?'active':''}" style="${view==='json'?'background:var(--text);color:#fff':''}" onclick="window.__KAYIT_VIEW='json';loadKayitlar()">${t('panel.kayit_json_görünüm')}</button>
+      </div>`:''}
+      <textarea id="kr-new" placeholder="${t('panel.kayit_json_ph')}" style="min-height:60px"></textarea>
+      <button onclick="addKayit()">${t('panel.kayit_ekle')}</button>
+    </div>
+    <div class="card">
+      <h2>${esc(sel.name)} — ${records.length}</h2>
+      <div id="kayitlar-list">${records.length ? kayitlarHtml(records, fields, view) : `<div class="empty">${t('panel.kayit_empty')}</div>`}</div>
+    </div>`;
+  }catch(e){ $('tab-kayitlar').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function kayitlarHtml(records, fields, view){
+  if(view==='tablo' && fields){
+    return `<table><thead><tr>${fields.map(f=>`<th>${esc(f.name)}</th>`).join('')}<th></th></tr></thead><tbody>
+      ${records.map(r=>`<tr>
+        ${fields.map(f=>`<td>${esc(r.data[f.name]??'—')}</td>`).join('')}
+        <td style="white-space:nowrap">
+          <button class="ghost" onclick="editKayit(${r.id})">${t('panel.kayit_duzenle')}</button>
+          <button class="ghost red" onclick="delKayit(${r.id})">${t('panel.kayit_sil')}</button>
+        </td></tr>`).join('')}
+    </tbody></table>`;
   }
-}); }
-function startEdit(slug){ loadAgents().then(()=>{
-  const a = window.__AGENTS && window.__AGENTS.find(x=>x.slug===slug);
-  if(a){ const row = [...document.querySelectorAll('.agent')].find(r=>r.textContent.includes(slug));
-    if(row) row.outerHTML = agentRow(a,true,false); }
-}); }
-async function doDelAgent(slug){
-  try{ await api('/api/agents/delete',{method:'POST',body:JSON.stringify({slug})});
-    toast('🗑️'); loadAgents(); loadAgentOptions(); }catch(e){ toast(e.message); }
+  return records.map(r=>`<div class="agent">
+    <div style="flex:1"><div class="slug">#${r.id} · ${esc(r.amele_slug)}</div>
+      <pre style="margin:6px 0 0;font-size:12.5px;white-space:pre-wrap;color:#333">${esc(JSON.stringify(r.data,null,1))}</pre></div>
+    <div class="actions">
+      <button class="ghost" onclick="editKayit(${r.id})">${t('panel.kayit_duzenle')}</button>
+      <button class="ghost red" onclick="delKayit(${r.id})">${t('panel.kayit_sil')}</button>
+    </div></div>`).join('');
 }
-async function saveEdit(slug){
-  const name=$('ea-name').value.trim(), role=$('ea-role').value.trim();
-  if(!name||!role){ toast('!'); return; }
-  try{ await api('/api/agents/edit',{method:'POST',body:JSON.stringify({slug,name,role_prompt:role})});
-    toast('✅'); loadAgents(); }catch(e){ toast(e.message); }
+async function addKayit(){
+  let data; try{ data=JSON.parse($('kr-new').value); }catch(e){ toast(t('panel.amele_schema_bad')); return; }
+  try{ await api('/api/v2/records',{method:'POST',body:JSON.stringify({amele_id:KAYIT_AMELE,data})});
+    toast(t('panel.kayit_saved')); $('kr-new').value=''; loadKayitlar(); }catch(e){ toast(e.message); }
+}
+async function editKayit(id){
+  const r = (await api('/api/v2/records?amele_id='+KAYIT_AMELE)).records.find(x=>x.id===id);
+  if(!r) return;
+  const txt = prompt(t('panel.kayit_json_ph'), JSON.stringify(r.data));
+  if(txt===null) return;
+  let data; try{ data=JSON.parse(txt); }catch(e){ toast(t('panel.amele_schema_bad')); return; }
+  try{ await api('/api/v2/records/edit',{method:'POST',body:JSON.stringify({id,data})});
+    toast(t('panel.kayit_saved')); loadKayitlar(); }catch(e){ toast(e.message); }
+}
+async function delKayit(id){
+  if(!confirm(t('panel.amele_delete_confirm'))) return;
+  try{ await api('/api/v2/records/delete',{method:'POST',body:JSON.stringify({id})});
+    toast(t('panel.kayit_deleted')); loadKayitlar(); }catch(e){ toast(e.message); }
+}
+
+// ---------------------------------------------------------------- onaylar
+async function loadOnaylar(){
+  try{
+    const {approvals} = await api('/api/v2/approvals');
+    $('tab-onaylar').innerHTML = `
+    <div class="card">
+      <h2>${t('panel.onay_title')}</h2>
+      <p class="hint">${t('panel.onay_hint')}</p>
+      ${approvals.length ? approvals.map(pa=>`
+        <div class="agent">
+          <div style="flex:1">
+            <div class="name">📋 ${esc(pa.amele_name)} <span class="slug">(${esc(pa.amele_slug)})</span></div>
+            <div class="slug" style="margin-top:4px">#${pa.id} · ${esc(pa.asked_at)}</div>
+            <pre style="margin:6px 0 0;font-size:12.5px;white-space:pre-wrap;color:#333">${esc(JSON.stringify(pa.action,null,1))}</pre>
+          </div>
+          <div class="actions">
+            <button class="ok" onclick="resolveOnay(${pa.id},'approved')">${t('panel.onay_evet')}</button>
+            <button class="ghost red" onclick="resolveOnay(${pa.id},'cancelled')">${t('panel.onay_hayir')}</button>
+          </div>
+        </div>`).join('') : `<div class="empty">${t('panel.onay_empty')}</div>`}
+    </div>`;
+  }catch(e){ $('tab-onaylar').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function resolveOnay(id, karar){
+  try{ await api('/api/v2/approvals/resolve',{method:'POST',body:JSON.stringify({id,karar})});
+    toast(t('panel.onay_resolved')); loadOnaylar(); loadOverview();
+  }catch(e){ toast(tf('panel.onay_error',{error:e.message})); }
+}
+
+// ---------------------------------------------------------------- mcp
+async function loadMcp(){
+  try{
+    const {mcp_servers} = await api('/api/v2/mcp');
+    $('tab-mcp').innerHTML = `
+    <div class="card">
+      <h2>${t('panel.mcp_title')}</h2>
+      <p class="hint">${t('panel.mcp_step8')}</p>
+      ${mcp_servers.length ? `<table><thead><tr><th>${t('panel.agents_name')}</th><th>${t('panel.mcp_tip')}</th><th>${t('panel.mcp_ameleler')}</th></tr></thead>
+        <tbody>${mcp_servers.map(s=>`<tr>
+          <td><b>${esc(s.name)}</b></td><td><span class="pill">${esc(s.kind||'')}</span></td>
+          <td>${(s.ameleler||[]).map(a=>`<span class="pill">${esc(a)}</span>`).join(' ')||'—'}</td>
+        </tr>`).join('')}</tbody></table>`
+        : `<div class="empty">${t('panel.mcp_empty')}</div>`}
+    </div>`;
+  }catch(e){ $('tab-mcp').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
 // ---------------------------------------------------------------- settings
@@ -394,6 +484,7 @@ async function loadSettings(){
 
       <div class="settings-section">
         <h3>${t('panel.settings_section_llm')}</h3>
+        <p class="hint" style="margin-bottom:8px">${t('panel.settings_llm_hint')}</p>
         <div class="grid3">
           <input id="st-model" placeholder="Model" value="${esc(s.model)}" />
           <select id="st-provider">
@@ -408,6 +499,13 @@ async function loadSettings(){
           <span class="res" id="sl-res"></span>
         </div>
         ${s.api_key_set? '<div style="font-size:12px;color:var(--ok)">✓ API key set</div>':'<div style="font-size:12px;color:var(--muted)">API key not set (local model)</div>'}
+      </div>
+
+      <div class="settings-section">
+        <h3>Smithery</h3>
+        <input id="st-smithery" type="password" placeholder="${t('panel.settings_smithery')}"
+               value="" />
+        <p class="hint" style="margin-bottom:0">${t('panel.settings_smithery_hint')} ${s.smithery_api_key_set? '— <b style="color:var(--ok)">✓ '+t('panel.settings_smithery_set')+'</b>':''}</p>
       </div>
 
       <div class="settings-section">
@@ -444,9 +542,17 @@ async function loadSettings(){
         <div class="hint" style="margin-top:0">${t('panel.settings_admin_pass_hint')}</div>
       </div>
 
+      <div class="settings-section">
+        <h3>💾 ${t('panel.settings_backup').replace('💾 ','')} / ${t('panel.backup_history')}</h3>
+        <p class="hint" style="margin-bottom:10px">${t('panel.backup_hint')}</p>
+        <div class="btn-row">
+          <button class="secondary" onclick="downloadBackup()">${t('panel.settings_backup')}</button>
+          <button class="secondary" onclick="downloadHistory()">${t('panel.backup_history')}</button>
+        </div>
+      </div>
+
       <div class="btn-row">
         <button onclick="saveSettings()">${t('panel.settings_save')}</button>
-        <button class="secondary" onclick="downloadBackup()">${t('panel.settings_backup')}</button>
         <span class="res" id="ss-res"></span>
       </div>
     </div>`;
@@ -460,6 +566,7 @@ async function saveSettings(){
     provider_type:$('st-provider').value,
     base_url:$('st-base').value.trim(),
     api_key:$('st-key').value.trim() || null,
+    smithery_api_key:$('st-smithery').value.trim() || null,
     web_port:$('st-port').value,
     timezone:$('st-tz').value.trim() || null,
     language:$('st-lang').value,
@@ -480,7 +587,7 @@ async function testTelegram(){
   try{ await api('/api/test/telegram',{method:'POST',body:JSON.stringify({
         token:$('st-token').value.trim(), chat_id:$('st-chat').value.trim()})});
     $('st-res').textContent = t('panel.settings_telegram_test_ok'); }
-  catch(e){ $('st-res').textContent = t('panel.settings_telegram_test_fail',{error:e.message}); }
+  catch(e){ $('st-res').textContent = tf('panel.settings_telegram_test_fail',{error:e.message}); }
 }
 async function testLLM(){
   $('sl-res').textContent = '…';
@@ -488,9 +595,10 @@ async function testLLM(){
         model:$('st-model').value.trim(), base_url:$('st-base').value.trim(),
         api_key:$('st-key').value.trim(), provider_type:$('st-provider').value})});
     $('sl-res').textContent = t('panel.settings_llm_test_ok'); }
-  catch(e){ $('sl-res').textContent = t('panel.settings_llm_test_fail',{error:e.message}); }
+  catch(e){ $('sl-res').textContent = tf('panel.settings_llm_test_fail',{error:e.message}); }
 }
 function downloadBackup(){ window.location.href='/api/backup'; }
+function downloadHistory(){ window.location.href='/api/backup/history'; }
 
 // ---------------------------------------------------------------- guide
 function renderGuide(){
@@ -501,23 +609,6 @@ function renderGuide(){
     </div>`).join('');
   $('tab-guide').innerHTML = `<div class="card" style="background:transparent;border:none;padding:0">
     <h2 style="margin-bottom:4px">${t('panel.guide_title')}</h2></div>${sections}`;
-}
-
-// ---------------------------------------------------------------- logs
-async function loadLogs(){
-  try{
-    const {logs} = await api('/api/logs');
-    $('tab-logs').innerHTML = `
-    <div class="card">
-      <h2>${t('panel.logs_title')}</h2>
-      <p class="hint">${t('panel.logs_hint')}</p>
-      <table><thead><tr><th>${t('panel.logs_time')}</th><th>${t('panel.logs_source')}</th><th>${t('panel.logs_event')}</th></tr></thead>
-      <tbody>${logs.map(l=>{ let p={}; try{p=JSON.parse(l.payload)}catch(_){}
-        return `<tr><td style="white-space:nowrap">${esc(l.ts)}</td><td>${esc(l.source)}</td>
-          <td>${esc(p.event||l.payload)}</td></tr>`;}).join('') ||
-        `<tr><td colspan="3">${t('panel.logs_empty')}</td></tr>`}</tbody></table>
-    </div>`;
-  }catch(e){ $('tab-logs').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
 // ---------------------------------------------------------------- license

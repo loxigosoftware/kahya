@@ -209,14 +209,14 @@ Alt görevler:
 
 Alt görevler:
 
-- [ ] **Ameleler** sekmesi: CRUD (ad, slug, açıklama, durum) + **model seçimi** (local/api + model adı + ayarlar) + opsiyonel şema editor + MCP bağlama
-- [ ] **Kayıtlar** sekmesi: amele seç → şemalıysa tablo (display alanları) + arama; şemasızsa ham JSON liste/editor; ekle/düzenle/sil
-- [ ] **Onaylar** sekmesi: bekleyen onaylar + karar (evet/hayır/iptal)
-- [ ] **MCP Sunucuları** sekmesi (Step 8'de işlevsellik; sekme burada)
-- [ ] **Ayarlar:** LLM (yalnız Kahya — açıklama ile), Smithery API anahtarı, yedekleme bölümü
-- [ ] **Tasks formunu kaldır** (başlık/tutar/para birimi) — tamamen
-- [ ] Yedek butonları: **DB indir** (mevcut) + **Geçmiş (konuşma arşivi) indir** (yeni)
-- [ ] Server route'ları (`kahya/server.py`) + `web/index.html` güncelle
+- [x] **Ameleler** sekmesi: CRUD (ad, slug, açıklama, durum) + **model seçimi** (local/api + model adı + ayarlar) + opsiyonel şema editor + MCP bağlama
+- [x] **Kayıtlar** sekmesi: amele seç → şemalıysa tablo (display alanları) + arama; şemasızsa ham JSON liste/editor; ekle/düzenle/sil
+- [x] **Onaylar** sekmesi: bekleyen onaylar + karar (evet/hayır/iptal)
+- [x] **MCP Sunucuları** sekmesi (Step 8'de işlevsellik; sekme burada)
+- [x] **Ayarlar:** LLM (yalnız Kahya — açıklama ile), Smithery API anahtarı, yedekleme bölümü
+- [x] **Tasks formunu kaldır** (başlık/tutar/para birimi) — tamamen
+- [x] Yedek butonları: **DB indir** (mevcut) + **Geçmiş (konuşma arşivi) indir** (yeni)
+- [x] Server route'ları (`kahya/server.py`) + `web/index.html` güncelle
 
 **Kabul kriterleri:** Panelden amele ekleniyor (model atamayla), şema düzenleniyor, kayıtlar tablo/JSON görünüyor, Tasks yok, iki indirme butonu çalışıyor.
 

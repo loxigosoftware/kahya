@@ -93,10 +93,18 @@ without touching Telegram. On the Pi, prefer the installer's systemd step
    **admin / kahya123** — the banner nags you until you change it in
    Settings.
 2. Settings → LLM: model + endpoint (Ollama or cloud API), hit
-   **Test connection**.
+   **Test connection** — this system model powers Kahya only; each
+   agent gets its own model from the **Agents** tab.
 3. Settings → Telegram: bot token + your chat id, hit **Send test**.
 4. Settings → General: panel language (Turkish / English), timezone.
 5. Say `/start` to your bot. Done.
+
+Panel tabs (v2): **Overview** (counts + upcoming scheduled tasks),
+**Agents** (CRUD + per-agent model + optional schema editor), **Records**
+(schema table view or raw JSON, search, add/edit/delete), **Approvals**
+(decide pending approvals — approved ones are forwarded to the agent),
+**MCP Servers** (list; binding lands in the next release), **Settings**
+(+ Smithery API key, DB backup & conversation history downloads).
 
 Every setting lives in the SQLite store and applies **immediately** —
 no restarts; if the bot token changes, the bot reconnects on its own.

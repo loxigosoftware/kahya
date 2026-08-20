@@ -101,6 +101,10 @@ class Config:
         return self._get("telegram_chat_id", "TELEGRAM_CHAT_ID")
 
     @property
+    def smithery_api_key(self) -> str:
+        return self._get("smithery_api_key", "SMITHERY_API_KEY")
+
+    @property
     def web_port(self) -> int:
         return int(self._get("web_port", "KAHYA_WEB_PORT", DEFAULTS["web_port"]))
 
@@ -195,6 +199,7 @@ class Config:
             "telegram_token": self.telegram_token,
             "telegram_token_set": bool(self.telegram_token),
             "telegram_chat_id": self.telegram_chat_id,
+            "smithery_api_key_set": bool(self.smithery_api_key),
             "web_port": self.web_port,
             "timezone": self.timezone,
             "model": self.model,
