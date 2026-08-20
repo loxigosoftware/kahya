@@ -146,6 +146,25 @@ pa = db.get_pending_action(pa_id)
 check("5a approval forwarded", "iletildi" in last_msg(), last_msg()[:80])
 check("5b action resolved approved", pa and pa["status"] == "approved")
 
+# --- 5c. two pending actions → plain "evet" hits the NEWEST one
+fatura_id = db.get_amele_by_slug("fatura-amele")["id"]
+pa_old = db.add_pending_action(fatura_id, {"olay": "eski_is"}, lang="tr")
+pa_new = db.add_pending_action(mail_id, {"olay": "yeni_is"}, lang="tr")
+send("evet")
+check("5c evet → en güncel onay",
+      db.get_pending_action(pa_new)["status"] == "approved"
+      and db.get_pending_action(pa_old)["status"] == "waiting")
+
+# --- 5d. "<amele> evet" hits that amele's older approval
+pa_mail = db.add_pending_action(mail_id, {"olay": "mail_eski"}, lang="tr")
+send("mail-amele evet")
+check("5d mail-amele evet → o amelenin onayı",
+      db.get_pending_action(pa_mail)["status"] == "approved"
+      and db.get_pending_action(pa_old)["status"] == "waiting")
+send("evet")
+check("5e kalan eski onay da çözüldü",
+      db.get_pending_action(pa_old)["status"] == "approved")
+
 # --- 6. unknown command
 send("/bilinmeyen-komut")
 check("6 unknown command", "Bilinmeyen komut" in last_msg())

@@ -64,7 +64,9 @@
     "approval_cancelled": "Cancelled — {name} was notified.",
     "ameleler_header": "🤖 <b>Ameles:</b>",
     "ameleler_none": "No ameles yet. Create your first one in the web panel.",
-    "ameleler_records": "{n} records"
+    "ameleler_records": "{n} records",
+    "approval_ask": "📋 <b>{amele}:</b> {soru}\n\nApprove? <b>yes</b> / <b>no</b> / <b>cancel</b>",
+    "task_failed": "⚠️ Scheduled task failed: <b>{isim}</b> — {hata}\nTask kept pending, will retry."
   },
   "panel": {
     "title": "Kahya — panel",

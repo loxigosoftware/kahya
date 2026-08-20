@@ -20,9 +20,11 @@ def send(text):
     if not token or not chat:
         return ("ERROR: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are missing "
                 "— see .env.example")
-    # HTML-escape (parse_mode=HTML)
-    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    # HTML-escape (parse_mode=HTML). KAHYA_RAW_HTML=1 ise şablon HTML'i
+    # korunur — yalnızca ask_confirm gibi güvenilir, i18n'li göndericiler.
+    if os.environ.get("KAHYA_RAW_HTML") != "1":
+        text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    url = f"{os.environ.get('TELEGRAM_API_BASE', 'https://api.telegram.org')}/bot{token}/sendMessage"
     data = urllib.parse.urlencode({
         "chat_id": chat,
         "text": text,

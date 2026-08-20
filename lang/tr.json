@@ -64,7 +64,9 @@
     "approval_cancelled": "İptal edildi — {name} amelesine bildirildi.",
     "ameleler_header": "🤖 <b>Ameleler:</b>",
     "ameleler_none": "Henüz amele yok. Web panelinden ilk amelenizi oluşturun.",
-    "ameleler_records": "{n} kayıt"
+    "ameleler_records": "{n} kayıt",
+    "approval_ask": "📋 <b>{amele}:</b> {soru}\n\nOnaylıyor musun? <b>evet</b> / <b>hayır</b> / <b>iptal</b>",
+    "task_failed": "⚠️ Zamanlanmış görev çalışmadı: <b>{isim}</b> — {hata}\nGörev beklemeye alındı, tekrar denenir."
   },
   "panel": {
     "title": "Kâhya — panel",

@@ -273,7 +273,34 @@ class Bot:
         self._send(chat_id, msg)
 
     def _try_approval(self, chat_id: int, low: str, in_session: bool = False) -> bool:
-        """Onay kelimesi + bekleyen onay varsa iletir. True = handled."""
+        """Onay kelimesi + bekleyen onay varsa iletir. True = handled.
+
+        Eşleştirme (REDESIGN §7): düz kelime → en güncel bekleyen onay;
+        "<amele-adı> <kelime>" → o amelenin bekleyen onayı (eski onaya
+        cevap vermek için).
+        """
+        words = set(APPROVE_WORDS) | set(REJECT_WORDS) | set(CANCEL_WORDS)
+        if low in words:
+            pass  # düz kelime akışı aşağıda
+        else:
+            # "mail-amele evet" / "mail amele hayır" → amele adı + kelime
+            parts = low.split()
+            if len(parts) >= 2 and parts[-1] in words:
+                name = " ".join(parts[:-1]).replace("-", " ").strip()
+                for a in self.db.list_ameleler():
+                    slug = a.get("slug", "").replace("-", " ")
+                    if name in (slug, a.get("name", "").lower()):
+                        pa = next(
+                            (p for p in self.db.list_pending_actions("waiting")
+                             if p["amele_id"] == a["id"]), None)
+                        if not pa:
+                            return False
+                        self._forward_approval(chat_id, pa,
+                                               "approved" if parts[-1] in APPROVE_WORDS
+                                               else "cancelled")
+                        return True
+            return False
+
         if low in APPROVE_WORDS:
             pa = self.db.latest_pending_action()
             if pa:

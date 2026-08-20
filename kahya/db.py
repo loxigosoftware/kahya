@@ -84,6 +84,8 @@ CREATE TABLE IF NOT EXISTS scheduled_tasks (
   record_id   INTEGER REFERENCES records(id) ON DELETE CASCADE, -- null = sabit tarife
   run_at      TEXT NOT NULL,             -- tetikleme zamanı
   status      TEXT NOT NULL DEFAULT 'pending', -- pending | success | failed | cancelled
+  attempts    INTEGER NOT NULL DEFAULT 0,
+  last_error  TEXT,
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -153,7 +155,19 @@ class KahyaDB:
             self.fts5 = True
         except sqlite3.OperationalError:
             self.fts5 = False
+        self._upgrade_schema()
         self.con.commit()
+
+    def _upgrade_schema(self) -> None:
+        """Eski DB'lerde eksik sütunları tamamlar (idempotent)."""
+        cols = {r["name"] for r in self.con.execute(
+            "PRAGMA table_info(scheduled_tasks)").fetchall()}
+        if "attempts" not in cols:
+            self.con.execute(
+                "ALTER TABLE scheduled_tasks ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+        if "last_error" not in cols:
+            self.con.execute(
+                "ALTER TABLE scheduled_tasks ADD COLUMN last_error TEXT")
 
     def close(self) -> None:
         self.con.close()
@@ -232,7 +246,9 @@ class KahyaDB:
             (amele_id, json.dumps(data, ensure_ascii=False)),
         )
         self.con.commit()
-        return cur.lastrowid
+        record_id = cur.lastrowid
+        self.sync_virtual_task(amele_id, record_id, data)  # şemadaki virtual alanlar
+        return record_id
 
     def get_record(self, record_id: int) -> Optional[dict]:
         row = self.con.execute("SELECT * FROM records WHERE id = ?", (record_id,)).fetchone()
@@ -269,6 +285,10 @@ class KahyaDB:
             (json.dumps(merged, ensure_ascii=False), record_id),
         )
         self.con.commit()
+        amele_id = self.con.execute(
+            "SELECT amele_id FROM records WHERE id = ?", (record_id,)).fetchone()
+        if amele_id:
+            self.sync_virtual_task(amele_id["amele_id"], record_id, merged)
 
     def delete_record(self, record_id: int) -> None:
         self.con.execute("DELETE FROM records WHERE id = ?", (record_id,))
@@ -356,6 +376,60 @@ class KahyaDB:
         )
         self.con.commit()
         return cur.lastrowid
+
+    def bump_task_attempt(self, task_id: int, error: str) -> int:
+        """Deneme sayacını artır; hata kaydını düş. Yeni attempts döner."""
+        self.con.execute(
+            "UPDATE scheduled_tasks SET attempts = attempts + 1, "
+            "last_error = ? WHERE id = ?", (error[:400], task_id))
+        self.con.commit()
+        return self.con.execute(
+            "SELECT attempts FROM scheduled_tasks WHERE id = ?",
+            (task_id,)).fetchone()["attempts"]
+
+    def sync_virtual_task(self, amele_id: int, record_id: int, data: dict) -> None:
+        """Şemadaki virtual zaman alanlarından görev üretir (REDESIGN §8).
+
+        Örnek şema: {"fields": [{"name": "due_date", "type": "date",
+        "virtual": true, "display": true}]} → data'daki due_date, kaydın
+        zamanlanmış tetikleme zamanı olur (bekleyen görev varsa güncellenir).
+        """
+        agent = self.get_amele(amele_id)
+        if not agent or not agent.get("schema_json"):
+            return
+        raw = agent["schema_json"]
+        try:
+            schema = json.loads(raw) if isinstance(raw, str) else raw
+            schema = schema or {}
+        except (TypeError, json.JSONDecodeError):
+            return
+        fields = schema.get("fields") or []
+        for f in fields:
+            if not isinstance(f, dict) or not f.get("virtual"):
+                continue
+            name = f.get("name")
+            value = data.get(name)
+            if not name or not value:
+                continue
+            v = str(value).strip()
+            if len(v) == 10:  # YYYY-MM-DD → gün başlangıcı + sabit saat
+                run_at = f"{v} 09:00:00"
+            elif len(v) == 16:  # YYYY-MM-DD HH:MM
+                run_at = f"{v}:00"
+            else:
+                run_at = v
+            row = self.con.execute(
+                "SELECT id FROM scheduled_tasks WHERE amele_id = ? AND record_id = ? "
+                "AND status = 'pending'", (amele_id, record_id)).fetchone()
+            if row:
+                self.con.execute(
+                    "UPDATE scheduled_tasks SET run_at = ? WHERE id = ?",
+                    (run_at, row["id"]))
+            else:
+                self.con.execute(
+                    "INSERT INTO scheduled_tasks (amele_id, record_id, run_at) "
+                    "VALUES (?, ?, ?)", (amele_id, record_id, run_at))
+        self.con.commit()
 
     def due_scheduled_tasks(self, now: Optional[str] = None) -> list[dict]:
         now = now or datetime.now().strftime("%Y-%m-%d %H:%M:%S")

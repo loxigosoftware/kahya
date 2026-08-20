@@ -188,13 +188,13 @@ Alt görevler:
 
 Alt görevler:
 
-- [ ] `pending_actions` yönetimi: waiting → approved | cancelled | done; `asked_at`, `resolved_at`, `lang`
-- [ ] Onay sorusu **başlığında amele adı**: "📋 **mail-amele:** şunu yapmak istiyor — <özet>. Onaylıyor musun? evet / hayır / iptal" (seçili dilde)
-- [ ] **Eşleştirme:** cevap en güncel bekleyenle (asked_at DESC) eşleşir; "mail-amele evet" formatıyla eski onaya da cevap verilebilir
-- [ ] Onaylanınca amele `onay_id` ile çağrılır; red/iptal → döngü sonlanır
-- [ ] `scheduler.py`'yi yeniden yaz: `scheduled_tasks` tarayıcı (vadesi gelen → `{"olay": "zaman", "record_id": N}` ile ameleyi tetikle)
-- [ ] **Durum/fallback:** başarılı → `status='success'` + logs; hata → 3 deneme (1 dk ara) → olmazsa `pending` + kullanıcıya bildirim; görev sessizce kaybolmaz
-- [ ] Şemadaki `virtual` zaman alanlarından görev üretimi (REDESIGN §2.2)
+- [x] `pending_actions` yönetimi: waiting → approved | cancelled | done; `asked_at`, `resolved_at`, `lang`
+- [x] Onay sorusu **başlığında amele adı**: "📋 **mail-amele:** şunu yapmak istiyor — <özet>. Onaylıyor musun? evet / hayır / iptal" (seçili dilde)
+- [x] **Eşleştirme:** cevap en güncel bekleyenle (asked_at DESC) eşleşir; "mail-amele evet" formatıyla eski onaya da cevap verilebilir
+- [x] Onaylanınca amele `onay_id` ile çağrılır; red/iptal → döngü sonlanır
+- [x] `scheduler.py`'yi yeniden yaz: `scheduled_tasks` tarayıcı (vadesi gelen → `{"olay": "zaman", "record_id": N}` ile ameleyi tetikle)
+- [x] **Durum/fallback:** başarılı → `status='success'` + logs; hata → 3 deneme (1 dk ara) → olmazsa `pending` + kullanıcıya bildirim; görev sessizce kaybolmaz
+- [x] Şemadaki `virtual` zaman alanlarından görev üretimi (REDESIGN §2.2)
 - [ ] Panelde Onaylar sekmesinden de karar verilebilmesi (Step 7'de bağlanır)
 
 **Kabul kriterleri:** İki bekleyen onay varken cevap en güncel olana gidiyor; başlıkta amele adı var; zamanlı görev tetikleniyor, başarılıysa success işaretleniyor, hata durumunda bildirim çıkıyor.

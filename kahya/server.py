@@ -77,6 +77,16 @@ tools:
         text. stdout: "ok" or an error message.
       command: ["../tools/telegram_send.py"]
       timeout: 60s
+    - name: ask_confirm
+      description: >
+        Ask the owner to approve a risky/destructive action (sending
+        money, deleting, publishing, paying...). stdin: {{"soru": "what
+        you want to do", "aksiyon": {{...details...}}}}. stdout:
+        {{"onay_id": N}}. The owner replies with plain text
+        (evet/hayır/iptal); the bot routes it back to you. NEVER perform
+        the action without approval.
+      command: ["../tools/ask_confirm.py"]
+      timeout: 60s
 
 limits:
   max_turns: 10
