@@ -276,3 +276,14 @@ Alt görevler:
 - REDESIGN.md ile bu rehber çelişirse REDESIGN.md geçerlidir.
 - Her adımın sonunda: testler geçiyor + kabul kriterleri sağlanıyor + commit
   atılıyor → ancak o zaman tik.
+
+---
+
+## Proje kuralı (kullanıcı kararı)
+
+**MCP'siz sürüm yok.** Tüm kahya/amele sürümleri MCP destekli olacak;
+MCP'siz binary kullanılmayacak. `install.py` MCP'siz binary'yi (mevcut
+dosya veya indirilen release) **reddeder**. MCP'li binary'ler repo'da
+taşınır: `bin/amele` (linux/amd64), `bin/amele-arm64` (linux/arm64, Pi) —
+amele repo commit 415f781+'ten derlenir. Diğer platformlar için amele
+repo'suna MCP'li release yayınlanana kadar bundle kullanılır.
