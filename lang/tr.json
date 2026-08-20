@@ -2,7 +2,7 @@
   "lang_name": "Türkçe",
   "bot": {
     "start_welcome": "🧑💼 <b>Kâhya</b> — evinizin ve küçük işletmenizin kâhyası.\n\nBana doğal dille yazın:\n• <i>\"3000 TL su faturası geldi, son ödeme 19 ağustos\"</i>\n• <i>\"Kedi Pamuk'un kuduz aşısı 3 eylülde\"</i>\n• <i>\"Her ayın 20'sinde kira hatırlat\"</i>\n• <i>\"Kuduz aşısı ne zamandı?\"</i> (soru sorabilirsiniz)\n\nKomutlar: <b>/help</b> ile tümünü görün.",
-    "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille görev ekleyin ya da soru sorun.\n\n<b>Komutlar:</b>\n/agents — ajanları listeler\n/add-agent — yeni ajan (sihirbaz)\n/edit-agent — ajan düzenle (sihirbaz)\n/delete-agent — ajan sil\n/jobs — açık görevler\n/add-job — görev ekle (sihirbaz)\n/done — görev tamamla\n/settings — kurulum özeti\n/help — bu liste\n/iptal — akışı iptal et",
+    "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille görev ekleyin ya da soru sorun.\n\n<b>Komutlar:</b>\n/ameleler — ameleleri listeler\n/add-agent — yeni amele (sihirbaz)\n/edit-agent — amele düzenle (sihirbaz)\n/delete-agent — amele sil\n/jobs — açık görevler\n/add-job — görev ekle (sihirbaz)\n/done — görev tamamla\n/settings — kurulum özeti\n/help — bu liste\n/iptal — akışı iptal et",
     "unknown_user": "Bu kâhya başka bir evin kâhyası. 🏠",
     "understand_error": "Anlayamadım ({code}). Daha net yazın veya <b>/iptal</b>.",
     "extract_invalid": "Bunu çözemedim — biraz daha açık anlatır mısın?",
@@ -19,8 +19,8 @@
     "list_empty": "Açık görev yok. 🌿",
     "list_header": "📌 <b>Açık görevler:</b>",
     "list_overdue": "geçti!",
-    "agents_none": "Henüz ajan yok. <b>/add-agent</b> ile ilk ajanınızı oluşturun veya web panelini kullanın.",
-    "agents_header": "🤖 <b>Ajanlar:</b>",
+    "agents_none": "Henüz amele yok. <b>/add-agent</b> ile ilk amelenizi oluşturun veya web panelini kullanın.",
+    "agents_header": "🤖 <b>Amelelar:</b>",
     "agents_open": "{n} açık görev",
     "paid_none": "Hatırlatma penceresinde açık görev yok. 👍",
     "paid_which": "Hangisini tamamlayayım?",
@@ -38,18 +38,18 @@
     "settings_on": "açık",
     "settings_off": "KAPALI — panelden ayarlayın",
     "wizard_cancel": "İptal edildi.",
-    "wizard_agent_name": "🤖 Ajan adı ne olsun? (örn. Fatura Takipçisi) — <b>/iptal</b> ile çıkın",
+    "wizard_agent_name": "🤖 Amele adı ne olsun? (örn. Fatura Takipçisi) — <b>/iptal</b> ile çıkın",
     "wizard_agent_slug": "Slug ne olsun? (küçük harf, tire — örn. <code>fatura</code>)",
     "wizard_bad_slug": "Geçersiz slug. Küçük harf, rakam ve tire kullanın (2-32 karakter).",
     "wizard_agent_role": "Görev tanımını yazın:\n<i>\"Faturaları ve son ödeme tarihlerini takip et, 2 gün önceden hatırlat.\"</i>",
-    "wizard_agent_confirm": "🤖 <b>Yeni ajan özeti</b>\n\nAd: <b>{name}</b>\nSlug: <code>{slug}</code>\nGörev: {role}\n\nOnaylıyor musunuz? <b>evet</b> / <b>hayır</b>",
-    "wizard_agent_created": "✅ <b>{name}</b> oluşturuldu.\nDosya: <code>agents/{slug}.yaml</code> — artık gerçek bir amele ajanı.",
+    "wizard_agent_confirm": "🤖 <b>Yeni amele özeti</b>\n\nAd: <b>{name}</b>\nSlug: <code>{slug}</code>\nGörev: {role}\n\nOnaylıyor musunuz? <b>evet</b> / <b>hayır</b>",
+    "wizard_agent_created": "✅ <b>{name}</b> oluşturuldu.\nDosya: <code>ameleler/{slug}.yaml</code> — artık gerçek bir amele.",
     "wizard_agent_exists": "Bu slug zaten var: <code>{slug}</code>. Farklı bir slug yazın.",
-    "wizard_delete_which": "Hangi ajanı sileyim? (slug yazın) — <b>/iptal</b> ile çıkın",
-    "wizard_delete_notfound": "Ajan bulunamadı: <code>{slug}</code>",
+    "wizard_delete_which": "Hangi ameleyi sileyim? (slug yazın) — <b>/iptal</b> ile çıkın",
+    "wizard_delete_notfound": "Amele bulunamadı: <code>{slug}</code>",
     "wizard_delete_confirm": "⚠️ <b>{name}</b> (<code>{slug}</code>) silinecek, {n} görevi genel alana taşınacak. Emin misiniz? <b>evet</b> / <b>hayır</b>",
     "wizard_delete_done": "🗑️ <b>{name}</b> silindi.",
-    "wizard_edit_which": "Hangi ajanı düzenleyeyim? (slug yazın) — <b>/iptal</b> ile çıkın",
+    "wizard_edit_which": "Hangi ameleyi düzenleyeyim? (slug yazın) — <b>/iptal</b> ile çıkın",
     "wizard_edit_field": "<b>{name}</b> için hangi alanı değiştirelim?\n1. Ad\n2. Görev tanımı\n(numara yazın)",
     "wizard_edit_new_name": "Yeni ad:",
     "wizard_edit_new_role": "Yeni görev tanımı:",
@@ -62,7 +62,7 @@
     "title": "Kâhya — panel",
     "subtitle": "Amele üzerine kurulu, kendi evinizin/küçük işletmenizin kâhyası",
     "tabs_items": "Görevler",
-    "tabs_agents": "Ajanlar",
+    "tabs_agents": "Amelelar",
     "tabs_settings": "Ayarlar",
     "tabs_guide": "Kılavuz",
     "tabs_logs": "Geçmiş",
@@ -113,7 +113,7 @@
     "items_amount": "Tutar (ops.)",
     "items_currency": "Birim (ops.)",
     "items_due": "Son ödeme / tarih",
-    "items_agent": "Ajan",
+    "items_agent": "Amele",
     "items_repeat": "Tekrar",
     "items_repeat_none": "Tek sefer",
     "items_repeat_daily": "Her gün",
@@ -128,20 +128,20 @@
     "items_done_btn": "tamamla",
     "items_empty": "Açık görev yok. 🌿",
     "items_completed": "Tamamlandı ✅",
-    "agents_new": "Yeni ajan",
-    "agents_new_hint": "Ajan = bir amele YAML dosyası. İsim + görev tanımı yazın; sistem agents/<slug>.yaml üretir — organization as code.",
-    "agents_name": "Ajan adı",
+    "agents_new": "Yeni amele",
+    "agents_new_hint": "Amele = bir amele YAML dosyası. İsim + görev tanımı yazın; sistem ameleler/<slug>.yaml üretir — organization as code.",
+    "agents_name": "Amele adı",
     "agents_slug": "Slug (küçük harf, tire)",
     "agents_role": "Görev tanımı (role prompt)",
-    "agents_create": "Ajanı oluştur",
-    "agents_list": "Ajanlar",
-    "agents_empty": "Henüz ajan yok. İlk ajanınızı oluşturun.",
+    "agents_create": "Ameleı oluştur",
+    "agents_list": "Amelelar",
+    "agents_empty": "Henüz amele yok. İlk amelenizi oluşturun.",
     "agents_active": "aktif",
     "agents_edit": "düzenle",
     "agents_delete": "sil",
-    "agents_delete_confirm": "Bu ajanı silmek istediğinize emin misiniz? Görevleri genel alana taşınır.",
+    "agents_delete_confirm": "Bu ameleyi silmek istediğinize emin misiniz? Görevleri genel alana taşınır.",
     "logs_title": "Geçmiş",
-    "logs_hint": "Her ajan çalışması ve bot etkinliği burada izlenir.",
+    "logs_hint": "Her amele çalışması ve bot etkinliği burada izlenir.",
     "logs_time": "Zaman",
     "logs_source": "Kaynak",
     "logs_event": "Olay",
@@ -162,11 +162,11 @@
     },
     {
       "title": "🎛️ Telegram komutları",
-      "body": "/agents — ajanları listeler\n/add-agent — yeni ajan ekler (sihirbaz: ad → slug → görev tanımı → onay)\n/edit-agent — ajanın adını veya görev tanımını değiştirir\n/delete-agent — ajanı siler (onay ister, görevleri genel alana taşınır)\n/jobs — açık görevleri listeler\n/add-job — görev ekler (sihirbaz)\n/done — hatırlatma penceresindeki görevi tamamlar\n/settings — kurulum özeti\n/help — komut listesi\n/iptal — başlayan akışı iptal eder\n\nBirden fazla görev penceredeyse \"/done\" hangisini tamamlayacağınızı sorar."
+      "body": "/ameleler — ameleleri listeler\n/add-agent — yeni amele ekler (sihirbaz: ad → slug → görev tanımı → onay)\n/edit-agent — ameleyin adını veya görev tanımını değiştirir\n/delete-agent — ameleyi siler (onay ister, görevleri genel alana taşınır)\n/jobs — açık görevleri listeler\n/add-job — görev ekler (sihirbaz)\n/done — hatırlatma penceresindeki görevi tamamlar\n/settings — kurulum özeti\n/help — komut listesi\n/iptal — başlayan akışı iptal eder\n\nBirden fazla görev penceredeyse \"/done\" hangisini tamamlayacağınızı sorar."
     },
     {
-      "title": "🤖 Ajan kavramı",
-      "body": "Ajan = bir rol + o role ait görevler. Kâhya'da her ajan gerçek bir amele YAML dosyasıdır (agents/<slug>.yaml) — \"organization as code\": ajan eklemek dosya eklemektir; versiyonlanır, paylaşılır, diff'lenir.\n\nPanelden veya Telegram'dan yeni ajan yaratırken sadece adını ve görev tanımını yazarsınız:\n\"Fatura Takipçisi — faturaları ve son ödeme tarihlerini takip et, 2 gün önceden hatırlat.\"\n\nSistem görev tanımınızı amele ajanının sistem promptuna çevirir. Ajanın \"işi\" yokken hiçbir şey çalışmaz: vadesi gelince spawn olur, hatırlatmayı gönderir, çıkar.\n\nÖrnek ajan fikirleri: Fatura Takipçisi, Evcil Hayvan Ajanı (aşılar, veteriner), Doğum Günü Ajanı, Abonelik Takipçisi (Netflix, bulut, domain yenileme), Araç Bakım Ajanı (muayene, yağ değişimi), İlaç Ajanı, Müşteri Takip Ajanı (teklif süreleri, sözleşme yenileme), Garanti Takipçisi, Ödeme Planı Ajanı (taksitler)."
+      "title": "🤖 Amele kavramı",
+      "body": "Amele = bir rol + o role ait görevler. Kâhya'da her amele gerçek bir amele YAML dosyasıdır (ameleler/<slug>.yaml) — \"organization as code\": amele eklemek dosya eklemektir; versiyonlanır, paylaşılır, diff'lenir.\n\nPanelden veya Telegram'dan yeni amele yaratırken sadece adını ve görev tanımını yazarsınız:\n\"Fatura Takipçisi — faturaları ve son ödeme tarihlerini takip et, 2 gün önceden hatırlat.\"\n\nSistem görev tanımınızı amelenın sistem promptuna çevirir. Ameleın \"işi\" yokken hiçbir şey çalışmaz: vadesi gelince spawn olur, hatırlatmayı gönderir, çıkar.\n\nÖrnek amele fikirleri: Fatura Takipçisi, Evcil Hayvan Ameleı (aşılar, veteriner), Doğum Günü Ameleı, Abonelik Takipçisi (Netflix, bulut, domain yenileme), Araç Bakım Ameleı (muayene, yağ değişimi), İlaç Ameleı, Müşteri Takip Ameleı (teklif süreleri, sözleşme yenileme), Garanti Takipçisi, Ödeme Planı Ameleı (taksitler)."
     },
     {
       "title": "📋 Senaryo kitaplığı",
@@ -174,7 +174,7 @@
     },
     {
       "title": "🛠️ LLM ayarları",
-      "body": "Kâhya her OpenAI-uyumlu uç ile çalışır; doğrudan model çağırmaz, her adım amele ajanları üzerinden geçer.\n\nYerel (Ollama): Ayarlar → LLM → Endpoint: http://<makine-ip>:11434/v1, anahtar boş. Aynı ağdaki herhangi bir makinedeki Ollama olabilir — veriler evinizde kalır.\n\nBulut: OpenAI (https://api.openai.com/v1 + anahtar), OpenRouter (https://openrouter.ai/api/v1 + anahtar) veya başka bir OpenAI-uyumlu servis. Model adı sağlayıcıya göre yazılır (gpt-4.1-mini, openai/gpt-4.1-mini...).\n\nAyarlar anında etkilidir — yeniden başlatma gerekmez. \"Test bağlantısı\" butonu ile doğrulayın."
+      "body": "Kâhya her OpenAI-uyumlu uç ile çalışır; doğrudan model çağırmaz, her adım ameleler üzerinden geçer.\n\nYerel (Ollama): Ayarlar → LLM → Endpoint: http://<makine-ip>:11434/v1, anahtar boş. Aynı ağdaki herhangi bir makinedeki Ollama olabilir — veriler evinizde kalır.\n\nBulut: OpenAI (https://api.openai.com/v1 + anahtar), OpenRouter (https://openrouter.ai/api/v1 + anahtar) veya başka bir OpenAI-uyumlu servis. Model adı sağlayıcıya göre yazılır (gpt-4.1-mini, openai/gpt-4.1-mini...).\n\nAyarlar anında etkilidir — yeniden başlatma gerekmez. \"Test bağlantısı\" butonu ile doğrulayın."
     },
     {
       "title": "🔐 Gizlilik ve veri",
@@ -182,7 +182,7 @@
     },
     {
       "title": "⚙️ Yönetici ipuçları",
-      "body": "• Panel portu çakışırsa Ayarlar'dan değiştirin (panel yeniden başlayınca etkili).\n• Bot token'ı değişirse bot bir sonraki mesajda otomatik yeniden bağlanır.\n• Saat dilimi ayarı hatırlatmaların zamanlamasını etkiler.\n• Geçmiş sekmesi tüm ajan çalışmalarını ve bot olaylarını gösterir — sorun giderme burada başlar.\n• systemd ile çalıştırıyorsanız üç servis vardır: kahya-scheduler, kahya-bot, kahya-web (deploy/ klasöründe örnekler)."
+      "body": "• Panel portu çakışırsa Ayarlar'dan değiştirin (panel yeniden başlayınca etkili).\n• Bot token'ı değişirse bot bir sonraki mesajda otomatik yeniden bağlanır.\n• Saat dilimi ayarı hatırlatmaların zamanlamasını etkiler.\n• Geçmiş sekmesi tüm amele çalışmalarını ve bot olaylarını gösterir — sorun giderme burada başlar.\n• systemd ile çalıştırıyorsanız üç servis vardır: kahya-scheduler, kahya-bot, kahya-web (deploy/ klasöründe örnekler)."
     }
   ],
   "license": {

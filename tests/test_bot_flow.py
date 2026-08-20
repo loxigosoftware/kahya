@@ -130,7 +130,7 @@ check("3 agents listed", "fatura" in last_msg().lower() and "fatura takip" in la
 
 # --- 4. /add-agent wizard
 bot._handle_text(42, "/add-agent", {})
-check("4a asks name", "ajan ad" in last_msg().lower())
+check("4a asks name", "amele ad" in last_msg().lower())
 bot._handle_text(42, "Abonelik Takipçisi", db.get_chat_state(42))
 check("4b asks slug", "slug" in last_msg().lower())
 bot._handle_text(42, "subscriptions", db.get_chat_state(42))

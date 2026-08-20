@@ -177,19 +177,26 @@ class Bot:
         return None
 
     def _ask_agent(self, slug: str | None, message: str) -> str:
-        """Run the agent named by slug to answer a question.
+        """Run the amele named by slug to answer a question.
 
-        Generic by design — the extract agent decides WHICH agent answers
-        ("finance" for market data, "health" for medical reminders, ...);
-        the bot core knows nothing about domains. Falls back to the Kâhya
-        orchestrator for general questions about the store.
+        Generic by design — Kahya (the orchestrator) decides WHICH amele
+        answers; the bot core knows nothing about domains. When Kahya
+        runs, its task carries the COMPACT AMELE INDEX from the DB
+        (REDESIGN §3.2 — ~600 tokens for 20 ameles, never the full
+        prompts).
         """
         yaml_path = self.kahya_yaml
+        task = message
         if slug and re.match(SLUG_RE, slug):
             p = self.cfg.ameleler_dir / f"{slug}.yaml"
             if p.exists():
                 yaml_path = p
-        res = run_agent(self.cfg, yaml_path, message, timeout_s=120)
+        if yaml_path == self.kahya_yaml:
+            idx = self._amele_index()
+            lines = [f"{a['id']} | {a['slug']} | {a['description']}" for a in idx]
+            task = ("AMELE INDEX:\n" + "\n".join(lines)
+                    + f"\n\nOwner message:\n{message}")
+        res = run_agent(self.cfg, yaml_path, task, timeout_s=120)
         if isinstance(res, dict):
             return json.dumps(res, ensure_ascii=False)
         return str(res)

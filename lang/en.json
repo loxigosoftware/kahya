@@ -2,7 +2,7 @@
   "lang_name": "English",
   "bot": {
     "start_welcome": "🧑💼 <b>Kahya</b> — the steward of your home and small business.\n\nJust talk to me naturally:\n• <i>\"Water bill 3000 TL arrived, due 19 august\"</i>\n• <i>\"Cat Pamuk's rabies shot on september 3\"</i>\n• <i>\"Remind me of rent on the 20th of every month\"</i>\n• <i>\"When was the rabies shot?\"</i> (you can ask questions)\n\nCommands: see <b>/help</b>.",
-    "help": "🧑💼 <b>Kahya — commands</b>\n\n<b>Chat:</b>\nAdd tasks or ask questions in plain language.\n\n<b>Commands:</b>\n/agents — list agents\n/add-agent — new agent (wizard)\n/edit-agent — edit agent (wizard)\n/delete-agent — delete agent\n/jobs — open tasks\n/add-job — add a task (wizard)\n/done — complete a task\n/settings — setup summary\n/help — this list\n/cancel — cancel a flow",
+    "help": "🧑💼 <b>Kahya — commands</b>\n\n<b>Chat:</b>\nAdd tasks or ask questions in plain language.\n\n<b>Commands:</b>\n/ameleler — list ameleler\n/add-amele — new amele (wizard)\n/edit-amele — edit amele (wizard)\n/delete-amele — delete amele\n/jobs — open tasks\n/add-job — add a task (wizard)\n/done — complete a task\n/settings — setup summary\n/help — this list\n/cancel — cancel a flow",
     "unknown_user": "This kahya belongs to another household. 🏠",
     "understand_error": "Couldn.t understand ({code}). Please rephrase or send <b>/cancel</b>.",
     "extract_invalid": "I couldn.t parse that — could you rephrase?",
@@ -13,14 +13,14 @@
     "confirm_remind": "Reminder: {days} days before",
     "confirm_note": "Note: {note}",
     "confirm_ask": "Reply: <b>yes</b> / <b>no</b>",
-    "saved_ok": "✅ <b>Saved</b> — {agent} is tracking it.",
+    "saved_ok": "✅ <b>Saved</b> — {amele} is tracking it.",
     "saved_remind": "I'll start reminding {days} days before the due date.",
     "cancel_ok": "Cancelled.",
     "list_empty": "No open tasks. 🌿",
     "list_header": "📌 <b>Open tasks:</b>",
     "list_overdue": "overdue!",
-    "agents_none": "No agents yet. Create your first with <b>/add-agent</b> or the web panel.",
-    "agents_header": "🤖 <b>Agents:</b>",
+    "agents_none": "No ameleler yet. Create your first with <b>/add-amele</b> or the web panel.",
+    "agents_header": "🤖 <b>Ameles:</b>",
     "agents_open": "{n} open tasks",
     "paid_none": "Nothing in the reminder window. 👍",
     "paid_which": "Which one should I complete?",
@@ -38,18 +38,18 @@
     "settings_on": "on",
     "settings_off": "OFF — configure from the panel",
     "wizard_cancel": "Cancelled.",
-    "wizard_agent_name": "🤖 What should the agent be called? (e.g. Bill Tracker) — <b>/cancel</b> to quit",
+    "wizard_agent_name": "🤖 What should the amele be called? (e.g. Bill Tracker) — <b>/cancel</b> to quit",
     "wizard_agent_slug": "What slug? (lowercase, dashes — e.g. <code>bills</code>)",
     "wizard_bad_slug": "Invalid slug. Use lowercase letters, digits and dashes (2-32 chars).",
     "wizard_agent_role": "Write the job description:\n<i>\"Track bills and their payment deadlines, remind 2 days before.\"</i>",
-    "wizard_agent_confirm": "🤖 <b>New agent summary</b>\n\nName: <b>{name}</b>\nSlug: <code>{slug}</code>\nJob: {role}\n\nConfirm? <b>yes</b> / <b>no</b>",
-    "wizard_agent_created": "✅ <b>{name}</b> created.\nFile: <code>agents/{slug}.yaml</code> — a real amele agent now.",
+    "wizard_agent_confirm": "🤖 <b>New amele summary</b>\n\nName: <b>{name}</b>\nSlug: <code>{slug}</code>\nJob: {role}\n\nConfirm? <b>yes</b> / <b>no</b>",
+    "wizard_agent_created": "✅ <b>{name}</b> created.\nFile: <code>ameleler/{slug}.yaml</code> — a real amele now.",
     "wizard_agent_exists": "That slug already exists: <code>{slug}</code>. Pick another.",
-    "wizard_delete_which": "Which agent should I delete? (send slug) — <b>/cancel</b> to quit",
+    "wizard_delete_which": "Which amele should I delete? (send slug) — <b>/cancel</b> to quit",
     "wizard_delete_notfound": "Agent not found: <code>{slug}</code>",
     "wizard_delete_confirm": "⚠️ <b>{name}</b> (<code>{slug}</code>) will be deleted, its {n} tasks move to general. Sure? <b>yes</b> / <b>no</b>",
     "wizard_delete_done": "🗑️ <b>{name}</b> deleted.",
-    "wizard_edit_which": "Which agent should I edit? (send slug) — <b>/cancel</b> to quit",
+    "wizard_edit_which": "Which amele should I edit? (send slug) — <b>/cancel</b> to quit",
     "wizard_edit_field": "<b>{name}</b> — which field?\n1. Name\n2. Job description\n(send the number)",
     "wizard_edit_new_name": "New name:",
     "wizard_edit_new_role": "New job description:",
@@ -128,20 +128,20 @@
     "items_done_btn": "complete",
     "items_empty": "No open tasks. 🌿",
     "items_completed": "Completed ✅",
-    "agents_new": "New agent",
-    "agents_new_hint": "An agent IS an amele YAML file. Give it a name and a job description; the system writes agents/<slug>.yaml — organization as code.",
+    "agents_new": "New amele",
+    "agents_new_hint": "An amele IS an amele YAML file. Give it a name and a job description; the system writes ameleler/<slug>.yaml — organization as code.",
     "agents_name": "Agent name",
     "agents_slug": "Slug (lowercase, dashes)",
     "agents_role": "Job description (role prompt)",
-    "agents_create": "Create agent",
+    "agents_create": "Create amele",
     "agents_list": "Agents",
-    "agents_empty": "No agents yet. Create your first one.",
+    "agents_empty": "No ameleler yet. Create your first one.",
     "agents_active": "active",
     "agents_edit": "edit",
     "agents_delete": "delete",
-    "agents_delete_confirm": "Delete this agent? Its tasks move to general.",
+    "agents_delete_confirm": "Delete this amele? Its tasks move to general.",
     "logs_title": "History",
-    "logs_hint": "Every agent run and bot activity is tracked here.",
+    "logs_hint": "Every amele run and bot activity is tracked here.",
     "logs_time": "Time",
     "logs_source": "Source",
     "logs_event": "Event",
@@ -162,11 +162,11 @@
     },
     {
       "title": "🎛️ Telegram commands",
-      "body": "/agents — list agents\n/add-agent — create an agent (wizard: name → slug → job description → confirm)\n/edit-agent — change an agent's name or job description\n/delete-agent — delete an agent (asks confirmation, tasks move to general)\n/jobs — list open tasks\n/add-job — add a task (wizard)\n/done — complete the task in the reminder window\n/settings — setup summary\n/help — command list\n/cancel — cancel a running flow\n\nWhen several tasks are in the window, \"/done\" asks which one."
+      "body": "/ameleler — list ameleler\n/add-amele — create an amele (wizard: name → slug → job description → confirm)\n/edit-amele — change an amele's name or job description\n/delete-amele — delete an amele (asks confirmation, tasks move to general)\n/jobs — list open tasks\n/add-job — add a task (wizard)\n/done — complete the task in the reminder window\n/settings — setup summary\n/help — command list\n/cancel — cancel a running flow\n\nWhen several tasks are in the window, \"/done\" asks which one."
     },
     {
-      "title": "🤖 The agent concept",
-      "body": "An agent = a role + the tasks that belong to it. In Kahya every agent is a real amele YAML file (agents/<slug>.yaml) — \"organization as code\": adding an agent is adding a file; it versioned, shareable, diffable.\n\nWhen you create an agent from the panel or Telegram you only write its name and job description:\n\"Bill Tracker — track bills and their payment deadlines, remind 2 days before.\"\n\nThe system turns your description into the agent's amele system prompt. When an agent has no work, nothing runs: at due time it spawns, delivers the reminder, exits.\n\nAgent ideas: Bill Tracker, Pet Care (vaccinations, vet), Birthday Agent, Subscription Tracker (streaming, cloud, domain renewals), Car Maintenance (inspection, oil changes), Medication Reminder, Customer Follow-up (quote deadlines, contract renewals), Warranty Tracker, Payment Plan (installments)."
+      "title": "🤖 The amele concept",
+      "body": "An amele = a role + the tasks that belong to it. In Kahya every amele is a real amele YAML file (ameleler/<slug>.yaml) — \"organization as code\": adding an amele is adding a file; it versioned, shareable, diffable.\n\nWhen you create an amele from the panel or Telegram you only write its name and job description:\n\"Bill Tracker — track bills and their payment deadlines, remind 2 days before.\"\n\nThe system turns your description into the amele's amele system prompt. When an amele has no work, nothing runs: at due time it spawns, delivers the reminder, exits.\n\nAgent ideas: Bill Tracker, Pet Care (vaccinations, vet), Birthday Agent, Subscription Tracker (streaming, cloud, domain renewals), Car Maintenance (inspection, oil changes), Medication Reminder, Customer Follow-up (quote deadlines, contract renewals), Warranty Tracker, Payment Plan (installments)."
     },
     {
       "title": "📋 Scenario library",
@@ -174,7 +174,7 @@
     },
     {
       "title": "🛠️ LLM settings",
-      "body": "Kahya works with any OpenAI-compatible endpoint; it never calls a model directly — every step goes through amele agents.\n\nLocal (Ollama): Settings → LLM → Endpoint: http://<machine-ip>:11434/v1, key empty. Any Ollama on your LAN works — data stays at home.\n\nCloud: OpenAI (https://api.openai.com/v1 + key), OpenRouter (https://openrouter.ai/api/v1 + key) or another OpenAI-compatible service. The model name follows the provider (gpt-4.1-mini, openai/gpt-4.1-mini...).\n\nSettings take effect immediately — no restart. Verify with \"Test connection\"."
+      "body": "Kahya works with any OpenAI-compatible endpoint; it never calls a model directly — every step goes through ameles.\n\nLocal (Ollama): Settings → LLM → Endpoint: http://<machine-ip>:11434/v1, key empty. Any Ollama on your LAN works — data stays at home.\n\nCloud: OpenAI (https://api.openai.com/v1 + key), OpenRouter (https://openrouter.ai/api/v1 + key) or another OpenAI-compatible service. The model name follows the provider (gpt-4.1-mini, openai/gpt-4.1-mini...).\n\nSettings take effect immediately — no restart. Verify with \"Test connection\"."
     },
     {
       "title": "🔐 Privacy and data",
@@ -182,7 +182,7 @@
     },
     {
       "title": "⚙️ Admin tips",
-      "body": "• Port conflict? Change it in Settings (effective after the panel restarts).\n• If the bot token changes, the bot reconnects automatically on the next message.\n• The timezone setting affects reminder timing.\n• The History tab shows every agent run and bot event — start debugging there.\n• Running under systemd? Three units: kahya-scheduler, kahya-bot, kahya-web (examples in deploy/)."
+      "body": "• Port conflict? Change it in Settings (effective after the panel restarts).\n• If the bot token changes, the bot reconnects automatically on the next message.\n• The timezone setting affects reminder timing.\n• The History tab shows every amele run and bot event — start debugging there.\n• Running under systemd? Three units: kahya-scheduler, kahya-bot, kahya-web (examples in deploy/)."
     }
   ],
   "license": {

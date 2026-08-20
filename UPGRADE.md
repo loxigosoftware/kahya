@@ -52,7 +52,7 @@ the owner decision by decision. This `UPGRADE.md` is your execution plan.
 - [x] **Step 0** — Hazırlık: yedek, git branch, mevcut testlerin doğrulanması
 - [x] **Step 1** — DB migration: schema v2 (records, ameleler+model, amele_mcp, pending_actions, scheduled_tasks, conversation_messages+FTS) + veri dönüşümü
 - [x] **Step 2** — Amele altyapısı: db_get/db_put yeniden yazımı + JSON doğrulama + amele index + model atama + ajan→amele adlandırma
-- [ ] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameleler / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
+- [x] **Step 3** — Orkestratör (Kahya): get_amele_profile / find_ameleler / call_amele / search_history tool'ları + yeni Kahya promptu + 3 paslama limiti
 - [ ] **Step 4** — Bot (Telegram): yeni komut seti (`/amele`, otomatik `/<slug>`), yönlendirme, oturum modu, eski komutların kaldırılması, i18n (amele çevrilmez)
 - [ ] **Step 5** — Konuşma belleği: conversation_messages kaydı, 40 mesajda bir arşivleme, FTS arama, "geçmişten bak" akışı, gece yedekleme
 - [ ] **Step 6** — Onay akışı + zamanlanmış görev: pending_actions yönetimi (başlıkta amele adı, en güncel eşleşme), scheduled_tasks tarayıcı (success/fallback)
@@ -126,14 +126,14 @@ Alt görevler:
 
 Alt görevler:
 
-- [ ] `tools/get_amele_profile.py` — amele_id → tam tanım (açıklama, şema, tool listesi, bağlı MCP sunucuları)
-- [ ] `tools/find_ameleler.py` — anahtar kelime araması (index'te eşleşme yoksa güvence)
-- [ ] `tools/call_amele.py` — subprocess ile amele_runner'ı çağırır (REDESIGN §11 notu)
-- [ ] `tools/search_history.py` — arşivde tam metin arama (Step 5 ile birlikte bağlanır)
-- [ ] `agents/kahya.yaml` (Kahya config) yeniden yaz: kimlik + **kompakt amele index** (DB'den, ~600 token) + tool'lar + konuşma kalıpları ("amele bakıyorum", "x amelesine gönderilsin mi? evet / hayır")
-- [ ] **Paslama limiti:** 3 paslama derinliği sayacı; aşılırsa zinciri durdur + kullanıcıya rapor (REDESIGN §3.3)
-- [ ] Amelenin başka ameleye iş düşünce Kahya'ya dönmesi akışı (jenerik "şunu şu ameleye ilet" sözleşmesi)
-- [ ] Sistem mesajları "amele eklendi" formatına geçsin (bot/panel mesajları)
+- [x] `tools/get_amele_profile.py` — amele_id → tam tanım (açıklama, şema, tool listesi, bağlı MCP sunucuları)
+- [x] `tools/find_ameleler.py` — anahtar kelime araması (index'te eşleşme yoksa güvence)
+- [x] `tools/call_amele.py` — subprocess ile amele_runner'ı çağırır (REDESIGN §11 notu)
+- [x] `tools/search_history.py` — arşivde tam metin arama (Step 5 ile birlikte bağlanır)
+- [x] `agents/kahya.yaml` (Kahya config) yeniden yaz: kimlik + **kompakt amele index** (DB'den, ~600 token) + tool'lar + konuşma kalıpları ("amele bakıyorum", "x amelesine gönderilsin mi? evet / hayır")
+- [x] **Paslama limiti:** 3 paslama derinliği sayacı; aşılırsa zinciri durdur + kullanıcıya rapor (REDESIGN §3.3)
+- [x] Amelenin başka ameleye iş düşünce Kahya'ya dönmesi akışı (jenerik "şunu şu ameleye ilet" sözleşmesi)
+- [x] Sistem mesajları "amele eklendi" formatına geçsin (bot/panel mesajları)
 
 **Kabul kriterleri:** Kahya bir mesajı doğru ameleye yönlendiriyor; index promptta görünüyor; 3 paslama sonrası zincir duruyor ve raporlanıyor.
 
