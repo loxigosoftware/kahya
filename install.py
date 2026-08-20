@@ -12,12 +12,14 @@ What it does:
      install command for your platform/distro and exits
   2. detects the platform and offers an explicit environment list
      (the amele asset list — linux, macOS, Windows, Raspberry Pi, …)
-  3. scans the machine: amele binary (MCP rule — no MCP, no amele),
-     .env, web panel port, Node.js, Ollama, ffmpeg, systemd
+  3. scans the machine: amele binary (MCP rule — an MCP-less binary is
+     rejected outright, no approval dialog), .env, Node.js, ffmpeg,
+     leftover installer temp files
   4. shows an automatic proposal list and asks for YOUR approval —
      nothing is installed, replaced or removed without it
-  5. applies only the approved items (amele, .env, port, optional
-     installs, systemd auto-start)
+  5. applies only the approved items (amele, .env, optional installs);
+     the web panel port is picked automatically (no dialog), systemd
+     auto-start is offered as a single question at the end
   6. prints the LAN address and first-login credentials
 
 Stdlib only — runs on Linux, macOS, Windows, Raspberry Pi.
@@ -34,14 +36,12 @@ import shutil
 import socket
 import subprocess
 import sys
-import tarfile
 from typing import Optional
 import urllib.request
-import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-AMELE_REPO = "lasthumanintheloop/amele"
+AMELE_REPO = "loxigosoftware/amele-builds"
 MIN_PYTHON = (3, 9)
 DEFAULT_PORT = 8080
 PORT_TRIES = range(8081, 8100)
@@ -185,20 +185,26 @@ def latest_release() -> dict:
 
 
 def find_asset(release: dict, os_name: str, arch: str) -> tuple[str, str]:
-    """Return (asset_name, download_url) matching os/arch."""
-    tag = release["tag_name"]
+    """Return (asset_name, download_url) matching os/arch.
+
+    amele-builds assets are plain binaries:
+        amele-linux-amd64, amele-linux-arm64, amele-linux-arm,
+        amele-darwin-amd64, amele-darwin-arm64,
+        amele-windows-amd64.exe, amele-windows-arm64.exe
+    """
     for a in release.get("assets", []):
         name = a["name"]
         if name == "SHA256SUMS" or name.startswith("multiple."):
             continue
-        m = re.match(rf"amele_{re.escape(tag.lstrip('v'))}_([a-z0-9]+)_([a-z0-9]+)\.", name)
+        m = re.match(r"amele-([a-z0-9]+)-([a-z0-9]+)(\.exe)?$", name)
         if not m:
             continue
         a_os, a_arch = m.group(1), m.group(2)
         # linux_arm (32-bit) must match exactly; don't let arm64 fall back to it
         if a_os == os_name and a_arch == arch:
             return name, a["browser_download_url"]
-    fail(f"no amele asset matches {os_name}_{arch} — check the release list")
+    fail(f"no amele asset matches {os_name}_{arch} — check the "
+         f"{AMELE_REPO} release list")
 
 
 def download(url: str, dest: Path, label: str = "") -> None:
@@ -222,34 +228,6 @@ def verify_checksum(file: Path, sums_path: Path, asset_name: str) -> bool:
         if name.strip() == asset_name:
             return h.strip().lower() == sha256(file)
     return False
-
-
-def extract_amele(archive: Path, dest_dir: Path) -> Path:
-    """Extract the amele binary; returns the binary path."""
-    if archive.name.endswith(".zip"):
-        with zipfile.ZipFile(archive) as z:
-            member = next((n for n in z.namelist() if "amele" in n.lower()
-                           and not n.endswith("/")), None)
-            if not member:
-                fail("amele not found inside the zip archive")
-            z.extract(member, dest_dir)
-            src = dest_dir / member
-    else:
-        with tarfile.open(archive, "r:gz") as t:
-            member = next((m for m in t.getmembers()
-                           if "amele" in m.name and m.isfile()), None)
-            if not member:
-                fail("amele not found inside the archive")
-            if sys.version_info >= (3, 12):
-                t.extract(member, dest_dir, filter="data")
-            else:
-                t.extract(member, dest_dir)
-            src = dest_dir / member.name
-    binary = dest_dir / ("amele.exe" if os.name == "nt" else "amele")
-    shutil.move(str(src), binary)
-    if os.name != "nt":
-        binary.chmod(0o755)
-    return binary
 
 
 def check_amele_mcp(binary: Path) -> bool:
@@ -276,24 +254,13 @@ def check_amele_mcp(binary: Path) -> bool:
         return True
 
 
-def bundled_amele(os_name: str, arch: str) -> Optional[Path]:
-    """Repo'da taşınan MCP'li binary — platform eşleşirse kullanılır.
-
-    bin/amele       → linux/amd64 (geliştirme makineleri)
-    bin/amele-arm64 → linux/arm64 (Raspberry Pi)
-    """
-    if os_name != "linux":
-        return None
-    name = "amele" if arch == "amd64" else f"amele-{arch}" if arch == "arm64" else None
-    if not name:
-        return None
-    p = ROOT / "bin" / name
-    if p.exists() and check_amele_mcp(p):
-        return p
-    return None
-
-
 def install_amele(os_name: str, arch: str, force: bool) -> Path:
+    """Fetch the MCP-capable amele binary from loxigosoftware/amele-builds.
+
+    Project rule (user decision): no MCP, no amele. An existing binary
+    without MCP support stops the installer — this is a rule rejection,
+    not an approval question.
+    """
     bin_dir = ROOT / "bin"
     bin_dir.mkdir(exist_ok=True)
     binary = bin_dir / ("amele.exe" if os.name == "nt" else "amele")
@@ -301,26 +268,13 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
         if not check_amele_mcp(binary):
             fail("existing amele binary has NO MCP support (`amele mcp` "
                  "missing). Project rule: no MCP, no amele. Remove "
-                 "bin/amele and re-run (or replace it with an MCP build "
-                 "from the amele repo, commit 415f781+)")
+                 "bin/amele and re-run — the installer will fetch an MCP "
+                 "build from loxigosoftware/amele-builds")
         say(f"  · amele already present: {binary} (MCP ✓, use --force to "
             f"re-download)", "dim")
         return binary
 
-    bundled = bundled_amele(os_name, arch)
-    if bundled:
-        if binary.exists() and binary.resolve() == bundled.resolve():
-            say(f"  · amele already present (repo bundle): {binary} (MCP ✓)",
-                "dim")
-            return binary
-        if binary.exists():
-            binary.unlink()
-        shutil.copy(bundled, binary)
-        binary.chmod(0o755)
-        say(f"  · amele installed from repo bundle: {binary} (MCP ✓)", "green")
-        return binary
-
-    say("  · looking up the latest amele release …")
+    say("  · looking up the latest amele release (loxigosoftware/amele-builds) …")
     release = latest_release()
     asset_name, asset_url = find_asset(release, os_name, arch)
     say(f"  · chosen asset: {asset_name}")
@@ -328,24 +282,23 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
     tmp = ROOT / ".install-tmp"
     tmp.mkdir(exist_ok=True)
     sums = tmp / "SHA256SUMS"
-    archive = tmp / asset_name
-    download(asset_url, archive)
+    asset = tmp / asset_name
+    download(asset_url, asset)
     download(f"https://github.com/{AMELE_REPO}/releases/download/"
              f"{release['tag_name']}/SHA256SUMS", sums)
-    if not verify_checksum(archive, sums, asset_name):
+    if not verify_checksum(asset, sums, asset_name):
         shutil.rmtree(tmp, ignore_errors=True)
         fail("SHA256 verification FAILED — the download is not trustworthy, "
              "aborting")
     say("  · SHA256 verified ✓", "green")
-    extract_amele(archive, bin_dir)
+    shutil.move(str(asset), binary)  # assets are plain binaries
+    if os.name != "nt":
+        binary.chmod(0o755)
     shutil.rmtree(tmp, ignore_errors=True)
     if not check_amele_mcp(binary):
         binary.unlink(missing_ok=True)
         fail(f"release {release['tag_name']} has NO MCP support (`amele mcp` "
-             f"missing). Project rule: no MCP, no amele. Until an MCP "
-             f"release ships, use the bundled binary (bin/amele / "
-             f"bin/amele-arm64 from this repo) or build from the amele "
-             f"repo at commit 415f781+")
+             f"missing). Project rule: no MCP, no amele.")
     say(f"  · amele installed: {binary} (MCP ✓)", "green")
     return binary
 
@@ -551,7 +504,7 @@ def main() -> None:
         if m:
             preferred = int(m.group(1))
     say("\n  [system scan] looking at what is already on this machine …")
-    items = scan_system(os_name, arch, preferred, force)
+    items = scan_system(os_name, arch, force)
     chosen = confirm_items(items, yes=yes, dry_run=dry_run)
     if dry_run:
         say("\n  --dry-run: nothing was changed. Re-run without --dry-run to "
@@ -562,15 +515,26 @@ def main() -> None:
     say()
     apply_items(items, chosen, os_name, arch, force)
 
-    # 5. summary
-    chosen_port = next((i["port"] for i in chosen if i.get("port")), preferred)
+    # 5. web panel port — automatic (no dialog): preferred, else next free
+    free_port = port_test(preferred)
+    if free_port != preferred:
+        write_port(free_port)
+        say(f"  · port {preferred} is busy — using {free_port} "
+            f"(written to .env)", "yellow")
+    else:
+        say(f"  · port {free_port} is free — using it", "dim")
+
+    # 6. auto-start: single question at the end (Linux/systemd only)
+    install_systemd(preapproved=yes)
+
+    # 7. summary
     ip = lan_ip()
     say("\n  ✅ done!")
     say()
     say("╔══════════════════════════════════════════════════════╗", "bold")
     say("║  ✅ Kâhya is installed!                              ║", "bold")
     say("╠══════════════════════════════════════════════════════╣")
-    say(f"║  Panel:  http://{ip}:{chosen_port}                    ")
+    say(f"║  Panel:  http://{ip}:{free_port}                    ")
     say("║  Login:  admin / kahya123  (change it from the panel)  ")
     say("╠══════════════════════════════════════════════════════╣")
     say("║  Start (each in its own terminal):                    ")
@@ -580,7 +544,8 @@ def main() -> None:
     say("╚══════════════════════════════════════════════════════╝")
     say()
     say("  Next steps: set the LLM endpoint + Telegram token from the panel;", "dim")
-    say("  supervised/auto-start units live in deploy/.", "dim")
+    say("  auto-start (systemd) is generated by the installer — examples in "
+        "deploy/.", "dim")
     say()
 
 
@@ -603,13 +568,16 @@ def apt_install(pkg: str) -> str:
     return f"sudo apt-get install -y {pkg}"  # varsayılan; kullanıcı düzeltir
 
 
-def scan_system(os_name: str, arch: str, preferred_port: int,
-                force: bool) -> list[dict]:
+def scan_system(os_name: str, arch: str, force: bool) -> list[dict]:
     """Sistem taraması — mevcut yazılımlar + otomatik öneriler.
 
     Her öneri bir dict: id, kritik (varsayılan onay Y), baslik, detay,
     komut (onaylanırsa çalıştırılacak shell komutu) veya uygula (özel
     aksiyon). Hiçbir şey bu liste onaylanmadan yapılmaz.
+
+    Onay listesinde OLMAYAN (otomatik): web panel portu (boş port
+    otomatik seçilir). Kural-reddi: MCP'siz amele binary kurulumu
+    anında durdurur (onay sorusu yok — kullanıcı kararı).
     """
     items = []
 
@@ -621,15 +589,16 @@ def scan_system(os_name: str, arch: str, preferred_port: int,
                       "detay": f"{binary} — hazır",
                       "komut": None, "uygula": None})
     elif binary.exists():
-        items.append({"id": "amele", "kritik": True, "durum": "✗",
-                      "baslik": "amele binary MCP'siz!",
-                      "detay": "proje kuralı: MCP'siz amele kullanılmaz — "
-                               "MCP'li repo bundle'ı ile değiştirilecek",
-                      "komut": None, "uygula": lambda: None})
+        fail("existing amele binary has NO MCP support (`amele mcp` "
+             "missing). Project rule: no MCP, no amele — the installer "
+             "will not continue. Remove bin/amele and re-run; the "
+             "installer will fetch an MCP build from "
+             "loxigosoftware/amele-builds")
     else:
         items.append({"id": "amele", "kritik": True, "durum": "✗",
                       "baslik": "amele binary yok",
-                      "detay": "MCP'li sürüm kurulacak (repo bundle veya release)",
+                      "detay": "MCP'li sürüm kurulacak "
+                               "(loxigosoftware/amele-builds release)",
                       "komut": None, "uygula": lambda: None})
 
     # -- .env --
@@ -642,20 +611,6 @@ def scan_system(os_name: str, arch: str, preferred_port: int,
                       "baslik": ".env yok",
                       "detay": ".env.example'dan oluşturulacak",
                       "komut": None, "uygula": ensure_env})
-
-    # -- web panel portu --
-    free = port_test(preferred_port)
-    if free == preferred_port:
-        items.append({"id": "port", "kritik": True, "durum": "✓",
-                      "baslik": f"port {preferred_port}",
-                      "detay": "boş — kullanılacak",
-                      "komut": None, "uygula": None, "port": preferred_port})
-    else:
-        items.append({"id": "port", "kritik": True, "durum": "!",
-                      "baslik": f"port {preferred_port} dolu",
-                      "detay": f"{free} seçilecek ve .env'e yazılacak",
-                      "komut": None, "uygula": lambda: write_port(free),
-                      "port": free})
 
     # -- Node.js (MCP stdio sunucuları) --
     if which("node"):
@@ -671,21 +626,6 @@ def scan_system(os_name: str, arch: str, preferred_port: int,
                                "önerilir — kurulacak: " + cmd,
                       "komut": cmd, "uygula": None})
 
-    # -- Ollama (yerel LLM) --
-    if which("ollama"):
-        items.append({"id": "ollama", "kritik": False, "durum": "✓",
-                      "baslik": "Ollama",
-                      "detay": which("ollama") or "kurulu",
-                      "komut": None, "uygula": None})
-    else:
-        cmd = ("curl -fsSL -o /tmp/ollama_install.sh "
-               "https://ollama.com/install.sh && sudo sh /tmp/ollama_install.sh")
-        items.append({"id": "ollama", "kritik": False, "durum": "○",
-                      "baslik": "Ollama yok",
-                      "detay": "yerel LLM (amele local model) için önerilir — "
-                               "kurulacak: " + cmd,
-                      "komut": cmd, "uygula": None})
-
     # -- ffmpeg (amele araçları) --
     if which("ffmpeg"):
         items.append({"id": "ffmpeg", "kritik": False, "durum": "✓",
@@ -698,21 +638,6 @@ def scan_system(os_name: str, arch: str, preferred_port: int,
                       "detay": "amele araçları (ses/görüntü) için önerilir — "
                                "kurulacak: " + cmd,
                       "komut": cmd, "uygula": None})
-
-    # -- systemd auto-start (Linux) --
-    if os_name != "linux" or not Path("/run/systemd/system").exists() \
-            or not which("systemctl"):
-        items.append({"id": "systemd", "kritik": False, "durum": "—",
-                      "baslik": "auto-start",
-                      "detay": "systemd yok (servisler manuel başlatılır)",
-                      "komut": None, "uygula": None})
-    else:
-        items.append({"id": "systemd", "kritik": False, "durum": "○",
-                      "baslik": "auto-start (systemd)",
-                      "detay": "kahya-web/bot/scheduler servisleri kurulup "
-                               "başlatılacak (sudo) — Restart=on-failure",
-                      "komut": None, "uygula": lambda: install_systemd(
-                          preapproved=True)})
 
     # -- installer kalıntısı --
     tmp = ROOT / ".install-tmp"
@@ -810,16 +735,6 @@ def apply_items(items: list[dict], chosen: list[dict], os_name: str,
             adim(it)
             ensure_env()
             say("  · .env hazır", "green")
-        elif it["id"] == "port":
-            adim(it)
-            if it["port"] != preferred_port_of():
-                write_port(it["port"])
-                say(f"  · port {it['port']} .env'e yazıldı", "yellow")
-            else:
-                say(f"  · port {it['port']} zaten tercih edilen", "green")
-        elif it["id"] == "systemd":
-            adim(it)
-            install_systemd(preapproved=True)
         elif it["komut"]:
             adim(it)
             say(f"  · running: {it['komut']}", "dim")
@@ -833,15 +748,6 @@ def apply_items(items: list[dict], chosen: list[dict], os_name: str,
             adim(it)
             it["uygula"]()
             say("  · done ✓", "green")
-
-
-def preferred_port_of() -> int:
-    env = ROOT / ".env"
-    if env.exists():
-        m = re.search(r"^KAHYA_WEB_PORT=(\d+)", env.read_text(encoding="utf-8"), re.M)
-        if m:
-            return int(m.group(1))
-    return DEFAULT_PORT
 
 
 if __name__ == "__main__":

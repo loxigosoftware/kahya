@@ -283,10 +283,13 @@ Alt görevler:
 
 **MCP'siz sürüm yok.** Tüm kahya/amele sürümleri MCP destekli olacak;
 MCP'siz binary kullanılmayacak. `install.py` MCP'siz binary'yi (mevcut
-dosya veya indirilen release) **reddeder**. MCP'li binary'ler repo'da
-taşınır: `bin/amele` (linux/amd64), `bin/amele-arm64` (linux/arm64, Pi) —
-amele repo commit 415f781+'ten derlenir. Diğer platformlar için amele
-repo'suna MCP'li release yayınlanana kadar bundle kullanılır.
+dosya veya indirilen release) **kural-reddi ile durdurur** (onay sorusu
+yok). MCP'li binary'ler `loxigosoftware/amele-builds` repo'sunun
+Release'inden iner — 7 platform (linux amd64/arm64/arm, darwin
+amd64/arm64, windows amd64/arm64), amele kaynak commit 415f781+'ten
+derlenir, SHA256 doğrulanır. Windows EXE'leri GlobalSign EV sertifikasıyla
+imzalı yayınlanır; macOS binary'leri imzasız (noterizasyon sonraya
+ertelendi). Repo içinde gömülü binary taşınmaz — tek kaynak Release.
 
 
 ---
@@ -295,7 +298,9 @@ repo'suna MCP'li release yayınlanana kadar bundle kullanılır.
 
 `install.py` **sistem taraması → otomatik öneri listesi → kullanıcı
 onayı → uygulama** prensibiyle çalışır. Kurulumdan önce makine taranır
-(Python, amele + MCP kuralı, .env, port, Node.js, Ollama, ffmpeg,
-systemd) ve her öneri için ayrı ayrı onay alınır — hiçbir şey onaysız
-kurulmaz/değiştirilmez/kaldırılmaz. `--dry-run` sadece listeyi gösterir,
-`--yes` açık istekle tümünü onaylar.
+(Python, amele + MCP kuralı, .env, Node.js, ffmpeg, installer kalıntısı)
+ve her öneri için ayrı ayrı onay alınır — hiçbir şey onaysız
+kurulmaz/değiştirilmez/kaldırılmaz. Onay listesinde olmayanlar: **port**
+(boş port otomatik seçilir, .env'e yazılır — onay sorusu yok) ve
+**systemd auto-start** (kurulum sonunda tek [y/N] sorusu).
+`--dry-run` sadece listeyi gösterir, `--yes` açık istekle tümünü onaylar.
