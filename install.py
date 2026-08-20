@@ -33,6 +33,7 @@ import socket
 import subprocess
 import sys
 import tarfile
+from typing import Optional
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -250,13 +251,44 @@ def extract_amele(archive: Path, dest_dir: Path) -> Path:
 
 
 def check_amele_mcp(binary: Path) -> bool:
-    """Indirilen binary MCP destekliyor mu? (Step 8 — `amele mcp` komutu)."""
+    """Binary MCP destekliyor mu?
+
+    Önce gömülü yardım metnini ara (çapraz platform — arm64 binary x86'da
+    çalıştırılamaz), sonra çalıştırılabiliyorsa `amele mcp --help` ile teyit.
+    Proje kuralı: MCP'siz amele kullanılmaz (kullanıcı kararı) — kurulum
+    MCP'siz binary ile devam etmez.
+    """
+    try:
+        data = binary.read_bytes()
+        if b"amele mcp login" not in data and b"mcp login|status|logout" not in data:
+            return False
+    except Exception:
+        return False
     try:
         proc = subprocess.run([str(binary), "mcp", "--help"],
                               capture_output=True, text=True, timeout=10)
-        return proc.returncode == 0 and "login" in (proc.stdout + proc.stderr)
+        if proc.returncode == 0:
+            return "login" in (proc.stdout + proc.stderr)
+        return True  # çalıştırılamıyor (farklı mimari) ama gömülü metin var
     except Exception:
-        return False
+        return True
+
+
+def bundled_amele(os_name: str, arch: str) -> Optional[Path]:
+    """Repo'da taşınan MCP'li binary — platform eşleşirse kullanılır.
+
+    bin/amele       → linux/amd64 (geliştirme makineleri)
+    bin/amele-arm64 → linux/arm64 (Raspberry Pi)
+    """
+    if os_name != "linux":
+        return None
+    name = "amele" if arch == "amd64" else f"amele-{arch}" if arch == "arm64" else None
+    if not name:
+        return None
+    p = ROOT / "bin" / name
+    if p.exists() and check_amele_mcp(p):
+        return p
+    return None
 
 
 def install_amele(os_name: str, arch: str, force: bool) -> Path:
@@ -265,12 +297,25 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
     binary = bin_dir / ("amele.exe" if os.name == "nt" else "amele")
     if binary.exists() and not force:
         if not check_amele_mcp(binary):
-            say(f"  · WARNING: {binary} is an old build WITHOUT MCP support "
-                f"(`amele mcp` missing). Re-run with --force after a release "
-                f"with MCP ships, or copy a freshly built binary from the "
-                f"amele repo (commit 415f781+).", "red")
-        else:
-            say(f"  · amele already present: {binary} (use --force to re-download)", "dim")
+            fail("existing amele binary has NO MCP support (`amele mcp` "
+                 "missing). Project rule: no MCP, no amele. Remove "
+                 "bin/amele and re-run (or replace it with an MCP build "
+                 "from the amele repo, commit 415f781+)")
+        say(f"  · amele already present: {binary} (MCP ✓, use --force to "
+            f"re-download)", "dim")
+        return binary
+
+    bundled = bundled_amele(os_name, arch)
+    if bundled:
+        if binary.exists() and binary.resolve() == bundled.resolve():
+            say(f"  · amele already present (repo bundle): {binary} (MCP ✓)",
+                "dim")
+            return binary
+        if binary.exists():
+            binary.unlink()
+        shutil.copy(bundled, binary)
+        binary.chmod(0o755)
+        say(f"  · amele installed from repo bundle: {binary} (MCP ✓)", "green")
         return binary
 
     say("  · looking up the latest amele release …")
@@ -293,11 +338,13 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
     extract_amele(archive, bin_dir)
     shutil.rmtree(tmp, ignore_errors=True)
     if not check_amele_mcp(binary):
-        say(f"  · WARNING: this amele release has no MCP support (`amele mcp` "
-            f"missing) — MCP features (Step 8) need a build from the amele "
-            f"repo at commit 415f781 or later.", "red")
-    else:
-        say(f"  · amele installed: {binary} (MCP ✓)", "green")
+        binary.unlink(missing_ok=True)
+        fail(f"release {release['tag_name']} has NO MCP support (`amele mcp` "
+             f"missing). Project rule: no MCP, no amele. Until an MCP "
+             f"release ships, use the bundled binary (bin/amele / "
+             f"bin/amele-arm64 from this repo) or build from the amele "
+             f"repo at commit 415f781+")
+    say(f"  · amele installed: {binary} (MCP ✓)", "green")
     return binary
 
 
