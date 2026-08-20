@@ -30,6 +30,7 @@ import platform
 import re
 import shutil
 import socket
+import subprocess
 import sys
 import tarfile
 import urllib.request
@@ -248,12 +249,28 @@ def extract_amele(archive: Path, dest_dir: Path) -> Path:
     return binary
 
 
+def check_amele_mcp(binary: Path) -> bool:
+    """Indirilen binary MCP destekliyor mu? (Step 8 — `amele mcp` komutu)."""
+    try:
+        proc = subprocess.run([str(binary), "mcp", "--help"],
+                              capture_output=True, text=True, timeout=10)
+        return proc.returncode == 0 and "login" in (proc.stdout + proc.stderr)
+    except Exception:
+        return False
+
+
 def install_amele(os_name: str, arch: str, force: bool) -> Path:
     bin_dir = ROOT / "bin"
     bin_dir.mkdir(exist_ok=True)
     binary = bin_dir / ("amele.exe" if os.name == "nt" else "amele")
     if binary.exists() and not force:
-        say(f"  · amele already present: {binary} (use --force to re-download)", "dim")
+        if not check_amele_mcp(binary):
+            say(f"  · WARNING: {binary} is an old build WITHOUT MCP support "
+                f"(`amele mcp` missing). Re-run with --force after a release "
+                f"with MCP ships, or copy a freshly built binary from the "
+                f"amele repo (commit 415f781+).", "red")
+        else:
+            say(f"  · amele already present: {binary} (use --force to re-download)", "dim")
         return binary
 
     say("  · looking up the latest amele release …")
@@ -275,7 +292,12 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
     say("  · SHA256 verified ✓", "green")
     extract_amele(archive, bin_dir)
     shutil.rmtree(tmp, ignore_errors=True)
-    say(f"  · amele installed: {binary}", "green")
+    if not check_amele_mcp(binary):
+        say(f"  · WARNING: this amele release has no MCP support (`amele mcp` "
+            f"missing) — MCP features (Step 8) need a build from the amele "
+            f"repo at commit 415f781 or later.", "red")
+    else:
+        say(f"  · amele installed: {binary} (MCP ✓)", "green")
     return binary
 
 
