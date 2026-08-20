@@ -231,12 +231,12 @@ def verify_checksum(file: Path, sums_path: Path, asset_name: str) -> bool:
 
 
 def check_amele_mcp(binary: Path) -> bool:
-    """Binary MCP destekliyor mu?
+    """Does the binary support MCP?
 
-    Önce gömülü yardım metnini ara (çapraz platform — arm64 binary x86'da
-    çalıştırılamaz), sonra çalıştırılabiliyorsa `amele mcp --help` ile teyit.
-    Proje kuralı: MCP'siz amele kullanılmaz (kullanıcı kararı) — kurulum
-    MCP'siz binary ile devam etmez.
+    First look for the embedded help text (cross-platform — an arm64
+    binary cannot be executed on x86); if it runs, confirm via
+    `amele mcp --help`. Project rule: no MCP, no amele (user decision) —
+    the installer will not continue with an MCP-less binary.
     """
     try:
         data = binary.read_bytes()
@@ -249,7 +249,7 @@ def check_amele_mcp(binary: Path) -> bool:
                               capture_output=True, text=True, timeout=10)
         if proc.returncode == 0:
             return "login" in (proc.stdout + proc.stderr)
-        return True  # çalıştırılamıyor (farklı mimari) ama gömülü metin var
+        return True  # cannot run (different arch) but embedded text is there
     except Exception:
         return True
 
@@ -464,7 +464,7 @@ def main() -> None:
 
     say()
     say("╔══════════════════════════════════════════════╗", "bold")
-    say("║   🧑💼 Kâhya — setup wizard                    ║", "bold")
+    say("║   🧑💼 Kahya — setup wizard                     ║", "bold")
     say("║   Loxigo Software · https://www.loxigo.com    ║", "dim")
     say("╚══════════════════════════════════════════════╝")
     say()
@@ -532,7 +532,7 @@ def main() -> None:
     say("\n  ✅ done!")
     say()
     say("╔══════════════════════════════════════════════════════╗", "bold")
-    say("║  ✅ Kâhya is installed!                              ║", "bold")
+    say("║  ✅ Kahya is installed!                               ║", "bold")
     say("╠══════════════════════════════════════════════════════╣")
     say(f"║  Panel:  http://{ip}:{free_port}                    ")
     say("║  Login:  admin / kahya123  (change it from the panel)  ")
@@ -558,36 +558,36 @@ def which(cmd: str) -> Optional[str]:
 
 
 def apt_install(pkg: str) -> str:
-    """Distro'ya uygun paket kurma komutu (onay listesinde gösterilir)."""
+    """Distro-appropriate package install command (shown in the approval list)."""
     if which("apt-get"):
         return f"sudo apt-get install -y {pkg}"
     if which("dnf"):
         return f"sudo dnf install -y {pkg}"
     if which("pacman"):
         return f"sudo pacman -S --noconfirm {pkg}"
-    return f"sudo apt-get install -y {pkg}"  # varsayılan; kullanıcı düzeltir
+    return f"sudo apt-get install -y {pkg}"  # fallback; user may fix it
 
 
 def scan_system(os_name: str, arch: str, force: bool) -> list[dict]:
-    """Sistem taraması — mevcut yazılımlar + otomatik öneriler.
+    """System scan — what is already on the machine + automatic proposals.
 
-    Her öneri bir dict: id, kritik (varsayılan onay Y), baslik, detay,
-    komut (onaylanırsa çalıştırılacak shell komutu) veya uygula (özel
-    aksiyon). Hiçbir şey bu liste onaylanmadan yapılmaz.
+    Each proposal is a dict: id, critical (default approval Y), title,
+    detail, command (shell command to run if approved) or action (custom
+    callable). Nothing is done without this list being approved.
 
-    Onay listesinde OLMAYAN (otomatik): web panel portu (boş port
-    otomatik seçilir). Kural-reddi: MCP'siz amele binary kurulumu
-    anında durdurur (onay sorusu yok — kullanıcı kararı).
+    NOT in the approval list (automatic): web panel port (a free port is
+    picked automatically). Rule rejection: an MCP-less amele binary stops
+    the installer immediately (no approval question — user decision).
     """
     items = []
 
-    # -- amele binary + MCP kuralı (kritik) --
+    # -- amele binary + MCP rule (critical) --
     binary = ROOT / "bin" / ("amele.exe" if os.name == "nt" else "amele")
     if binary.exists() and check_amele_mcp(binary):
-        items.append({"id": "amele", "kritik": True, "durum": "✓",
-                      "baslik": "amele binary (MCP ✓)",
-                      "detay": f"{binary} — hazır",
-                      "komut": None, "uygula": None})
+        items.append({"id": "amele", "critical": True, "status": "✓",
+                      "title": "amele binary (MCP ✓)",
+                      "detail": f"{binary} — ready",
+                      "command": None, "action": None})
     elif binary.exists():
         fail("existing amele binary has NO MCP support (`amele mcp` "
              "missing). Project rule: no MCP, no amele — the installer "
@@ -595,79 +595,79 @@ def scan_system(os_name: str, arch: str, force: bool) -> list[dict]:
              "installer will fetch an MCP build from "
              "loxigosoftware/amele-builds")
     else:
-        items.append({"id": "amele", "kritik": True, "durum": "✗",
-                      "baslik": "amele binary yok",
-                      "detay": "MCP'li sürüm kurulacak "
-                               "(loxigosoftware/amele-builds release)",
-                      "komut": None, "uygula": lambda: None})
+        items.append({"id": "amele", "critical": True, "status": "✗",
+                      "title": "amele binary missing",
+                      "detail": "MCP build will be installed "
+                                "(loxigosoftware/amele-builds release)",
+                      "command": None, "action": lambda: None})
 
     # -- .env --
     if (ROOT / ".env").exists():
-        items.append({"id": "env", "kritik": True, "durum": "✓",
-                      "baslik": ".env", "detay": "hazır (düzenlemeden korunur)",
-                      "komut": None, "uygula": None})
+        items.append({"id": "env", "critical": True, "status": "✓",
+                      "title": ".env", "detail": "ready (kept untouched)",
+                      "command": None, "action": None})
     else:
-        items.append({"id": "env", "kritik": True, "durum": "○",
-                      "baslik": ".env yok",
-                      "detay": ".env.example'dan oluşturulacak",
-                      "komut": None, "uygula": ensure_env})
+        items.append({"id": "env", "critical": True, "status": "○",
+                      "title": ".env missing",
+                      "detail": "will be created from .env.example",
+                      "command": None, "action": ensure_env})
 
-    # -- Node.js (MCP stdio sunucuları) --
+    # -- Node.js (MCP stdio servers) --
     if which("node"):
-        items.append({"id": "node", "kritik": False, "durum": "✓",
-                      "baslik": "Node.js",
-                      "detay": which("node") or "kurulu",
-                      "komut": None, "uygula": None})
+        items.append({"id": "node", "critical": False, "status": "✓",
+                      "title": "Node.js",
+                      "detail": which("node") or "installed",
+                      "command": None, "action": None})
     else:
         cmd = apt_install("nodejs")
-        items.append({"id": "node", "kritik": False, "durum": "○",
-                      "baslik": "Node.js yok",
-                      "detay": "MCP stdio sunucuları (npx @smithery/cli) için "
-                               "önerilir — kurulacak: " + cmd,
-                      "komut": cmd, "uygula": None})
+        items.append({"id": "node", "critical": False, "status": "○",
+                      "title": "Node.js missing",
+                      "detail": "recommended for MCP stdio servers "
+                                "(npx @smithery/cli) — will install: " + cmd,
+                      "command": cmd, "action": None})
 
-    # -- ffmpeg (amele araçları) --
+    # -- ffmpeg (amele tools) --
     if which("ffmpeg"):
-        items.append({"id": "ffmpeg", "kritik": False, "durum": "✓",
-                      "baslik": "ffmpeg", "detay": which("ffmpeg") or "kurulu",
-                      "komut": None, "uygula": None})
+        items.append({"id": "ffmpeg", "critical": False, "status": "✓",
+                      "title": "ffmpeg", "detail": which("ffmpeg") or "installed",
+                      "command": None, "action": None})
     else:
         cmd = apt_install("ffmpeg")
-        items.append({"id": "ffmpeg", "kritik": False, "durum": "○",
-                      "baslik": "ffmpeg yok",
-                      "detay": "amele araçları (ses/görüntü) için önerilir — "
-                               "kurulacak: " + cmd,
-                      "komut": cmd, "uygula": None})
+        items.append({"id": "ffmpeg", "critical": False, "status": "○",
+                      "title": "ffmpeg missing",
+                      "detail": "recommended for amele tools (audio/video) — "
+                                "will install: " + cmd,
+                      "command": cmd, "action": None})
 
-    # -- installer kalıntısı --
+    # -- installer leftovers --
     tmp = ROOT / ".install-tmp"
     if tmp.exists():
-        items.append({"id": "temizlik", "kritik": False, "durum": "!",
-                      "baslik": ".install-tmp kalıntısı",
-                      "detay": "eski kurulum geçici dosyaları — silinecek",
-                      "komut": None,
-                      "uygula": lambda: shutil.rmtree(tmp, ignore_errors=True)})
+        items.append({"id": "cleanup", "critical": False, "status": "!",
+                      "title": ".install-tmp leftovers",
+                      "detail": "stale installer temp files — will be removed",
+                      "command": None,
+                      "action": lambda: shutil.rmtree(tmp, ignore_errors=True)})
 
     return items
 
 
 def confirm_items(items: list[dict], yes: bool = False,
                   dry_run: bool = False) -> list[dict]:
-    """Öneri listesini gösterir, kullanıcı onayını alır.
+    """Show the proposal list and collect user approval.
 
-    Kritik maddeler varsayılan EVET, öneriler varsayılan HAYIR.
-    Kısayollar: a = hepsini onayla · n = hiçbirini onaylama · q = çık.
-    --yes: soru sormadan hepsini onayla (açık istek).
+    Critical items default to YES, recommendations default to NO.
+    Shortcuts: a = approve all · n = approve none · q = quit.
+    --yes: approve everything without asking (explicit request).
     """
     say()
     say("  ── system scan ─────────────────────────────────────", "bold")
     for i, it in enumerate(items, 1):
-        mark = {"✓": "✓", "✗": "✗", "○": "○", "!": "!", "—": "—"}[it["durum"]]
-        varsayilan = "Y" if it["kritik"] else "n"
-        say(f"  [{i}] {mark} {it['baslik']}")
-        say(f"      {it['detay']}")
+        mark = {"✓": "✓", "✗": "✗", "○": "○", "!": "!", "—": "—"}[it["status"]]
+        default_answer = "Y" if it["critical"] else "n"
+        say(f"  [{i}] {mark} {it['title']}")
+        say(f"      {it['detail']}")
         if dry_run:
-            say(f"      → onaylanırsa: {varsayilan} ({'uygulanacak' if (it['komut'] or it['uygula']) else 'hazır — işlem yok'})", "dim")
+            say(f"      → if approved: {default_answer} ({'will be applied' if (it['command'] or it['action']) else 'ready — no action'})", "dim")
     say("  ────────────────────────────────────────────────────", "bold")
     if dry_run:
         return []
@@ -675,19 +675,19 @@ def confirm_items(items: list[dict], yes: bool = False,
     chosen = []
     if yes:
         chosen = [it for it in items
-                  if it["komut"] or it["uygula"] or it["durum"] in ("✗", "!", "○")]
+                  if it["command"] or it["action"] or it["status"] in ("✗", "!", "○")]
         say("  --yes: all actionable items approved.", "dim")
         return chosen
 
     for i, it in enumerate(items, 1):
-        if not (it["komut"] or it["uygula"] or it["durum"] in ("✗", "!")):
-            continue  # hazır olanlar onay istemez
-        varsayilan = "Y" if it["kritik"] else "n"
-        soru = f"  [{i}] {it['baslik']} — uygulansın mı? [{'Y' if it['kritik'] else 'y'}/{'n' if it['kritik'] else 'N'}] "
-        ans = input(soru).strip().lower()
+        if not (it["command"] or it["action"] or it["status"] in ("✗", "!")):
+            continue  # ready items need no approval
+        default_answer = "Y" if it["critical"] else "n"
+        prompt = f"  [{i}] {it['title']} — apply? [{'Y' if it['critical'] else 'y'}/{'n' if it['critical'] else 'N'}] "
+        ans = input(prompt).strip().lower()
         if ans in ("a", "all"):
-            chosen = [x for x in items if x["komut"] or x["uygula"]
-                      or x["durum"] in ("✗", "!", "○")]
+            chosen = [x for x in items if x["command"] or x["action"]
+                      or x["status"] in ("✗", "!", "○")]
             say("  · everything approved.", "green")
             return chosen
         if ans in ("n", "no"):
@@ -699,7 +699,7 @@ def confirm_items(items: list[dict], yes: bool = False,
         if ans in ("", "y", "yes") and it["kritik"]:
             chosen.append(it)
         elif ans in ("y", "yes") or (ans == "" and not it["kritik"]):
-            # önerilerde boş Enter = varsayılan HAYIR
+            # empty Enter on recommendations = default NO
             if ans in ("y", "yes"):
                 chosen.append(it)
         else:
@@ -709,18 +709,18 @@ def confirm_items(items: list[dict], yes: bool = False,
 
 def apply_items(items: list[dict], chosen: list[dict], os_name: str,
                 arch: str, force: bool) -> None:
-    """Onaylanan önerileri sırayla uygular. Her adım kullanıcının
-    onay listesinden geçmiştir; hiçbir şey onaysız çalışmaz."""
+    """Apply the approved proposals in order. Every step came from the
+    user's approval list; nothing runs without approval."""
     step = 0
 
-    def adim(it):
+    def step(it):
         nonlocal step
         step += 1
         say(f"\n  [{step}] {it['baslik']} …")
 
     for it in chosen:
         if it["id"] == "amele":
-            adim(it)
+            step(it)
             install_amele(os_name, arch, force)
             try:
                 out = subprocess.run(
@@ -732,11 +732,11 @@ def apply_items(items: list[dict], chosen: list[dict], os_name: str,
                 say("  · could not verify the version, but the binary is in "
                     "place", "yellow")
         elif it["id"] == "env":
-            adim(it)
+            step(it)
             ensure_env()
-            say("  · .env hazır", "green")
+            say("  · .env ready", "green")
         elif it["komut"]:
-            adim(it)
+            step(it)
             say(f"  · running: {it['komut']}", "dim")
             proc = subprocess.run(it["komut"], shell=True)
             if proc.returncode == 0:
@@ -745,7 +745,7 @@ def apply_items(items: list[dict], chosen: list[dict], os_name: str,
                 say(f"  · failed (exit {proc.returncode}) — continue anyway, "
                     f"you can install it later", "yellow")
         elif it.get("uygula"):
-            adim(it)
+            step(it)
             it["uygula"]()
             say("  · done ✓", "green")
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 class I18n:
-    def __init__(self, lang_dir: Path, language: str = "tr"):
+    def __init__(self, lang_dir: Path, language: str = "en"):
         self.lang_dir = lang_dir
         self.language = language
         self._data: dict = {}

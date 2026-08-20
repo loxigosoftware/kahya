@@ -101,7 +101,7 @@ async function api(path, opts={}){
 }
 
 async function loadLang(){
-  const lang = localStorage.getItem('kahya_lang') || 'tr';
+  const lang = localStorage.getItem('kahya_lang') || 'en';
   T = await api('/api/lang?lang='+lang);
   document.documentElement.lang = lang;
 }
@@ -140,8 +140,8 @@ function renderHeader(){
     </div>
     <div class="btn-row">
       <select id="lang-sel" style="width:auto;margin:0" onchange="setLang(this.value)">
-        <option value="tr" ${(localStorage.getItem('kahya_lang')||'tr')==='tr'?'selected':''}>Türkçe</option>
-        <option value="en" ${(localStorage.getItem('kahya_lang')||'tr')==='en'?'selected':''}>English</option>
+        <option value="tr" ${(localStorage.getItem('kahya_lang')||'en')==='tr'?'selected':''}>Türkçe</option>
+        <option value="en" ${(localStorage.getItem('kahya_lang')||'en')==='en'?'selected':''}>English</option>
       </select>
       <button class="secondary" onclick="doLogout()">${t('panel.login_button')==='Giriş'?'Çıkış':'Logout'}</button>
     </div>
@@ -220,7 +220,7 @@ function modelPill(a){
   if(!a) return '';
   const kind = a.model_kind==='api' ? 'API' : 'local';
   return `<div class="model-pill"><span class="pill ${a.model_kind==='api'?'api':''}">${tf('panel.amele_model_pill',{kind,model:a.model_name||'—'})}</span>` +
-    (a.schema_json? ` <span class="pill">⛃ şema</span>`:'') +
+    (a.schema_json? ` <span class="pill">⛃ schema</span>`:'') +
     (a.enabled? '' : ` <span class="pill over">off</span>`) + `</div>`;
 }
 function ameleRow(a, editing, confirming){
@@ -349,7 +349,7 @@ async function loadKayitlar(){
     const q = (window.__KAYIT_Q||'');
     const {records} = await api('/api/v2/records?amele_id='+KAYIT_AMELE+(q?'&q='+encodeURIComponent(q):''));
     const fields = schemaFields(sel);
-    const view = (window.__KAYIT_VIEW==='json' || !fields) ? 'json' : 'tablo';
+    const view = (window.__RECORD_VIEW==='json' || !fields) ? 'json' : 'tablo';
     $('tab-kayitlar').innerHTML = `
     <div class="card">
       <h2>${t('panel.kayit_title')}</h2>
@@ -361,10 +361,10 @@ async function loadKayitlar(){
                onkeydown="if(event.key==='Enter'){window.__KAYIT_Q=this.value;loadKayitlar();}" />
       </div>
       ${fields? `<div class="btn-row" style="margin-bottom:6px">
-        <button class="secondary ${view==='tablo'?'active':''}" style="${view==='tablo'?'background:var(--text);color:#fff':''}" onclick="window.__KAYIT_VIEW='tablo';loadKayitlar()">${t('panel.kayit_tablo')}</button>
-        <button class="secondary ${view==='json'?'active':''}" style="${view==='json'?'background:var(--text);color:#fff':''}" onclick="window.__KAYIT_VIEW='json';loadKayitlar()">${t('panel.kayit_json_görünüm')}</button>
+        <button class="secondary ${view==='tablo'?'active':''}" style="${view==='tablo'?'background:var(--text);color:#fff':''}" onclick="window.__RECORD_VIEW='tablo';loadKayitlar()">${t('panel.kayit_tablo')}</button>
+        <button class="secondary ${view==='json'?'active':''}" style="${view==='json'?'background:var(--text);color:#fff':''}" onclick="window.__RECORD_VIEW='json';loadKayitlar()">${t('panel.record_json_view')}</button>
       </div>`:''}
-      <textarea id="kr-new" placeholder="${t('panel.kayit_json_ph')}" style="min-height:60px"></textarea>
+      <textarea id="kr-new" placeholder="${t('panel.record_json_ph')}" style="min-height:60px"></textarea>
       <button onclick="addKayit()">${t('panel.kayit_ekle')}</button>
     </div>
     <div class="card">
@@ -400,7 +400,7 @@ async function addKayit(){
 async function editKayit(id){
   const r = (await api('/api/v2/records?amele_id='+KAYIT_AMELE)).records.find(x=>x.id===id);
   if(!r) return;
-  const txt = prompt(t('panel.kayit_json_ph'), JSON.stringify(r.data));
+  const txt = prompt(t('panel.record_json_ph'), JSON.stringify(r.data));
   if(txt===null) return;
   let data; try{ data=JSON.parse(txt); }catch(e){ toast(t('panel.amele_schema_bad')); return; }
   try{ await api('/api/v2/records/edit',{method:'POST',body:JSON.stringify({id,data})});
@@ -744,7 +744,7 @@ async function saveSettings(){
   try{ await api('/api/settings',{method:'POST',body:JSON.stringify({settings:s})});
     $('ss-res').textContent = t('panel.settings_saved');
     setTimeout(()=>{$('ss-res').textContent='';},2500);
-    localStorage.setItem('kahya_lang', s.language||'tr');
+    localStorage.setItem('kahya_lang', s.language||'en');
     loadSettings();
   }catch(e){ $('ss-res').textContent = e.message; }
 }
