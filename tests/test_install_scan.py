@@ -123,6 +123,10 @@ try:
         cand = Path(scratch) / "builds" / "amele-linux-amd64"
         if cand.exists():
             mcp_src = cand
+    if mcp_src is None:
+        cand2 = Path(ROOT) / "bin" / "amele"
+        if cand2.exists():
+            mcp_src = cand2  # repo'da commit'li x86-64 MCP binary (sandbox amd64)
     if mcp_src:
         shutil.copy(mcp_src, TMP / "bin" / "amele")
         items3 = m.scan_system("linux", "amd64", force=False)
@@ -132,6 +136,51 @@ try:
         (TMP / "bin" / "amele").unlink()
     else:
         print("  [skip] 4b (no MCP test binary)")
+
+    # --- elf_arch: mimari tespiti ---
+    check("5a elf_arch reads x86-64 binary as amd64",
+          m.elf_arch(Path(ROOT, "bin", "amele")) == "amd64")
+    check("5b elf_arch None for non-ELF files",
+          m.elf_arch(Path("/etc/hostname")) is None)
+
+    # --- wrong-arch binary is NOT accepted; installer re-downloads ---
+    wrong = TMP / "bin" / "amele"
+    wrong.write_bytes(Path(ROOT, "bin", "amele").read_bytes())  # x86-64 ELF
+    wrong.chmod(0o755)
+    items2 = m.scan_system("linux", "arm64", force=False)
+    a2 = next(i for i in items2 if i["id"] == "amele")
+    check("5c wrong-arch binary flagged in scan (✗, re-download)",
+          a2["status"] == "✗" and "wrong arch" in a2["title"].lower()
+          and "amd64" in a2["title"] and "arm64" in a2["title"], a2["title"])
+    with mock.patch.object(m, "latest_release", return_value={}) as lr, \
+         mock.patch.object(m, "find_asset",
+                           return_value=("amele-linux-arm64", "http://x")) as fa, \
+         mock.patch.object(m, "download", side_effect=Exception("net")) as dl, \
+         mock.patch.object(m, "verify_checksum", return_value=True), \
+         mock.patch.object(m, "check_amele_mcp", return_value=True):
+        try:
+            m.install_amele("linux", "arm64", force=False)
+            check("5d install_amele re-downloads on arch mismatch", False)
+        except Exception as e:
+            check("5d install_amele re-downloads on arch mismatch",
+                  fa.called and dl.called and str(e) == "net",
+                  f"find_asset={fa.called} download={dl.called} err={e}")
+    shutil.rmtree(TMP / ".install-tmp", ignore_errors=True)  # 5d'nin kalıntısı
+    wrong.unlink()
+
+    # --- correct-arch binary is accepted (no download) ---
+    good = TMP / "bin" / "amele"
+    good.write_bytes(Path(ROOT, "bin", "amele").read_bytes())  # amd64, sandbox amd64
+    good.chmod(0o755)
+    with mock.patch.object(m, "latest_release") as lr, \
+         mock.patch.object(m, "find_asset") as fa, \
+         mock.patch.object(m, "download") as dl:
+        m.install_amele("linux", "amd64", force=False)
+        check("5e correct-arch binary accepted, no download",
+              not fa.called and not dl.called and (TMP / "bin" / "amele").exists())
+        check("5f existing binary gets execute bit",
+              os.access(TMP / "bin" / "amele", os.X_OK))
+    good.unlink()
 
     # --- port: automatic pick (not in the approval list but port_test runs) ---
     s = socket.socket()

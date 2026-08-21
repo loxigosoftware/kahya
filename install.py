@@ -33,6 +33,7 @@ import os
 import platform
 import re
 import shutil
+import struct
 import socket
 import subprocess
 import sys
@@ -230,6 +231,23 @@ def verify_checksum(file: Path, sums_path: Path, asset_name: str) -> bool:
     return False
 
 
+def elf_arch(path: Path) -> str | None:
+    """Mimariyi ELF e_machine alanından okur: 'amd64' | 'arm64' | 'arm'.
+
+    ELF değilse (bozuk dosya, PE, script) None döner. Bu, yanlış
+    mimarideki bir binary'nin "mevcut ve MCP ✓" sayılıp Pi'de
+    'Permission denied' / Exec format error üretmesini önler.
+    """
+    try:
+        data = path.read_bytes()[:20]
+        if data[:4] != b"\x7fELF":
+            return None
+        e_machine = struct.unpack("<H", data[18:20])[0]
+        return {62: "amd64", 183: "arm64", 40: "arm"}.get(e_machine)
+    except Exception:
+        return None
+
+
 def check_amele_mcp(binary: Path) -> bool:
     """Does the binary support MCP?
 
@@ -247,11 +265,9 @@ def check_amele_mcp(binary: Path) -> bool:
     try:
         proc = subprocess.run([str(binary), "mcp", "--help"],
                               capture_output=True, text=True, timeout=10)
-        if proc.returncode == 0:
-            return "login" in (proc.stdout + proc.stderr)
-        return True  # cannot run (different arch) but embedded text is there
+        return proc.returncode == 0 and "login" in (proc.stdout + proc.stderr)
     except Exception:
-        return True
+        return False
 
 
 def install_amele(os_name: str, arch: str, force: bool) -> Path:
@@ -265,16 +281,21 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
     bin_dir.mkdir(exist_ok=True)
     binary = bin_dir / ("amele.exe" if os.name == "nt" else "amele")
     if binary.exists() and not force:
-        if not check_amele_mcp(binary):
+        existing = elf_arch(binary)
+        if existing is not None and existing != arch:
+            say(f"  · existing binary is {existing}, but this platform needs "
+                f"{arch} — downloading the correct build", "yellow")
+        elif not check_amele_mcp(binary):
             fail("existing amele binary has NO MCP support (`amele mcp` "
                  "missing). Project rule: no MCP, no amele. Remove "
                  "bin/amele and re-run — the installer will fetch an MCP "
                  "build from loxigosoftware/amele-builds")
-        if os.name != "nt":
-            binary.chmod(0o755)  # guarantee execute bit on existing binaries
-        say(f"  · amele already present: {binary} (MCP ✓, use --force to "
-            f"re-download)", "dim")
-        return binary
+        else:
+            if os.name != "nt":
+                binary.chmod(0o755)  # guarantee execute bit on existing binaries
+            say(f"  · amele already present: {binary} (MCP ✓, use --force to "
+                f"re-download)", "dim")
+            return binary
 
     say("  · looking up the latest amele release (loxigosoftware/amele-builds) …")
     release = latest_release()
@@ -585,17 +606,26 @@ def scan_system(os_name: str, arch: str, force: bool) -> list[dict]:
 
     # -- amele binary + MCP rule (critical) --
     binary = ROOT / "bin" / ("amele.exe" if os.name == "nt" else "amele")
-    if binary.exists() and check_amele_mcp(binary):
+    if binary.exists() and elf_arch(binary) not in (None, arch):
+        items.append({"id": "amele", "critical": True, "status": "✗",
+                      "title": f"amele binary (wrong arch: "
+                               f"{elf_arch(binary)}, need {arch})",
+                      "detail": f"{binary} — will re-download the "
+                                f"correct build",
+                      "command": None, "action": None})
+    elif binary.exists() and check_amele_mcp(binary):
         items.append({"id": "amele", "critical": True, "status": "✓",
                       "title": "amele binary (MCP ✓)",
                       "detail": f"{binary} — ready",
                       "command": None, "action": None})
     elif binary.exists():
-        fail("existing amele binary has NO MCP support (`amele mcp` "
-             "missing). Project rule: no MCP, no amele — the installer "
-             "will not continue. Remove bin/amele and re-run; the "
-             "installer will fetch an MCP build from "
-             "loxigosoftware/amele-builds")
+        a = elf_arch(binary)
+        hint = (f" binary is {a}, this platform needs {arch} — remove "
+                f"bin/amele and re-run, the installer will fetch the "
+                f"correct build" if a else
+                f" — remove bin/amele and re-run; the installer will "
+                f"fetch an MCP build from loxigosoftware/amele-builds")
+        fail("existing amele binary is not usable on this platform" + hint)
     else:
         items.append({"id": "amele", "critical": True, "status": "✗",
                       "title": "amele binary missing",
