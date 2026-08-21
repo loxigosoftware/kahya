@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Step 8 — MCP bağlama akış testleri (REDESIGN §6).
+"""Step 8 — MCP bağlama akış testleri .
 
 Panel API üzerinden: sorumluluk beyanı zorunluluğu → sunucu ekleme →
 amele bağlama (YAML'a mcp: bloğu otomatik yazılır) → amele validate →
@@ -26,7 +26,7 @@ TEST_ROOT = "/tmp/kahya_mcp_root"
 shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
 Path(TEST_ROOT, "ameles").mkdir()
-for name in ("extract-amele.yaml", "kahya.yaml", "reminder-amele.yaml"):
+for name in ("extract-amele.yaml", "kahya.yaml"):
     (Path(TEST_ROOT) / "ameles" / name).symlink_to(Path(ROOT) / "ameles" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")
 (Path(TEST_ROOT) / "web").symlink_to(Path(ROOT) / "web")

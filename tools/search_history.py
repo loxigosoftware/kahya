@@ -6,7 +6,7 @@ stdin:  {"q": "köpek aşısı", "thread_id": "chat:42"}   (thread_id opsiyonel)
 stdout: JSON — eşleşen konuşma mesajları (en yeni önce):
         [{thread_id, role, content, ts}] veya []
 
-REDESIGN §3.5: "bunu konuşmuştuk" tarzı sorularda Kahya arşivi tarar ve
+"We talked about this" style questions: Kahya scans the archive and
 bulunan mesajları bağlama katar.
 
 Env:    KAHYA_DB

@@ -4,7 +4,7 @@
 Onaylı/tehlikeli aksiyon: pending_actions'a kayıt düşer + Telegram'a
 onay sorusu gider. Kullanıcı düz metin cevaplar (evet/hayır/iptal);
 bot en güncel bekleyen onayı, "mail-amele evet" formatıyla da eski
-bir onayı işler (REDESIGN §7).
+bir onayı işler .
 
 stdin:  {"soru": "...", "aksiyon": {...}}
 stdout: {"onay_id": N}  (JSON) veya "ERROR: ..."

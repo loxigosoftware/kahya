@@ -1,4 +1,4 @@
-"""Telegram bot — the owner's front door, and Kâhya's voice (v2, REDESIGN §4).
+"""Telegram bot — the owner's front door, and Kâhya's voice (v2).
 
 Routing:
   1. /<slug> ...     → direct message to that amele (Kahya is skipped)
@@ -105,7 +105,7 @@ class Bot:
         self.i18n.set_language(self.cfg.language)
         return self.i18n.t(key, **kw)
 
-    # -- conversation memory (REDESIGN §3.5) ------------------------
+    # -- conversation memory  ------------------------
 
     def _remember(self, role: str, content: str) -> None:
         """Kaydet + arşivle (thread 40'ı aşınca en eski 20 arşive)."""
@@ -122,7 +122,7 @@ class Bot:
         return ok
 
     def _context(self, limit: int = 20) -> str:
-        """Son N ham mesaj — sabit boyutlu bağlam penceresi (REDESIGN §3.5)."""
+        """Son N ham mesaj — sabit boyutlu bağlam penceresi ."""
         msgs = self.db.recent_messages(self._thread, limit)
         return "\n".join(f"{m['role']}: {m['content']}" for m in msgs)
 
@@ -140,7 +140,7 @@ class Bot:
             print(f"  [bot] token changed, reconnected")
 
     def _amele_index(self) -> list[dict]:
-        """Kompakt amele index (REDESIGN §3.2) — amele CRUD'unda tazelenir."""
+        """Kompakt amele index  — amele CRUD'unda tazelenir."""
         if self._amele_index_cache is None:
             self._amele_index_cache = self.db.amele_index()
         return self._amele_index_cache
@@ -151,8 +151,7 @@ class Bot:
 
     def _slug_by_command(self, low: str) -> Optional[str]:
         """'/<komut>' → amele slug. Tire/alt çizgi farkını yok sayar
-        (REDESIGN §4.1: kayıtlı komut 'mail_amele', kullanıcı
-        '/mail-amele' yazabilir)."""
+        ."""
         cmd = low.split(" ", 1)[0].lstrip("/").lower()
         if not cmd:
             return None
@@ -193,7 +192,7 @@ class Bot:
         return str(res) if res is not None else ""
 
     def _ask_kahya(self, message: str, context: str = "") -> str:
-        """Orchestrator: Kahya with the compact amele index (REDESIGN §3.2)
+        """Orchestrator: Kahya with the compact amele index 
         and the fixed-size conversation window (§3.5)."""
         idx = self._amele_index()
         lines = [f"{a['id']} | {a['slug']} | {a['description']}" for a in idx]
@@ -244,7 +243,7 @@ class Bot:
                 return
         self._send(chat_id, self._t("bot.cancel_ok"))
 
-    # -- approval matching (REDESIGN §4.2) --------------------------
+    # -- approval matching  --------------------------
 
     def _forward_approval(self, chat_id: int, pa: dict, verdict: str) -> None:
         """Son bekleyen onayı sahibi ameleye iletir (Step 4; tam onay
@@ -275,7 +274,7 @@ class Bot:
     def _try_approval(self, chat_id: int, low: str, in_session: bool = False) -> bool:
         """Onay kelimesi + bekleyen onay varsa iletir. True = handled.
 
-        Eşleştirme (REDESIGN §7): düz kelime → en güncel bekleyen onay;
+        Eşleştirme : düz kelime → en güncel bekleyen onay;
         "<amele-adı> <kelime>" → o amelenin bekleyen onayı (eski onaya
         cevap vermek için).
         """
@@ -333,7 +332,7 @@ class Bot:
         low = text.strip().lower()
         session_slug = state.get("session_slug")
 
-        # conversation memory: thread + user side kaydı (REDESIGN §3.5)
+        # conversation memory: thread + user side kaydı 
         self._thread = (f"amele:{chat_id}:{session_slug}" if session_slug
                         else f"chat:{chat_id}")
         self._remember("user", text)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Konuşma belleği testleri (REDESIGN §3.5) + yedekleme.
+"""Konuşma belleği testleri  + yedekleme.
 
 - 60 mesajlık sohbet: bağlam hep ≤ 20, arşivde hepsi duruyor
 - FTS araması buluyor (LIKE fallback dahil)

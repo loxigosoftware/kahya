@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Orkestratör (Kahya) testleri — REDESIGN §3.
+"""Orchestrator (Kahya) tests.
 
 get_amele_profile, find_ameles, call_amele (mock LLM ile), paslama
 limiti (3), search_history.
@@ -57,8 +57,6 @@ mail_id = db.create_amele("mail-amele", "Mail", "mailleri okur, taslak hazırlar
                           "ameles/mail-amele.yaml", model_kind="api",
                           model_name="gpt-4o-mini",
                           model_cfg={"base_url": "http://127.0.0.1:9441/v1"})
-db.create_amele("reminder-amele", "Reminder", "sets up timed reminders",
-                "ameles/reminder-amele.yaml")
 db.create_amele("pets-amele", "Pets", "evcil hayvan takibi",
                 "ameles/pets-amele.yaml")
 

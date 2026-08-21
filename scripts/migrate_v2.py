@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v1 → v2 schema migration for Kahya (REDESIGN §2, §9).
+"""v1 → v2 schema migration for Kahya .
 
 Usage:
     python3 scripts/migrate_v2.py <db_path> [--force]
@@ -10,7 +10,7 @@ Usage:
 - Idempotent: if the DB is already v2 it prints the current state and exits.
 - NEVER runs against the live DB blindly — test on a backup copy first.
 
-Data mapping (REDESIGN §9):
+Data mapping :
     agents   → ameles   (role_prompt → description; model defaults)
     items    → records    (title→ad, amount/currency→tutar, due_date,
                            note→not, kind→tür; v1 alanları data_json'da korunur)

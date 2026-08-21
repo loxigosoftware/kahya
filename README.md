@@ -129,7 +129,7 @@ Forgot the panel password? `KAHYA_ADMIN_PASSWORD` in `.env` always wins.
 
 ## Model strategy
 
-Every amele picks its own model (REDESIGN §2.4):
+Every amele picks its own model:
 
 - **`model_kind: local`** → local endpoint (Ollama / custom), e.g.
   `qwen3:27b` for general text work or `qwen3-vl:8b` for vision ameles.
@@ -176,7 +176,6 @@ itself, asks a question, or forwards the job to the right amele
 |---|---|---|
 | `ameles/extract-amele.yaml` | natural language → intent (record/question) + validated JSON | amele |
 | `ameles/kahya.yaml` | the orchestrator — answers questions from the store | amele |
-| `ameles/reminder-amele.yaml` | general reminder delivery | amele |
 | `ameles/invoice-amele.yaml`, `ameles/pets-amele.yaml`, … | example owner-defined ameles — the shape every panel-created amele gets | ameles |
 | `tools/db_get.py`, `tools/db_put.py` | read / write the SQLite store (ameles can never touch `ameles`/`settings` tables) | amele tools |
 | `tools/telegram_send.py` | deliver a message to the owner | amele tool |

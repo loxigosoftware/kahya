@@ -2,9 +2,9 @@
 """Step 6 — onay aracı, zamanlanmış görev tarayıcısı, virtual alan testleri.
 
 - ask_confirm tool'u: pending_actions kaydı + Telegram mesajı başlıkta
-  amele adı (REDESIGN §7); Telegram ulaşmazsa kayıt iptal
+  amele adı ; Telegram ulaşmazsa kayıt iptal
 - scheduler: vadesi gelen görev → amele çağrılır, success işaretlenir;
-  hata → 3 deneme → failed + kullanıcıya bildirim (REDESIGN §8)
+  hata → 3 deneme → failed + kullanıcıya bildirim 
 - sync_virtual_task: şemadaki virtual zaman alanı → scheduled_tasks
 """
 import json
@@ -28,7 +28,7 @@ shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
 ameles_dir = Path(TEST_ROOT) / "ameles"
 ameles_dir.mkdir()
-for name in ("kahya.yaml", "reminder-amele.yaml", "mail-amele.yaml",
+for name in ("kahya.yaml", "mail-amele.yaml",
              "invoice-amele.yaml"):
     (ameles_dir / name).symlink_to(Path(ROOT) / "ameles" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")

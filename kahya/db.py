@@ -1,4 +1,4 @@
-"""SQLite layer — schema v2 (REDESIGN §2), CRUD and scheduler queries.
+"""SQLite layer — schema v2 , CRUD and scheduler queries.
 
 One file, zero setup: `data/kahya.db`. Backup = copy the file.
 
@@ -230,7 +230,7 @@ class KahyaDB:
         self.con.commit()
 
     def amele_index(self) -> list[dict]:
-        """Kompakt index — Kahya'nın sistem promptu için (REDESIGN §3.2)."""
+        """Kompakt index — Kahya'nın sistem promptu için ."""
         rows = self.con.execute(
             "SELECT id, slug, description FROM ameles WHERE enabled = 1 "
             "ORDER BY name").fetchall()
@@ -388,7 +388,7 @@ class KahyaDB:
             (task_id,)).fetchone()["attempts"]
 
     def sync_virtual_task(self, amele_id: int, record_id: int, data: dict) -> None:
-        """Şemadaki virtual zaman alanlarından görev üretir (REDESIGN §8).
+        """Şemadaki virtual zaman alanlarından görev üretir .
 
         Örnek şema: {"fields": [{"name": "due_date", "type": "date",
         "virtual": true, "display": true}]} → data'daki due_date, kaydın
@@ -485,7 +485,7 @@ class KahyaDB:
                              archive_from: int = 40) -> int:
         """Thread archive_from mesajı aşınca en eski (n - keep) mesajı arşivler.
 
-        REDESIGN §3.5: 40 mesajda bir arşivleme, bağlam = son 20 ham mesaj.
+        Archival every 40 messages; context = last 20 raw messages.
         """
         n = self.count_active_messages(thread_id)
         if n <= archive_from:
@@ -682,7 +682,7 @@ class KahyaDB:
 
     @staticmethod
     def _item_to_data(data: dict) -> dict:
-        """v1 items alanlarını v2 data_json biçimine çevirir (REDESIGN §9).
+        """v1 items alanlarını v2 data_json biçimine çevirir .
 
         v1 zorunlu sütunları (status, repeat_rule, remind_before_days) her
         zaman yazılır — JSON sorguları default değerlere güvenir.

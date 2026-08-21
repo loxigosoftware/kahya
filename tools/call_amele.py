@@ -5,12 +5,12 @@ stdin:  JSON:
           {"slug": "mail-amele", "görev": "bilet rezervasyonunu işle",
            "bağlam": {...}}          (bağlam opsiyonel)
 stdout: JSON — hedef amelenin çıktısı (sözleşme: {"görev", "bağlam",
-        "beklenen_çıktı"} — REDESIGN §3.3) veya {"error": "..."}
+        "beklenen_çıktı"}) veya {"error": "..."}
 
 Kurallar:
 - Hedef amele kendi model ayarıyla ve KENDİ KAHYA_AMELE_ID'si ile çalışır
   (amele_runner bunu otomatik yapar).
-- Paslama derinliği (REDESIGN §3.3): KAHYA_PASLAMA_DEPTH env'ini taşır ve
+- Paslama derinliği : KAHYA_PASLAMA_DEPTH env'ini taşır ve
   hedef ameleye +1 verir. Limit 3 — aşılırsa zincir DURDURULUR ve hata
   döner (sınırsız paslama = sınırsız LLM maliyeti).
 - Her paslama kullanıcıya raporlanır — raporu Kahya yazar.

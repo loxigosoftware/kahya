@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bot flow tests (v2, REDESIGN §4) with mock LLM + mock Telegram.
+"""Bot flow tests (v2) with mock LLM + mock Telegram.
 
 Scenarios:
   1. /amele → amele list
@@ -29,7 +29,7 @@ shutil.rmtree(TEST_ROOT, ignore_errors=True)
 Path(TEST_ROOT).mkdir(parents=True)
 ameles_dir = Path(TEST_ROOT) / "ameles"
 ameles_dir.mkdir()
-for name in ("extract-amele.yaml", "kahya.yaml", "reminder-amele.yaml",
+for name in ("extract-amele.yaml", "kahya.yaml",
              "invoice-amele.yaml", "pets-amele.yaml", "mail-amele.yaml"):
     (ameles_dir / name).symlink_to(Path(ROOT) / "ameles" / name)
 (Path(TEST_ROOT) / "lang").symlink_to(Path(ROOT) / "lang")

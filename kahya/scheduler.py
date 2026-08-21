@@ -5,9 +5,10 @@ Every tick:
    with a generic trigger: `{"event": "time", "record_id": N}` — the
    amele reads its own record and decides (info, warning, MCP action,
    ask_confirm...). Success → status='success' + log; failure → up to
-   3 attempts, then status='failed' + owner notification (REDESIGN §8).
+   3 attempts, then status='failed' + owner notification.
    Tasks never vanish silently.
-2. v1 compatibility: items reminders (legacy flow — removed in Step 9).
+2. v1 compatibility: item reminders (only items with an assigned amele;
+     others are logged and skipped).
 
 That is the whole job — Kahya is otherwise idle.
 """
@@ -55,7 +56,7 @@ def _notify_failed(cfg: Config, slug: str, error: str) -> None:
 
 def _run_due_tasks(cfg: Config, db: KahyaDB, quiet: bool,
                    now: datetime, dry_run: bool) -> list[dict]:
-    """v2: scheduled_tasks scanner (REDESIGN §8)."""
+    """v2: scheduled_tasks scanner."""
     sent: list[dict] = []
     for task in db.due_scheduled_tasks(now.strftime("%Y-%m-%d %H:%M:%S")):
         amele = db.get_amele(task["amele_id"])
@@ -96,7 +97,7 @@ def _run_due_tasks(cfg: Config, db: KahyaDB, quiet: bool,
 
 def _run_legacy_items(cfg: Config, db: KahyaDB, today: date, quiet: bool,
                       now: datetime, dry_run: bool) -> list[dict]:
-    """v1 uyumluluk: items hatırlatmaları (Step 9'da kalkar)."""
+    """v1 compatibility: item reminders (legacy flow)."""
     sent: list[dict] = []
     for item in db.due_for_reminder(today):
         if db.reminders_sent_today(item["id"]):
@@ -107,11 +108,12 @@ def _run_legacy_items(cfg: Config, db: KahyaDB, today: date, quiet: bool,
                                  "item_id": item["id"]})
             continue
 
-        yaml_path: Path | None = None
-        if item.get("amele_slug"):
-            yaml_path = amele_yaml(cfg, item["amele_slug"])
+        yaml_path = (amele_yaml(cfg, item["amele_slug"])
+                     if item.get("amele_slug") else None)
         if yaml_path is None:
-            yaml_path = cfg.ameles_dir / "reminder-amele.yaml"
+            db.log("scheduler", {"event": "reminder_skipped_no_amele",
+                                 "item_id": item["id"]})
+            continue
 
         task = (f"TASK event=time record_id={item['id']} "
                 f"now={now.strftime('%Y-%m-%d %H:%M')}")

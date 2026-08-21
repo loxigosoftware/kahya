@@ -2,8 +2,8 @@
 #
 # Reads and summarizes mail, drafts replies, and (after owner approval)
 # sends them. Owns its own record namespace via db_put — e.g. a
-# reservation mail gets stored as a record for the reminder-amele
-# workflow (ad, tutar, due_date, not, tür).
+# reservation mail gets stored as a record for the owner's workflow
+# (name, amount, due_date, note, type).
 
 model: ${AMELE_MODEL}
 

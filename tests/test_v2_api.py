@@ -113,7 +113,7 @@ check("cascade deletes records", db.count_records(gorsel_id) == 0)
 check("cascade deletes pending", db.get_pending_action(p2) is None or
       db.get_pending_action(p2)["status"] == "approved")  # p2 zaten resolved
 
-# --- amele başına model çözümü (amele_runner — REDESIGN §2.4) ---
+# --- amele başına model çözümü (amele_runner) ---
 from kahya.config import Config  # noqa: E402
 from kahya.amele_runner import _amele_model_env  # noqa: E402
 import os

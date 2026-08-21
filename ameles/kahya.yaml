@@ -1,8 +1,8 @@
-# kahya — the orchestrator amele (Kâhya's own identity, REDESIGN §3).
+# kahya — the orchestrator amele (Kâhya's own identity).
 #
 # Kahya karşılar: kayıt soruları, genel sorular, görev dağıtımı.
 # Kompakt amele index'i prompta GÖMÜLÜ DEĞİLDİR — bot her çağrıda DB'den
-# üretip task'e ekler (20 amele ≈ 600 token; REDESIGN §3.2).
+# üretip task'e ekler (20 ameles ≈ 600 tokens).
 
 model: ${AMELE_MODEL}
 

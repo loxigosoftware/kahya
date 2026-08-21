@@ -7,7 +7,7 @@ stdout: JSON — amelenin tam tanımı:
          mcp_servers: [{name, kind, url/command, tools_include}]}
         Hata: {"error": "..."}
 
-REDESIGN §3.2: Kahya index'ten hedefi seçer ve YALNIZ o anda tam tanımı
+Kahya picks the target from the index and only that full definition is
 çeker — bağlam şişmez.
 
 Env:    KAHYA_DB

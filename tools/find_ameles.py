@@ -5,7 +5,7 @@ stdin:  {"q": "mail hatırlatma"}
 stdout: JSON — eşleşen amelesin kompakt listesi:
         [{id, slug, description, match_reason}] veya [] (eşleşme yok)
 
-REDESIGN §3.2: index'te eşleşme bulamayan Kahya için güvence araması;
+Fallback search when nothing matches the Kahya index;
 sonuç yoksa Kahya kullanıcıya sorar.
 
 Env:    KAHYA_DB

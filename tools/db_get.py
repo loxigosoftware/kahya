@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """db_get — amele tool (subprocess). Read records from the Kahya database.
 
-stdin:  JSON request (records sözleşmesi — REDESIGN §2.3):
+stdin:  JSON request (records contract):
           {"op": "get", "id": 5}            → tek kayıt
           {"op": "list"}                    → kayıtlar (kendi amelesi)
           {"op": "search", "q": "bilet"}    → kayıtlarında metin arama

@@ -848,7 +848,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _v2_mcp_explain(self):
         """Bağlı amelenin YAML'ı ile `amele explain` — MCP sunucuları gerçekten
-        bağlanır, katkılarını listeler (REDESIGN §6.2 adım 5)."""
+        bağlanır, katkılarını listeler ."""
         data = self._read_body()
         db = self.server.db
         amele = db.get_amele(int(data.get("amele_id") or 0))

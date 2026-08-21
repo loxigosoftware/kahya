@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Kahya günlük yedek (REDESIGN §5: yedekler proje klasöründe — kullanıcı
-# dışarı taşımakta özgür).
+# Kahya günlük yedek .
 #
 # Alınanlar: data/kahya.db (SQLite online backup) + ameles/ + tools/ +
 # .env (varsa) → kahya-yedek-<YYYYMMDD>/

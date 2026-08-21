@@ -26,3 +26,9 @@ venv/
 .install-tmp/
 .probe/
 kahya-yedek-*/
+
+# design docs — stay local (user decision)
+REDESIGN.md
+UPGRADE.md
+# brand assets — pending logo decision
+brand/

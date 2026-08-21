@@ -3,7 +3,7 @@
 Kahya never talks to the LLM directly; every AI step goes through an amele
 (ameles/*.yaml). This module is the one place that shells out.
 
-Model atama (REDESIGN §2.4): her amele kendi modelini kullanır —
+Model atama : her amele kendi modelini kullanır —
 ameles tablosundaki model_kind/model_name/model_cfg'den çözülür.
 Sistem ayarındaki LLM (cfg.model) YALNIZ Kahya içindir; diğer ameles
 kendi model ayarlarıyla çağrılır.
@@ -44,7 +44,7 @@ class AmeleError(Exception):
 
 
 def _amele_model_env(cfg: Config, slug: str) -> dict:
-    """Amele başına model env'leri — DB'deki model atamasından (REDESIGN §2.4).
+    """Amele başına model env'leri — DB'deki model atamasından .
 
     - local: model_name + (model_cfg.base_url varsa o, yoksa cfg.base_url —
       Ollama gibi yerel endpoint ortak kullanılır).

@@ -81,7 +81,7 @@ n = db.insert_item({"title": "Tek sefer", "due_date": "2026-08-20"}, amele_id=1)
 done_n = db.complete_item(n)
 check("one-off done", not done_n["rolled"] and done_n["status"] == "done")
 
-# --- tools (records sözleşmesi — REDESIGN §2.3) ---
+# --- tools (records contract) ---
 def tool(script, payload, amele_id=None):
     env = {**os.environ, "KAHYA_DB": str(DB)}
     if amele_id is not None:

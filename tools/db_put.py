@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """db_put — amele tool (subprocess). Write to the amele's own records.
 
-stdin:  JSON request (records sözleşmesi — REDESIGN §2.3):
+stdin:  JSON request (records contract):
           {"op": "put", "data": {...}}            → yeni kayıt (kendi amele_id)
           {"op": "put", "id": 5, "data": {...}}   → güncelle (merge)
           {"op": "delete", "id": 5}               → sil
@@ -12,7 +12,7 @@ Kurallar:
 - Amele yalnız KENDİ kayıtlarına yazabilir (id'li işlemlerde amele_id kontrolü).
 - Doğrulama: data geçerli bir JSON nesnesi olmalı; amelenin şeması
   (ameles.schema_json) varsa alan tipleri şemaya uymalı. Bozuk veri
-  hiçbir koşulda DB'ye yazılmaz (REDESIGN §2.3).
+  hiçbir koşulda DB'ye yazılmaz .
 
 Env:    KAHYA_DB, KAHYA_AMELE_ID
 """
