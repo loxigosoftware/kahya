@@ -4,7 +4,7 @@
 Scenarios:
   1. /amele → amele list
   2. /mail-amele selam → direct message to that amele (Kahya skipped)
-  3. /mail-amele → chat mode; next messages go to the amele; /iptal exits
+  3. /mail-amele → chat mode; next messages go to the amele; /cancel exits
   4. plain message → Kahya orchestrator (with compact amele index)
   5. approval: pending action + "evet" → forwarded to its amele, resolved
   6. unknown command → redirect
@@ -125,12 +125,12 @@ send("/mail-amele selam")
 check("2 direct amele answered", "intent" in last_msg(), last_msg()[:80])
 check("2 no session started", "sohbet modu" not in last_msg())
 
-# --- 3. chat mode: /mail-amele → messages go to the amele → /iptal
+# --- 3. chat mode: /mail-amele → messages go to the amele → /cancel
 send("/mail-amele")
 check("3a session starts", "sohbet modu" in last_msg())
 send("mailleri oku")
 check("3b session message to amele", "intent" in last_msg(), last_msg()[:60])
-send("/iptal")
+send("/cancel")
 check("3c session exits", "iptal edildi" in last_msg().lower() or "İptal" in last_msg())
 check("3d state cleared", db.get_chat_state(42) == {})
 
@@ -171,11 +171,11 @@ check("6 unknown command", "Bilinmeyen komut" in last_msg())
 
 # --- 7. help
 send("/help")
-check("7 help lists commands", "/amele" in last_msg() and "/iptal" in last_msg())
+check("7 help lists commands", "/amele" in last_msg() and "/cancel" in last_msg())
 
 # --- 8. "iptal" cancels a pending action
 pa2 = db.add_pending_action(mail_id, {"olay": "taslak_gonder"}, lang="tr")
-send("iptal")
+send("cancel")
 check("8a iptal resolves cancelled", db.get_pending_action(pa2)["status"] == "cancelled")
 check("8b iptal message", "İptal edildi" in last_msg() or "iptal" in last_msg().lower())
 
@@ -192,7 +192,7 @@ n_sess = db.con.execute(
     "SELECT COUNT(*) FROM conversation_messages WHERE thread_id = 'amele:42:mail-amele'"
 ).fetchone()[0]
 check("9b oturum ayrı thread", n_sess >= 4, f"({n_sess})")
-send("/iptal")
+send("/cancel")
 
 tg_srv.shutdown()
 mock_llm.terminate()

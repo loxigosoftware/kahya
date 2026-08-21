@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -460,6 +460,10 @@ async function loadMcp(){
       <h2>Smithery</h2>
       <p class="hint">${t('panel.mcp_smithery_note')}</p>
       <div class="btn-row">
+        <button class="secondary" onclick="loadMyTools()">${t('panel.mcp_smithery_mine')}</button>
+        <span id="sm-mine" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <div class="btn-row">
         <input id="mc-q" placeholder="${t('panel.mcp_search_ph')}" style="width:320px"
                onkeydown="if(event.key==='Enter')mcpSearch()" />
         <button class="secondary" onclick="mcpSearch()">${t('panel.mcp_search_btn')}</button>
@@ -505,6 +509,7 @@ async function loadMcp(){
       $('ms-http-fields').style.display = isHttp?'':'none';
       $('ms-stdio-fields').style.display = isHttp?'none':'';
     };
+    loadMyTools();  // Smithery key tanımlıysa hesaptaki tool'ları göster
   }catch(e){ $('tab-mcp').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 function mcpRow(s, ameles){
@@ -528,7 +533,7 @@ function mcpRow(s, ameles){
       <select id="mb-${s.id}" style="width:auto;margin:0 0 0 auto">
         ${ameles.map(a=>`<option value="${a.id}">${esc(a.slug)}</option>`).join('')}
       </select>
-      <button class="ghost" onclick="bindMcp(${s.id})">${t('panel.mcp_bind')}</button>
+      ${(s.ameles||[]).length===0? `<button class="ghost" onclick="bindMcp(${s.id})">${t('panel.mcp_bind')}</button>`:''}
       ${(s.ameles||[]).length? `<button class="ghost red" onclick="unbindMcp(${s.id})">${t('panel.mcp_unbind')}</button>`:''}
       <button class="ghost" onclick="mcpExplain(${s.id})">${t('panel.mcp_explain')}</button>
       <button class="ghost red" onclick="delMcp(${s.id})">${t('panel.mcp_delete')}</button>
@@ -539,6 +544,31 @@ async function acceptLiability(){
   try{ await api('/api/settings',{method:'POST',body:JSON.stringify(
         {settings:{mcp_liability_accepted:'1'}})});
     toast(t('panel.mcp_liability_ok')); loadMcp(); }catch(e){ toast(e.message); }
+}
+async function loadMyTools(){
+  const el = $('sm-mine');
+  if(!el) return;
+  el.textContent = '…';
+  try{
+    const d = await api('/api/v2/mcp/smithery');
+    if(!d.configured){
+      el.innerHTML = `<span style="color:var(--warn)">${t('panel.mcp_smithery_none')}</span>`;
+      return;
+    }
+    if(d.error){
+      el.innerHTML = `<span style="color:var(--warn)">⚠ ${t('panel.mcp_smithery_error')}: ${esc(d.error)}</span>`;
+      return;
+    }
+    const ns = d.namespaces||[];
+    if(!ns.length){
+      el.innerHTML = `<span style="color:var(--muted)">${t('panel.mcp_smithery_empty')}</span>`;
+      return;
+    }
+    el.innerHTML = '<ul style="margin:4px 0 0 18px">'+ns.map(n=>{
+      const c = d.tools&&d.tools[n]!==undefined ? ' — '+d.tools[n]+' tool' : '';
+      return '<li>'+esc(n)+c+'</li>';
+    }).join('')+'</ul>';
+  }catch(e){ toast(e.message); }
 }
 async function mcpSearch(){
   const q = $('mc-q').value.trim();

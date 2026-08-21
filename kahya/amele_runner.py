@@ -107,6 +107,8 @@ def run_amele(cfg: Config, yaml_path: Path, task: str,
         "KAHYA_LANGUAGE": cfg.language,
         "KAHYA_LANGUAGE_NAME": _LANG_NAMES.get(cfg.language, "English"),
     }
+    if cfg.smithery_api_key:
+        env["SMITHERY_API_KEY"] = cfg.smithery_api_key  # ${SMITHERY_API_KEY} headers
     amele = cfg._db.get_amele_by_slug(slug)
     if amele:
         env["KAHYA_AMELE_ID"] = str(amele["id"])

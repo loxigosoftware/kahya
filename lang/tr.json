@@ -2,9 +2,9 @@
   "lang_name": "Türkçe",
   "bot": {
     "start_welcome": "🧑💼 <b>Kâhya</b> — evinizin ve küçük işletmenizin kâhyası.\n\nBana doğal dille yazın:\n• <i>\"3000 TL su invoice geldi, son ödeme 19 ağustos\"</i>\n• <i>\"Kedi Pamuk'un kuduz aşısı 3 eylülde\"</i>\n• <i>\"Her ayın 20'sinde kira hatırlat\"</i>\n• <i>\"Kuduz aşısı ne zamandı?\"</i> (soru sorabilirsiniz)\n\nKomutlar: <b>/help</b> ile tümünü görün.",
-    "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille konuşun — Kâhya uygun ameleye iletir.\n\n<b>Komutlar:</b>\n/amele — amelesi listeler\n/help — bu liste\n/iptal — akışı/oturumu iptal\n\n<b>Doğrudan amele:</b>\n/<slug> ... — mesajı o ameleye gönderir\n/<slug> — o ameleyle sohbet moduna girer",
+    "help": "🧑💼 <b>Kâhya — komutlar</b>\n\n<b>Sohbet:</b>\nDoğal dille konuşun — Kâhya uygun ameleye iletir.\n\n<b>Komutlar:</b>\n/amele — amelesi listeler\n/help — bu liste\n/cancel — akışı/oturumu iptal\n\n<b>Doğrudan amele:</b>\n/<slug> ... — mesajı o ameleye gönderir\n/<slug> — o ameleyle sohbet moduna girer",
     "unknown_user": "Bu kâhya başka bir evin kâhyası. 🏠",
-    "understand_error": "Anlayamadım ({code}). Daha net yazın veya <b>/iptal</b>.",
+    "understand_error": "Anlayamadım ({code}). Daha net yazın veya <b>/cancel</b>.",
     "extract_invalid": "Bunu çözemedim — biraz daha açık anlatır mısın?",
     "ask_due_date": "Son ödeme / etkinlik tarihi ne zaman? 📅",
     "confirm_title": "📋 <b>Bunu kaydedeyim mi?</b>",
@@ -20,7 +20,7 @@
     "list_overdue": "geçti!",
     "paid_none": "Hatırlatma penceresinde açık görev yok. 👍",
     "paid_which": "Hangisini tamamlayayım?",
-    "paid_ask_number": "Numarayı yazın (veya <b>/iptal</b>).",
+    "paid_ask_number": "Numarayı yazın (veya <b>/cancel</b>).",
     "paid_done": "✅ <b>{title}</b> tamamlandı. Kapattım.",
     "paid_rolled": "✅ <b>{title}</b> tamamlandı.\nTekrar eden kayıt: sonraki vade <b>{date}</b>.",
     "item_notfound": "Bu görev bulunamadı.",
@@ -35,10 +35,10 @@
     "settings_off": "KAPALI — panelden ayarlayın",
     "wizard_cancel": "İptal edildi.",
     "wizard_bad_slug": "Geçersiz slug. Küçük harf, rakam ve tire kullanın (2-32 karakter).",
-    "wizard_delete_which": "Hangi ameleyi sileyim? (slug yazın) — <b>/iptal</b> ile çıkın",
+    "wizard_delete_which": "Hangi ameleyi sileyim? (slug yazın) — <b>/cancel</b> ile çıkın",
     "wizard_delete_confirm": "⚠️ <b>{name}</b> (<code>{slug}</code>) silinecek, {n} görevi genel alana taşınacak. Emin misiniz? <b>evet</b> / <b>hayır</b>",
     "wizard_delete_done": "🗑️ <b>{name}</b> silindi.",
-    "wizard_edit_which": "Hangi ameleyi düzenleyeyim? (slug yazın) — <b>/iptal</b> ile çıkın",
+    "wizard_edit_which": "Hangi ameleyi düzenleyeyim? (slug yazın) — <b>/cancel</b> ile çıkın",
     "wizard_edit_field": "<b>{name}</b> için hangi alanı değiştirelim?\n1. Ad\n2. Görev tanımı\n(numara yazın)",
     "wizard_edit_new_name": "Yeni ad:",
     "wizard_edit_new_role": "Yeni görev tanımı:",
@@ -46,7 +46,7 @@
     "job_flow_title": "📝 Görev ekleme (sihirbaz)",
     "job_flow_ask": "Görevi doğal dille yazın:\n<i>\"3000 TL su invoice geldi, son ödeme 19 ağustos\"</i>",
     "job_flow_done": "Görev kaydedildi ✅",
-    "session_started": "💬 <b>{name}</b> ile sohbet modu — sonraki mesajlar bu ameleye gider. Çıkmak için <b>/iptal</b>.",
+    "session_started": "💬 <b>{name}</b> ile sohbet modu — sonraki mesajlar bu ameleye gider. Çıkmak için <b>/cancel</b>.",
     "amele_not_found": "Amele bulunamadı: <code>{slug}</code>. <b>/amele</b> ile listeye bakın.",
     "unknown_command": "Bilinmeyen komut. <b>/amele</b> ve <b>/help</b>'e bakın — amele yönetimi (ekleme, düzenleme, silme) web panelinde.",
     "approval_forwarded": "✅ Onayınız {name} amelesine iletildi.",
@@ -54,7 +54,7 @@
     "ameles_header": "🤖 <b>Ameles:</b>",
     "ameles_none": "Henüz amele yok. Web panelinden ilk amelenizi oluşturun.",
     "ameles_records": "{n} kayıt",
-    "approval_ask": "📋 <b>{amele}:</b> {soru}\n\nOnaylıyor musun? <b>evet</b> / <b>hayır</b> / <b>iptal</b>",
+    "approval_ask": "📋 <b>{amele}:</b> {soru}\n\nOnaylıyor musun? <b>evet</b> / <b>hayır</b> / <b>cancel</b>",
     "task_failed": "⚠️ Zamanlanmış görev çalışmadı: <b>{isim}</b> — {hata}\nGörev beklemeye alındı, tekrar denenir."
   },
   "panel": {
@@ -244,7 +244,11 @@
     "mcp_oauth_login": "🔑 Giriş yap (terminal)",
     "mcp_oauth_status": "Kimlik durumu",
     "mcp_login_cmd": "Bu komutu Pi'de terminalde çalıştırın:",
-    "mcp_smithery_note": "Katalog sonuçları Smithery registry'den gelir. Hosted sunuculara bağlanmak için Ayarlar → Smithery API anahtarı gerekir (${SMITHERY_API_KEY} header'ı ile aktarılır)."
+    "mcp_smithery_note": "Katalog sonuçları Smithery registry'den gelir. Hosted sunuculara bağlanmak için Ayarlar → Smithery API anahtarı gerekir (${SMITHERY_API_KEY} header'ı ile aktarılır).",
+    "mcp_smithery_mine": "Hesabımdaki Smithery tool'ları",
+    "mcp_smithery_none": "Smithery API key tanımlı değil — tool'larını listelemek için Ayarlar'dan key ekle.",
+    "mcp_smithery_error": "Smithery hatası",
+    "mcp_smithery_empty": "Bu hesapta tool bulunamadı."
   },
   "guide": [
     {
@@ -257,7 +261,7 @@
     },
     {
       "title": "🎛️ Telegram komutları",
-      "body": "/ameles — amelesi listeler\n/add-amele — yeni amele ekler (sihirbaz: ad → slug → görev tanımı → onay)\n/edit-amele — ameleyin adını veya görev tanımını değiştirir\n/delete-amele — ameleyi siler (onay ister, görevleri genel alana taşınır)\n/jobs — açık görevleri listeler\n/add-job — görev ekler (sihirbaz)\n/done — hatırlatma penceresindeki görevi tamamlar\n/settings — kurulum özeti\n/help — komut listesi\n/iptal — başlayan akışı iptal eder\n\nBirden fazla görev penceredeyse \"/done\" hangisini tamamlayacağınızı sorar."
+      "body": "/ameles — amelesi listeler\n/add-amele — yeni amele ekler (sihirbaz: ad → slug → görev tanımı → onay)\n/edit-amele — ameleyin adını veya görev tanımını değiştirir\n/delete-amele — ameleyi siler (onay ister, görevleri genel alana taşınır)\n/jobs — açık görevleri listeler\n/add-job — görev ekler (sihirbaz)\n/done — hatırlatma penceresindeki görevi tamamlar\n/settings — kurulum özeti\n/help — komut listesi\n/cancel — başlayan akışı iptal eder\n\nBirden fazla görev penceredeyse \"/done\" hangisini tamamlayacağınızı sorar."
     },
     {
       "title": "🤖 Amele kavramı",
@@ -285,5 +289,10 @@
     "personal": "Kişisel kullanım: Bu yazılım, kişisel ve ticari olmayan kullanım için MIT lisansı koşullarında ücretsizdir (aşağıdaki koşullara tabi).",
     "commercial": "Ticari kullanım: Bir kuruluşun ticari faaliyeti kapsamında kullanım (serbest çalışanlar dahil, iş süreçlerinde kullanım) ücretli ticari lisans gerektirir. Ticari lisans için: Loxigo Software — www.loxigo.com",
     "note": "Kişisel kullanım, MIT benzeri şartlara tabidir: yazılım \"olduğu gibi\" sağlanır, hiçbir garanti yoktur; telif bildirimi korunmalıdır. Amele (MIT) üzerine inşa edilmiştir — amele'in kendi lisansı geçerliliğini korur."
+  },
+  "menu": {
+    "amele": "Amelesi listele",
+    "help": "Komut listesi",
+    "cancel": "Akışı/oturumu iptal et"
   }
 }

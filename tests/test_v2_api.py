@@ -138,6 +138,16 @@ kh_env = _amele_model_env(cfg, "kahya")  # DB kaydı yok → sistem ayarı (Kahy
 check("kahya sistem ayarını kullanır (DB kaydı yoksa)",
       kh_env["AMELE_MODEL"] == "sistem-modeli")
 
+# --- smithery api key (settings tablosu; panelden girilir, env'den değil) ---
+from kahya.config import Config  # noqa: E402
+db.set_setting("smithery_api_key", "sk-test-fake")
+cfg2 = Config(db)
+check("smithery key DB'den okunuyor", cfg2.smithery_api_key == "sk-test-fake")
+env2 = dict(_amele_model_env(cfg2, "mail-amele")) if False else None
+db.set_setting("smithery_api_key", None)
+check("smithery key silinebiliyor", Config(db).smithery_api_key == "")
+db.set_setting("smithery_api_key", "sk-test-fake")
+
 db.close()
 print()
 if fails:

@@ -270,6 +270,8 @@ def install_amele(os_name: str, arch: str, force: bool) -> Path:
                  "missing). Project rule: no MCP, no amele. Remove "
                  "bin/amele and re-run — the installer will fetch an MCP "
                  "build from loxigosoftware/amele-builds")
+        if os.name != "nt":
+            binary.chmod(0o755)  # guarantee execute bit on existing binaries
         say(f"  · amele already present: {binary} (MCP ✓, use --force to "
             f"re-download)", "dim")
         return binary

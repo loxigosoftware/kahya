@@ -244,7 +244,11 @@
     "mcp_oauth_login": "🔑 Login (terminal)",
     "mcp_oauth_status": "Credential status",
     "mcp_login_cmd": "Run this command in a terminal on your Pi:",
-    "mcp_smithery_note": "Catalog results come from the Smithery registry. Binding hosted servers needs the Smithery API key in Settings (passed as ${SMITHERY_API_KEY} header)."
+    "mcp_smithery_note": "Catalog results come from the Smithery registry. Binding hosted servers needs the Smithery API key in Settings (passed as ${SMITHERY_API_KEY} header).",
+    "mcp_smithery_mine": "My Smithery tools",
+    "mcp_smithery_none": "No Smithery API key set — add it in Settings to list your tools.",
+    "mcp_smithery_error": "Smithery error",
+    "mcp_smithery_empty": "No tools found in this account."
   },
   "guide": [
     {
@@ -285,5 +289,10 @@
     "personal": "Personal use: this software is free for personal, non-commercial use under MIT license terms (subject to the conditions below).",
     "commercial": "Commercial use: use within a commercial activity of an organisation (including freelancers using it in business processes) requires a paid commercial license. For a commercial license: Loxigo Software — www.loxigo.com",
     "note": "Personal use is subject to MIT-like terms: the software is provided \"as is\", without warranty; the copyright notice must be preserved. Built on amele (MIT) — amele's own license remains in effect."
+  },
+  "menu": {
+    "amele": "List ameles",
+    "help": "Command list",
+    "cancel": "Cancel flow/session"
   }
 }

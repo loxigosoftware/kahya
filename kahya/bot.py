@@ -2,9 +2,9 @@
 
 Routing:
   1. /<slug> ...     → direct message to that amele (Kahya is skipped)
-  2. /<slug>         → chat mode with that amele (until /iptal)
-  3. /amele /help /iptal /start
-  4. approval words ("evet", "hayır", "iptal" in the selected language)
+  2. /<slug>         → chat mode with that amele (until /cancel)
+  3. /amele /help /cancel /start
+  4. approval words (in the selected language)
      → matched to the latest pending action and forwarded to its amele
   5. anything else   → Kâhya (orchestrator) with the compact amele index
 
@@ -34,8 +34,6 @@ SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,30}$")
 # approval words (selected language) — matched ONLY as a full message
 APPROVE_WORDS = ("evet", "e", "yes", "onay", "tamam", "gönder", "kaydet")
 REJECT_WORDS = ("hayır", "h", "no", "yok", "istemiyorum")
-CANCEL_WORDS = ("iptal", "cancel", "vazgeç")
-
 # ------------------------------------------------ telegram plumbing
 
 
@@ -162,16 +160,18 @@ class Bot:
         return None
 
     def _register_commands(self) -> None:
-        """Publish the /-menu: /amele, /help, /iptal + every enabled
-        amele's own /<slug> (underscored — Telegram allows only a-z0-9_)."""
+        """Publish the /-menu: /amele, /help, /cancel + every enabled
+        amele's own /<slug> (underscored — Telegram allows only a-z0-9_).
+        Command names are fixed English; descriptions follow the
+        selected chat language."""
         ameles = self._ameles()
         n = len(ameles)
         if n == self._registered_amele_count:
             return
         cmds: list[tuple[str, str]] = [
-            ("amele", "Amele listesi"),
-            ("help", "Komut listesi"),
-            ("iptal", "Akışı/oturumu iptal"),
+            ("amele", self._t("menu.amele")),
+            ("help", self._t("menu.help")),
+            ("cancel", self._t("menu.cancel")),
         ]
         for a in ameles:
             cmds.append((a["slug"].replace("-", "_"), a["name"]))
@@ -278,7 +278,7 @@ class Bot:
         "<amele-adı> <kelime>" → o amelenin bekleyen onayı (eski onaya
         cevap vermek için).
         """
-        words = set(APPROVE_WORDS) | set(REJECT_WORDS) | set(CANCEL_WORDS)
+        words = set(APPROVE_WORDS) | set(REJECT_WORDS) | {"cancel"}
         if low in words:
             pass  # düz kelime akışı aşağıda
         else:
@@ -339,7 +339,7 @@ class Bot:
 
         # chat mode: non-command messages go to the session amele
         if session_slug and not low.startswith("/"):
-            if low in CANCEL_WORDS:
+            if low in ("cancel",):
                 self._cmd_cancel(chat_id)
                 return
             if self._try_approval(chat_id, low, in_session=True):
@@ -353,8 +353,8 @@ class Bot:
             self._send(chat_id, answer, html=False)
             return
         if session_slug and low.startswith("/"):
-            # komut oturumu keser mi? /iptal keser; diğerleri işlenir,
-            # oturum ayrıca korunur.
+            # does a command break the session? /cancel does; others
+            # are handled and the session is kept.
             pass
 
         # ---- commands ----
@@ -367,7 +367,7 @@ class Bot:
         if low in ("/amele", "/ameles", "amele", "ameles", "amelist"):
             self._cmd_ameles(chat_id)
             return
-        if low in ("/iptal", "/cancel", "iptal", "cancel"):
+        if low in ("/cancel", "cancel"):
             self._cmd_cancel(chat_id)
             return
 

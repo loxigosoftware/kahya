@@ -115,7 +115,7 @@ ask_msg = SENT[-1]["text"] if SENT else ""
 check("1d başlıkta amele adı var", "📋" in ask_msg and "<b>mail-amele:</b>" in ask_msg,
       ask_msg[:90])
 check("1e evet/hayır/iptal yönergesi var",
-      "evet" in ask_msg and "hayır" in ask_msg and "iptal" in ask_msg)
+      "evet" in ask_msg and "hayır" in ask_msg and "cancel" in ask_msg)
 db.resolve_pending_action(out["onay_id"], "cancelled")
 
 # Telegram kapalıysa → kayıt iptal, hata döner

@@ -195,6 +195,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/v2/mcp/status":
             self._v2_mcp_status()
             return
+        if path == "/api/v2/mcp/smithery":
+            self._v2_mcp_smithery_get()
+            return
         if path == "/api/settings":
             self._json({"settings": self.server.cfg.all_editable()})
             return
@@ -691,6 +694,44 @@ class Handler(BaseHTTPRequestHandler):
                                    "Chrome/126.0 Safari/537.36"})
         with urllib.request.urlopen(req, timeout=20) as r:
             return json.loads(r.read().decode())
+
+    def _smithery_api_get(self, path: str, key: str) -> dict:
+        """api.smithery.ai'ye Bearer key ile GET (kullanıcının hesap verisi)."""
+        req = urllib.request.Request(
+            f"https://api.smithery.ai{path}",
+            headers={"Authorization": f"Bearer {key}",
+                     "User-Agent": "kahya/1.0"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read().decode())
+
+    def _v2_mcp_smithery_get(self):
+        """Panel: Smithery key durumu + hesaptaki namespace'ler (tool paketleri).
+
+        The key itself is never sent back to the browser — only whether it
+        is configured. Tool counts per namespace come from the connect API.
+        """
+        cfg = self.server.cfg
+        key = cfg.smithery_api_key
+        out = {"configured": bool(key), "namespaces": [], "tools": {}}
+        if not key:
+            self._json(out)
+            return
+        try:
+            ns = self._smithery_api_get("/namespaces", key)
+            names = [n.get("name") for n in (ns.get("namespaces") or [])
+                     if n.get("name")]
+            out["namespaces"] = names
+            for name in names:
+                try:
+                    t = self._smithery_api_get(f"/connect/{name}/.tools", key)
+                    out["tools"][name] = sum(
+                        len((v or {}).get("tools") or [])
+                        for v in t.values() if isinstance(v, dict))
+                except Exception:
+                    out["tools"][name] = None
+        except Exception as e:
+            out["error"] = str(e)
+        self._json(out)
 
     def _v2_mcp_search(self):
         """Smithery katalog araması (registry public; anahtar gerekmez)."""
